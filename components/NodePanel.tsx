@@ -5,14 +5,18 @@ import { WorkflowNode, AIAgentNodeData, LLMNodeData } from '@/lib/types';
 import { workflowStore } from '@/lib/workflowStore';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
 
 interface NodePanelProps {
   node: WorkflowNode | null;
   onUpdate: (nodeId: string, updates: Partial<WorkflowNode>) => void;
+  variant?: 'sidebar' | 'modal';
 }
 
-export default function NodePanel({ node, onUpdate }: NodePanelProps) {
+export default function NodePanel({
+  node,
+  onUpdate,
+  variant = 'sidebar',
+}: NodePanelProps) {
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [geminiModels, setGeminiModels] = useState<string[]>([
     'gemini-pro',
@@ -28,9 +32,19 @@ export default function NodePanel({ node, onUpdate }: NodePanelProps) {
     setApiKeys(workflowStore.getApiKeys());
   }, []);
 
+  const containerClassName =
+    variant === 'modal'
+      ? 'w-full max-h-[80vh] bg-white p-6 overflow-y-auto'
+      : 'w-80 bg-white border-l border-gray-200 p-6 overflow-y-auto';
+
+  const emptyStateClassName =
+    variant === 'modal'
+      ? 'w-full min-h-72 bg-gray-50 p-6 flex flex-col items-center justify-center text-gray-500'
+      : 'w-80 bg-gray-50 border-l border-gray-200 p-6 flex flex-col items-center justify-center text-gray-500';
+
   if (!node) {
     return (
-      <div className="w-80 bg-gray-50 border-l border-gray-200 p-6 flex flex-col items-center justify-center text-gray-500">
+      <div className={emptyStateClassName}>
         <div className="text-center">
           <p className="font-semibold mb-2">No node selected</p>
           <p className="text-sm">Click a node to configure it</p>
@@ -275,7 +289,7 @@ export default function NodePanel({ node, onUpdate }: NodePanelProps) {
   };
 
   return (
-    <div className="w-80 bg-white border-l border-gray-200 p-6 overflow-y-auto">
+    <div className={containerClassName}>
       <div className="mb-6">
         <h3 className="text-lg font-bold text-gray-900 mb-2">
           {node.data.label}

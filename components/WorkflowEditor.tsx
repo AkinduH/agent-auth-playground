@@ -30,6 +30,7 @@ interface WorkflowEditorProps {
   workflow: Workflow | null;
   selectedNodeId: string | null;
   onNodeSelect: (nodeId: string | null) => void;
+  onNodeDoubleClick: (nodeId: string) => void;
   onNodeAdd: (node: WorkflowNode) => void;
   onNodeUpdate: (nodeId: string, updates: Partial<WorkflowNode>) => void;
   onNodeDelete: (nodeId: string) => void;
@@ -41,6 +42,7 @@ export default function WorkflowEditor({
   workflow,
   selectedNodeId,
   onNodeSelect,
+  onNodeDoubleClick,
   onNodeAdd,
   onNodeUpdate,
   onNodeDelete,
@@ -89,6 +91,13 @@ export default function WorkflowEditor({
       onNodeSelect(node.id);
     },
     [onNodeSelect]
+  );
+
+  const handleNodeDoubleClick = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      onNodeDoubleClick(node.id);
+    },
+    [onNodeDoubleClick]
   );
 
   // Persist position changes in workflow state so later updates don't reset node locations
@@ -229,6 +238,7 @@ export default function WorkflowEditor({
           onEdgesChange={onEdgesChange}
           onConnect={handleConnect}
           onNodeClick={handleNodeClick}
+          onNodeDoubleClick={handleNodeDoubleClick}
           onNodeDragStop={handleNodeDragStop}
           nodeTypes={nodeTypes}
           defaultEdgeOptions={{

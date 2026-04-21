@@ -7,8 +7,9 @@ import NodePanel from '@/components/NodePanel';
 import ChatPanel from '@/components/ChatPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { validateWorkflow } from '@/lib/workflowExecutor';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 export default function Home() {
@@ -36,6 +37,16 @@ export default function Home() {
 
   const [workflowName, setWorkflowName] = useState(workflow?.name || '');
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [isNodePanelOpen, setIsNodePanelOpen] = useState(false);
+
+  const selectedNode =
+    workflow?.nodes.find((n) => n.id === selectedNodeId) || null;
+
+  useEffect(() => {
+    if (!selectedNode) {
+      setIsNodePanelOpen(false);
+    }
+  }, [selectedNode]);
 
   const handleSendMessage = async (message: string) => {
     if (!workflow) return;
@@ -111,6 +122,10 @@ export default function Home() {
             workflow={workflow}
             selectedNodeId={selectedNodeId}
             onNodeSelect={setSelectedNodeId}
+            onNodeDoubleClick={(nodeId) => {
+              setSelectedNodeId(nodeId);
+              setIsNodePanelOpen(true);
+            }}
             onNodeAdd={addNode}
             onNodeUpdate={updateNode}
             onNodeDelete={deleteNode}
@@ -130,15 +145,13 @@ export default function Home() {
             disabled={!workflow || workflow.nodes.length === 0}
           />
         </div>
-
-        {/* Far Right: Node Configuration */}
-        <div>
-          <NodePanel
-            node={workflow.nodes.find((n) => n.id === selectedNodeId) || null}
-            onUpdate={updateNode}
-          />
-        </div>
       </div>
+
+      <Dialog open={isNodePanelOpen} onOpenChange={setIsNodePanelOpen}>
+        <DialogContent className="w-[95vw] max-w-2xl p-0">
+          <NodePanel node={selectedNode} onUpdate={updateNode} variant="modal" />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

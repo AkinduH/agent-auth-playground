@@ -9,7 +9,7 @@ export default function AIAgentNode({ data }: any) {
 
   return (
     <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white min-w-[180px] shadow-lg border-2 border-purple-700">
-      <div className="text-sm font-bold mb-2">🤖 AI Agent</div>
+      <div className="text-sm font-bold mb-2">AI Agent</div>
       <div className="text-xs bg-black/20 p-2 rounded mb-2 max-h-16 overflow-y-auto">
         {truncated}
       </div>
