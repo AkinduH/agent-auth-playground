@@ -70,14 +70,14 @@ export default function WorkflowEditor({
       target: edge.target,
       animated: true,
       style: {
-        stroke: '#2563eb',
+        stroke: '#565656',
         strokeWidth: 2,
       },
       markerEnd: {
         type: MarkerType.ArrowClosed,
         width: 20,
         height: 20,
-        color: '#2563eb',
+        color: '#565656',
       },
     }));
 
@@ -243,14 +243,14 @@ export default function WorkflowEditor({
           nodeTypes={nodeTypes}
           defaultEdgeOptions={{
             style: {
-              stroke: '#2563eb',
+              stroke: '#565656',
               strokeWidth: 2,
             },
             markerEnd: {
               type: MarkerType.ArrowClosed,
               width: 20,
               height: 20,
-              color: '#2563eb',
+              color: '#565656',
             },
           }}
           fitView

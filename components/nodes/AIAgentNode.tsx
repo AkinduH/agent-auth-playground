@@ -2,19 +2,20 @@ import { Handle, Position } from 'reactflow';
 import aiAgentImage from '../assets/ai-agent.png';
 
 export default function AIAgentNode() {
-
   return (
-    <div className="bg-white rounded-lg p-4 text-slate-900 min-w-[180px] shadow-lg border-2 border-slate-200 flex flex-col items-center">
-      <div className="flex flex-col items-center gap-2 mb-2 text-center">
-        <img
-          src={aiAgentImage.src}
-          alt="AI Agent"
-          className="w-15 h-15 rounded-full object-cover border border-slate-200"
-        />
-        <div className="text-sm font-bold">AI Agent</div>
+    <div className="flex flex-col items-center gap-2">
+      <div className="relative flex h-25 w-25 items-center justify-center rounded-[1.25rem] border border-slate-200 bg-white p-4 shadow-lg">
+        <div className="flex h-17 w-17 items-center justify-center rounded-full border border-slate-100 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.12)]">
+          <img
+            src={aiAgentImage.src}
+            alt="AI Agent"
+            className="h-12 w-12 object-contain"
+          />
+        </div>
+        <Handle type="target" position={Position.Left} />
+        <Handle type="source" position={Position.Right} />
       </div>
-      <Handle type="target" position={Position.Left} />
-      <Handle type="source" position={Position.Right} />
+      <div className="text-xs font-medium text-slate-700">AI Agent</div>
     </div>
   );
 }
