@@ -1,19 +1,25 @@
 import { Handle, Position } from 'reactflow';
+import GoogleImage from '../assets/google-logo.png';
+import OpenaiImage from '../assets/openai-logo.png';
 
 export default function LLMNode({ data }: any) {
-  const providerIcon = data.provider === 'gemini' ? '🔮' : '🤖';
-  const modelName = data.model || 'Not selected';
-  const truncated =
-    modelName.length > 20
-      ? modelName.substring(0, 17) + '...'
-      : modelName;
+  const isGemini = data.provider === 'gemini';
+  const logoSrc = isGemini ? GoogleImage.src : OpenaiImage.src;
+  const providerLabel = isGemini ? 'Google Gemini' : 'OpenAI';
 
   return (
-    <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white min-w-[160px] shadow-lg border-2 border-green-700">
-      <div className="text-sm font-bold mb-2">{providerIcon} LLM</div>
-      <div className="text-xs bg-black/20 p-2 rounded mb-2">{truncated}</div>
-      <div className="text-xs opacity-90">
-        {data.provider === 'gemini' ? 'Google Gemini' : 'OpenAI'}
+    <div className="flex flex-col items-center gap-2 text-slate-900">
+      <div className="relative h-20 w-20 overflow-hidden rounded-full bg-white shadow-lg border-2 border-slate-200">
+        <div className="flex h-full w-full items-center justify-center">
+          <img
+            src={logoSrc}
+            alt={providerLabel}
+            className="h-12 w-12 object-contain"
+          />
+        </div>
+      </div>
+      <div className="text-xs font-medium text-slate-700">
+        {providerLabel}
       </div>
       <Handle type="target" position={Position.Left} />
     </div>

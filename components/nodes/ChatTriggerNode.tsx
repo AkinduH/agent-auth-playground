@@ -1,10 +1,17 @@
 import { Handle, Position } from 'reactflow';
+import ChatTriggerImage from '../assets/chat.png';
 
-export default function ChatTriggerNode({ data }: any) {
+export default function ChatTriggerNode() {
   return (
-    <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white min-w-[160px] shadow-lg border-2 border-blue-700">
-      <div className="text-sm font-bold mb-2">Chat Trigger</div>
-      <div className="text-xs opacity-90">Receives chat input</div>
+    <div className="flex flex-col items-center gap-2 text-slate-900">
+      <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-lg bg-white shadow-lg border-2 border-slate-200">
+        <img
+          src={ChatTriggerImage.src}
+          alt="Chat Trigger"
+          className="h-12 w-12 object-contain"
+        />
+      </div>
+      <div className="text-xs font-medium text-slate-700">Chat Trigger</div>
       <Handle type="source" position={Position.Right} />
     </div>
   );

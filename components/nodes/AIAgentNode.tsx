@@ -1,20 +1,17 @@
 import { Handle, Position } from 'reactflow';
+import aiAgentImage from '../assets/ai-agent.png';
 
-export default function AIAgentNode({ data }: any) {
-  const systemPrompt = data.systemPrompt || 'No prompt configured';
-  const truncated =
-    systemPrompt.length > 50
-      ? systemPrompt.substring(0, 47) + '...'
-      : systemPrompt;
+export default function AIAgentNode() {
 
   return (
-    <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white min-w-[180px] shadow-lg border-2 border-purple-700">
-      <div className="text-sm font-bold mb-2">AI Agent</div>
-      <div className="text-xs bg-black/20 p-2 rounded mb-2 max-h-16 overflow-y-auto">
-        {truncated}
-      </div>
-      <div className="text-xs opacity-90">
-        Temp: {data.temperature?.toFixed(1) || '0.7'}
+    <div className="bg-white rounded-lg p-4 text-slate-900 min-w-[180px] shadow-lg border-2 border-slate-200 flex flex-col items-center">
+      <div className="flex flex-col items-center gap-2 mb-2 text-center">
+        <img
+          src={aiAgentImage.src}
+          alt="AI Agent"
+          className="w-15 h-15 rounded-full object-cover border border-slate-200"
+        />
+        <div className="text-sm font-bold">AI Agent</div>
       </div>
       <Handle type="target" position={Position.Left} />
       <Handle type="source" position={Position.Right} />
