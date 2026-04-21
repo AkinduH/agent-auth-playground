@@ -19,8 +19,12 @@ export default function NodePanel({
 }: NodePanelProps) {
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [geminiModels, setGeminiModels] = useState<string[]>([
-    'gemini-pro',
     'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-2.5-pro',
+    'gemini-3-flash-preview',
+    'gemini-3.1-flash-lite-preview',
+    'gemini-3.1-pro-preview',
   ]);
   const [openaiModels, setOpenaiModels] = useState<string[]>([
     'gpt-4o',

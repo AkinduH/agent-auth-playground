@@ -161,7 +161,7 @@ export default function WorkflowEditor({
         data = {
           label: 'AI Service',
           provider: 'gemini',
-          model: 'gemini-pro',
+          model: 'gemini-2.5-flash',
           temperature: 0.7,
           maxTokens: 1000,
           systemPrompt: 'You are a helpful assistant.',
