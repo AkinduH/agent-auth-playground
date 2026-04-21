@@ -159,7 +159,7 @@ export default function WorkflowEditor({
         break;
       case 'llm':
         data = {
-          label: 'LLM',
+          label: 'AI Service',
           provider: 'gemini',
           model: 'gemini-pro',
           temperature: 0.7,
@@ -209,7 +209,7 @@ export default function WorkflowEditor({
           size="sm"
           className="text-xs"
         >
-          + LLM
+          + AI Service
         </Button>
 
         <div className="flex-1" />

@@ -22,13 +22,16 @@ export interface ChatTriggerNodeData extends BaseNodeData {
 export interface AIAgentNodeData extends BaseNodeData {
   label: 'AI Agent';
   systemPrompt: string;
+  agentName?: string;
+  agentId?: string;
+  agentSecret?: string;
   temperature: number;
   maxTokens: number;
 }
 
 // LLM node data
 export interface LLMNodeData extends BaseNodeData {
-  label: 'LLM';
+  label: 'AI Service';
   provider: 'gemini' | 'openai';
   model: string;
   temperature: number;

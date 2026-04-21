@@ -81,6 +81,52 @@ export default function NodePanel({
           <div className="space-y-4">
             <div>
               <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                Agent Name
+              </label>
+              <Input
+                value={agentData.agentName || ''}
+                onChange={(e) =>
+                  onUpdate(node.id, {
+                    data: { ...agentData, agentName: e.target.value },
+                  })
+                }
+                placeholder="Enter agent name"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                Agent ID
+              </label>
+              <Input
+                value={agentData.agentId || ''}
+                onChange={(e) =>
+                  onUpdate(node.id, {
+                    data: { ...agentData, agentId: e.target.value },
+                  })
+                }
+                placeholder="Enter agent ID"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                Agent Secret
+              </label>
+              <Input
+                type="password"
+                value={agentData.agentSecret || ''}
+                onChange={(e) =>
+                  onUpdate(node.id, {
+                    data: { ...agentData, agentSecret: e.target.value },
+                  })
+                }
+                placeholder="Enter agent secret"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-gray-700 mb-2 block">
                 System Prompt
               </label>
               <Textarea
@@ -93,56 +139,6 @@ export default function NodePanel({
                 placeholder="Enter system prompt for the AI agent..."
                 className="text-sm"
                 rows={4}
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">
-                Temperature
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="range"
-                  min="0"
-                  max="2"
-                  step="0.1"
-                  value={agentData.temperature || 0.7}
-                  onChange={(e) =>
-                    onUpdate(node.id, {
-                      data: {
-                        ...agentData,
-                        temperature: parseFloat(e.target.value),
-                      },
-                    })
-                  }
-                  className="flex-1"
-                />
-                <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
-                  {(agentData.temperature || 0.7).toFixed(1)}
-                </span>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Higher values = more creative
-              </p>
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">
-                Max Tokens
-              </label>
-              <Input
-                type="number"
-                value={agentData.maxTokens || 1000}
-                onChange={(e) =>
-                  onUpdate(node.id, {
-                    data: {
-                      ...agentData,
-                      maxTokens: parseInt(e.target.value) || 1000,
-                    },
-                  })
-                }
-                min="1"
-                max="4000"
               />
             </div>
           </div>
@@ -219,23 +215,6 @@ export default function NodePanel({
 
             <div>
               <label className="text-sm font-semibold text-gray-700 mb-2 block">
-                System Prompt
-              </label>
-              <Textarea
-                value={llmData.systemPrompt || ''}
-                onChange={(e) =>
-                  onUpdate(node.id, {
-                    data: { ...llmData, systemPrompt: e.target.value },
-                  })
-                }
-                placeholder="Enter system prompt for the LLM..."
-                className="text-sm"
-                rows={3}
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">
                 Temperature
               </label>
               <div className="flex items-center gap-2">
@@ -294,7 +273,6 @@ export default function NodePanel({
         <h3 className="text-lg font-bold text-gray-900 mb-2">
           {node.data.label}
         </h3>
-        <p className="text-xs text-gray-500">Node ID: {node.id}</p>
       </div>
 
       {renderNodeConfig()}
