@@ -2,15 +2,22 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { Workflow, WorkflowNode, WorkflowEdge } from './types';
-import { workflowStore, createDefaultWorkflow, generateId } from './workflowStore';
+import { workflowStore, createDefaultWorkflow } from './workflowStore';
 
 export function useWorkflow() {
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  const refreshWorkflows = useCallback(() => {
+    setWorkflows(workflowStore.getAllWorkflows());
+  }, []);
+
   // Initialize workflow on mount
   useEffect(() => {
+    refreshWorkflows();
+
     const currentWorkflowId = workflowStore.getCurrentWorkflow();
     if (currentWorkflowId) {
       const stored = workflowStore.getWorkflow(currentWorkflowId);
@@ -24,13 +31,26 @@ export function useWorkflow() {
     const newWorkflow = createDefaultWorkflow();
     workflowStore.saveWorkflow(newWorkflow);
     setWorkflow(newWorkflow);
-  }, []);
+    refreshWorkflows();
+  }, [refreshWorkflows]);
 
   const createWorkflow = useCallback((name: string) => {
     const newWorkflow = createDefaultWorkflow(name);
     workflowStore.saveWorkflow(newWorkflow);
     setWorkflow(newWorkflow);
+    setSelectedNodeId(null);
+    refreshWorkflows();
     return newWorkflow;
+  }, [refreshWorkflows]);
+
+  const selectWorkflow = useCallback((workflowId: string) => {
+    const stored = workflowStore.getWorkflow(workflowId);
+    if (!stored) return null;
+
+    workflowStore.setCurrentWorkflow(stored.id);
+    setWorkflow(stored);
+    setSelectedNodeId(null);
+    return stored;
   }, []);
 
   const updateWorkflow = useCallback((updates: Partial<Workflow>) => {
@@ -45,15 +65,19 @@ export function useWorkflow() {
     });
   }, []);
 
-  const saveWorkflow = useCallback(async () => {
-    if (!workflow) return;
+  const saveWorkflow = useCallback(async (workflowToSave?: Workflow) => {
+    const targetWorkflow = workflowToSave || workflow;
+    if (!targetWorkflow) return;
+
     setIsSaving(true);
     try {
-      workflowStore.saveWorkflow(workflow);
+      workflowStore.saveWorkflow(targetWorkflow);
+      setWorkflow(targetWorkflow);
+      refreshWorkflows();
     } finally {
       setIsSaving(false);
     }
-  }, [workflow]);
+  }, [workflow, refreshWorkflows]);
 
   const addNode = useCallback(
     (node: WorkflowNode) => {
@@ -140,10 +164,12 @@ export function useWorkflow() {
 
   return {
     workflow,
+    workflows,
     selectedNodeId,
     setSelectedNodeId,
     isSaving,
     createWorkflow,
+    selectWorkflow,
     updateWorkflow,
     saveWorkflow,
     addNode,

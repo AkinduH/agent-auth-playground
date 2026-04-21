@@ -114,7 +114,7 @@ export function generateId(prefix: string = ''): string {
 }
 
 // Create default workflow
-export function createDefaultWorkflow(name: string = 'Untitled Workflow'): Workflow {
+export function createDefaultWorkflow(name: string = 'Workflow-1'): Workflow {
   const id = generateId('workflow-');
   return {
     id,
