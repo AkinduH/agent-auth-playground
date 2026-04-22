@@ -120,10 +120,12 @@ export class MCPClientNodeRuntime {
     args: Record<string, unknown> = {}
   ): Promise<MCPToolCallResult> {
     return this.executeWithReconnect(async (client) => {
+      console.log('MCP tool called:', name + ' with args: ' + JSON.stringify(args));
       const result = await client.callTool({
         name,
         arguments: args,
       });
+      console.log('MCP tool output:', result);
 
       return {
         isError: Boolean(result.isError),
