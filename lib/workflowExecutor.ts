@@ -54,7 +54,7 @@ export class WorkflowExecutor {
     workflowId: string,
     apiKeys: Partial<Record<'gemini' | 'openai', string>> = {},
     baseUrl?: string,
-    chatHistory: ChatMessage[] = []
+    memoryMessages: ChatMessage[] = []
   ) {
     this.workflow = workflow;
     this.apiKeys = apiKeys;
@@ -62,7 +62,7 @@ export class WorkflowExecutor {
     this.context = {
       workflowId,
       variables: {},
-      chatHistory,
+      memoryMessages,
       currentInput: initialInput,
     };
   }
@@ -119,6 +119,8 @@ export class WorkflowExecutor {
         return this.executeChatTrigger(node);
       case 'mcpClient':
         return this.executeMCPClient(node);
+      case 'memory':
+        return this.executeMemory(node);
       case 'aiAgent':
         return this.executeAIAgent(node);
       case 'llm':
@@ -158,6 +160,10 @@ export class WorkflowExecutor {
     return this.executeNode(nextNodeId);
   }
 
+  private async executeMemory(_node: WorkflowNode): Promise<string> {
+    return this.context.currentInput;
+  }
+
   private async executeAIAgent(node: WorkflowNode): Promise<string> {
     const data = node.data as AIAgentNodeData;
     const llmNode = this.getOutgoingNodes(node.id).find((connectedNode) => connectedNode.type === 'llm');
@@ -184,7 +190,7 @@ export class WorkflowExecutor {
 
     const connectedClients = await this.initializeMCPClients(mcpDependencyNodes);
     const toolExecutionLog: string[] = [];
-    const conversationHistory = this.formatChatHistory(this.context.chatHistory);
+    const memoryContext = this.formatMemoryMessages(this.context.memoryMessages);
     const maxToolSteps = this.getAgentStepLimit(data);
 
     try {
@@ -193,7 +199,7 @@ export class WorkflowExecutor {
       for (let step = 1; step <= maxToolSteps; step += 1) {
         const stepPrompt = this.buildAgentStepPrompt(
           this.context.currentInput,
-          conversationHistory,
+          memoryContext,
           availableTools,
           toolExecutionLog,
           step,
@@ -256,7 +262,7 @@ export class WorkflowExecutor {
         llmData,
         this.buildAgentFallbackPrompt(
           this.context.currentInput,
-          conversationHistory,
+          memoryContext,
           toolExecutionLog
         ),
         data.systemPrompt || 'You are a helpful assistant.'
@@ -459,12 +465,12 @@ export class WorkflowExecutor {
     return Math.min(12, Math.max(1, Math.floor(value)));
   }
 
-  private formatChatHistory(chatHistory: ChatMessage[]): string {
-    if (!chatHistory || chatHistory.length === 0) {
-      return '(no prior conversation)';
+  private formatMemoryMessages(memoryMessages: ChatMessage[]): string {
+    if (!memoryMessages || memoryMessages.length === 0) {
+      return '(no saved memory)';
     }
 
-    return chatHistory
+    return memoryMessages
       .slice(-16)
       .map((message) => `${message.role.toUpperCase()}: ${message.content}`)
       .join('\n');
@@ -487,7 +493,7 @@ export class WorkflowExecutor {
 
   private buildAgentStepPrompt(
     userInput: string,
-    conversationHistory: string,
+    memoryContext: string,
     tools: AgentToolBinding[],
     toolExecutionLog: string[],
     step: number,
@@ -504,7 +510,7 @@ export class WorkflowExecutor {
     return [
       `Step ${step} of ${maxSteps}. Decide the next best action for the user.`,
       `Current user request:\n${userInput}`,
-      `Conversation context:\n${conversationHistory}`,
+      `Memory context:\n${memoryContext}`,
       `Available function schemas:\n${JSON.stringify(functionSchemas, null, 2)}`,
       `Tool execution context:\n${
         toolExecutionLog.length > 0 ? toolExecutionLog.join('\n\n') : '(no tools used yet)'
@@ -515,13 +521,13 @@ export class WorkflowExecutor {
 
   private buildAgentFallbackPrompt(
     userInput: string,
-    conversationHistory: string,
+    memoryContext: string,
     toolExecutionLog: string[]
   ): string {
     return [
       'Create the final answer for the user based on all available context.',
       `Current user request:\n${userInput}`,
-      `Conversation context:\n${conversationHistory}`,
+      `Memory context:\n${memoryContext}`,
       `Tool execution context:\n${
         toolExecutionLog.length > 0
           ? toolExecutionLog.join('\n\n')

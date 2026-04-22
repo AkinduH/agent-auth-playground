@@ -2,8 +2,10 @@ import { Workflow, ChatMessage } from './types';
 
 const WORKFLOWS_KEY = 'workflows';
 const CURRENT_WORKFLOW_KEY = 'currentWorkflow';
-const CHAT_HISTORY_KEY = 'chatHistory';
+const WORKFLOW_MEMORY_KEY = 'workflowMemories';
 const API_KEYS_KEY = 'apiKeys';
+
+type WorkflowMemoryStore = Record<string, Record<string, ChatMessage[]>>;
 
 // Client-side storage utilities
 export const workflowStore = {
@@ -42,6 +44,7 @@ export const workflowStore = {
     const workflows = this.getAllWorkflows();
     const filtered = workflows.filter(w => w.id !== id);
     localStorage.setItem(WORKFLOWS_KEY, JSON.stringify(filtered));
+    this.clearWorkflowMemories(id);
   },
 
   // Current workflow
@@ -55,25 +58,67 @@ export const workflowStore = {
     return localStorage.getItem(CURRENT_WORKFLOW_KEY);
   },
 
-  // Chat history
-  saveChatMessage(message: ChatMessage): void {
-    if (typeof window === 'undefined') return;
-    
-    const history = this.getChatHistory();
-    history.push(message);
-    localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(history));
-  },
-
-  getChatHistory(): ChatMessage[] {
+  // Workflow memory by workflowId -> memoryNodeId -> chat messages
+  getWorkflowMemory(workflowId: string, memoryNodeId: string): ChatMessage[] {
     if (typeof window === 'undefined') return [];
-    
-    const stored = localStorage.getItem(CHAT_HISTORY_KEY);
-    return stored ? JSON.parse(stored) : [];
+
+    const stored = localStorage.getItem(WORKFLOW_MEMORY_KEY);
+    const allMemory: WorkflowMemoryStore = stored ? JSON.parse(stored) : {};
+    return allMemory[workflowId]?.[memoryNodeId] || [];
   },
 
-  clearChatHistory(): void {
+  appendWorkflowMemory(
+    workflowId: string,
+    memoryNodeId: string,
+    messages: ChatMessage[],
+    maxMessages: number
+  ): ChatMessage[] {
+    if (typeof window === 'undefined') return [];
+
+    const normalizedMax = Math.max(1, Math.floor(maxMessages || 1));
+    const existing = this.getWorkflowMemory(workflowId, memoryNodeId);
+    const next = [...existing, ...messages].slice(-normalizedMax);
+
+    const stored = localStorage.getItem(WORKFLOW_MEMORY_KEY);
+    const allMemory: WorkflowMemoryStore = stored ? JSON.parse(stored) : {};
+    const workflowMemory = allMemory[workflowId] || {};
+
+    allMemory[workflowId] = {
+      ...workflowMemory,
+      [memoryNodeId]: next,
+    };
+
+    localStorage.setItem(WORKFLOW_MEMORY_KEY, JSON.stringify(allMemory));
+    return next;
+  },
+
+  clearWorkflowMemory(workflowId: string, memoryNodeId: string): void {
     if (typeof window === 'undefined') return;
-    localStorage.removeItem(CHAT_HISTORY_KEY);
+
+    const stored = localStorage.getItem(WORKFLOW_MEMORY_KEY);
+    if (!stored) return;
+
+    const allMemory: WorkflowMemoryStore = JSON.parse(stored);
+    if (!allMemory[workflowId]) return;
+
+    delete allMemory[workflowId][memoryNodeId];
+
+    if (Object.keys(allMemory[workflowId]).length === 0) {
+      delete allMemory[workflowId];
+    }
+
+    localStorage.setItem(WORKFLOW_MEMORY_KEY, JSON.stringify(allMemory));
+  },
+
+  clearWorkflowMemories(workflowId: string): void {
+    if (typeof window === 'undefined') return;
+
+    const stored = localStorage.getItem(WORKFLOW_MEMORY_KEY);
+    if (!stored) return;
+
+    const allMemory: WorkflowMemoryStore = JSON.parse(stored);
+    delete allMemory[workflowId];
+    localStorage.setItem(WORKFLOW_MEMORY_KEY, JSON.stringify(allMemory));
   },
 
   // API key management

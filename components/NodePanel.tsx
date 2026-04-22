@@ -6,36 +6,40 @@ import {
   AIAgentNodeData,
   LLMNodeData,
   MCPClientNodeData,
+  MemoryNodeData,
 } from '@/lib/types';
 import { workflowStore } from '@/lib/workflowStore';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 
 interface NodePanelProps {
   node: WorkflowNode | null;
   onUpdate: (nodeId: string, updates: Partial<WorkflowNode>) => void;
+  workflowId?: string;
   variant?: 'sidebar' | 'modal';
 }
 
 export default function NodePanel({
   node,
   onUpdate,
+  workflowId,
   variant = 'sidebar',
 }: NodePanelProps) {
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
-  const [geminiModels, setGeminiModels] = useState<string[]>([
+  const geminiModels = [
     'gemini-2.5-flash',
     'gemini-2.5-flash-lite',
     'gemini-2.5-pro',
     'gemini-3-flash-preview',
     'gemini-3.1-flash-lite-preview',
     'gemini-3.1-pro-preview',
-  ]);
-  const [openaiModels, setOpenaiModels] = useState<string[]>([
+  ];
+  const openaiModels = [
     'gpt-4o',
     'gpt-4-turbo',
     'gpt-3.5-turbo',
-  ]);
+  ];
 
   useEffect(() => {
     setApiKeys(workflowStore.getApiKeys());
@@ -325,6 +329,60 @@ export default function NodePanel({
                 min="1"
                 max="4000"
               />
+            </div>
+          </div>
+        );
+
+      case 'memory':
+        const memoryData = node.data as MemoryNodeData;
+        const memoryMessageCount = workflowId
+          ? workflowStore.getWorkflowMemory(workflowId, node.id).length
+          : 0;
+        return (
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                Messages to Keep
+              </label>
+              <Input
+                type="number"
+                value={memoryData.maxMessages || 6}
+                onChange={(e) =>
+                  onUpdate(node.id, {
+                    data: {
+                      ...memoryData,
+                      maxMessages: Math.min(
+                        100,
+                        Math.max(1, parseInt(e.target.value, 10) || 6)
+                      ),
+                    },
+                  })
+                }
+                min="1"
+                max="100"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                The latest N chat messages are sent as memory context to the connected AI Agent.
+              </p>
+            </div>
+
+            <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
+              <p className="text-sm font-semibold text-gray-700 mb-1">Stored Messages</p>
+              <p className="text-xs text-gray-600 mb-3">
+                {memoryMessageCount} message{memoryMessageCount === 1 ? '' : 's'} currently saved.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!workflowId}
+                onClick={() => {
+                  if (!workflowId) return;
+                  workflowStore.clearWorkflowMemory(workflowId, node.id);
+                }}
+              >
+                Clear Memory
+              </Button>
             </div>
           </div>
         );

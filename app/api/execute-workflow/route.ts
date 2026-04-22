@@ -7,7 +7,7 @@ export const maxDuration = 60;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { workflow, input, workflowId, apiKeys, chatHistory } = body;
+    const { workflow, input, workflowId, apiKeys, memoryMessages } = body;
 
     if (!workflow || !input) {
       return NextResponse.json(
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       workflowId || 'temp',
       apiKeys || {},
       request.nextUrl.origin,
-      Array.isArray(chatHistory) ? chatHistory : []
+      Array.isArray(memoryMessages) ? memoryMessages : []
     );
     const result = await executor.execute();
 

@@ -1,4 +1,4 @@
-import { Workflow, MCPClientNodeData } from './types';
+import { Workflow, MCPClientNodeData, MemoryNodeData } from './types';
 
 export function validateWorkflow(workflow: Workflow): {
   valid: boolean;
@@ -50,6 +50,21 @@ export function validateWorkflow(workflow: Workflow): {
 
       if (!hasConnectedLLM) {
         errors.push(`AI Agent node ${node.id} must connect to an AI Service node`);
+      }
+    }
+
+    if (node.type === 'memory') {
+      const data = node.data as MemoryNodeData;
+      const hasIncomingAgent = workflow.edges.some(
+        (edge) => edge.target === node.id && nodesById.get(edge.source)?.type === 'aiAgent'
+      );
+
+      if (!hasIncomingAgent) {
+        errors.push(`Memory node ${node.id} must be connected as a target from an AI Agent node`);
+      }
+
+      if (!Number.isFinite(data.maxMessages) || data.maxMessages < 1) {
+        errors.push(`Memory node ${node.id} must keep at least 1 message`);
       }
     }
   }

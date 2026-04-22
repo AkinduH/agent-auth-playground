@@ -223,7 +223,12 @@ export default function Home() {
           <DialogDescription className="sr-only">
             Edit the selected node settings and behavior for this workflow.
           </DialogDescription>
-          <NodePanel node={selectedNode} onUpdate={updateNode} variant="modal" />
+          <NodePanel
+            node={selectedNode}
+            onUpdate={updateNode}
+            workflowId={workflow.id}
+            variant="modal"
+          />
         </DialogContent>
       </Dialog>
     </div>

@@ -1,5 +1,5 @@
 // Workflow node types
-export type NodeType = 'chatTrigger' | 'aiAgent' | 'llm' | 'mcpClient';
+export type NodeType = 'chatTrigger' | 'aiAgent' | 'llm' | 'mcpClient' | 'memory';
 
 // Position interface for React Flow
 export interface Position {
@@ -46,12 +46,19 @@ export interface MCPClientNodeData extends BaseNodeData {
   mcpServerEndpoint: string;
 }
 
+// Memory node data
+export interface MemoryNodeData extends BaseNodeData {
+  label: 'Memory';
+  maxMessages: number;
+}
+
 // Node type union
 export type NodeData =
   | ChatTriggerNodeData
   | AIAgentNodeData
   | LLMNodeData
-  | MCPClientNodeData;
+  | MCPClientNodeData
+  | MemoryNodeData;
 
 // React Flow node structure
 export interface WorkflowNode {
@@ -93,7 +100,7 @@ export interface ChatMessage {
 export interface ExecutionContext {
   workflowId: string;
   variables: Record<string, any>;
-  chatHistory: ChatMessage[];
+  memoryMessages: ChatMessage[];
   currentInput: string;
 }
 

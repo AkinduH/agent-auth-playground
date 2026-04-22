@@ -1,13 +1,54 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
-import { ChatMessage } from './types';
+import {
+  ChatMessage,
+  MemoryNodeData,
+  Workflow,
+  WorkflowNode,
+} from './types';
 import { workflowStore, generateId } from './workflowStore';
 
 export interface UseChatOptions {
   onStreamChunk?: (chunk: string) => void;
   onComplete?: (fullMessage: string) => void;
   onError?: (error: string) => void;
+}
+
+interface MemoryBinding {
+  nodeId: string;
+  maxMessages: number;
+}
+
+function resolveMemoryBinding(workflow: Workflow): MemoryBinding | null {
+  const nodesById = new Map(workflow.nodes.map((node) => [node.id, node]));
+
+  const memoryEdge = workflow.edges.find((edge) => {
+    const sourceNode = nodesById.get(edge.source);
+    const targetNode = nodesById.get(edge.target);
+
+    return sourceNode?.type === 'aiAgent' && targetNode?.type === 'memory';
+  });
+
+  if (!memoryEdge) {
+    return null;
+  }
+
+  const memoryNode = nodesById.get(memoryEdge.target) as WorkflowNode | undefined;
+  if (!memoryNode || memoryNode.type !== 'memory') {
+    return null;
+  }
+
+  const memoryData = memoryNode.data as MemoryNodeData;
+  const maxMessages = Math.min(
+    100,
+    Math.max(1, Math.floor(memoryData.maxMessages || 6))
+  );
+
+  return {
+    nodeId: memoryNode.id,
+    maxMessages,
+  };
 }
 
 export function useChat(workflowId: string, options: UseChatOptions = {}) {
@@ -19,13 +60,12 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
   const addMessage = useCallback(
     (message: ChatMessage) => {
       setMessages((prev) => [...prev, message]);
-      workflowStore.saveChatMessage(message);
     },
     []
   );
 
   const executeWorkflow = useCallback(
-    async (userMessage: string, workflowDefinition: any) => {
+    async (userMessage: string, workflowDefinition: Workflow) => {
       setIsLoading(true);
       setError(null);
 
@@ -37,8 +77,13 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
         timestamp: Date.now(),
         workflowId,
       };
-      const chatHistory = [...messages, userMsg];
       addMessage(userMsg);
+      const memoryBinding = resolveMemoryBinding(workflowDefinition);
+      const memoryMessages = memoryBinding
+        ? workflowStore
+            .getWorkflowMemory(workflowId, memoryBinding.nodeId)
+            .slice(-memoryBinding.maxMessages)
+        : [];
 
       try {
         abortControllerRef.current = new AbortController();
@@ -51,7 +96,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
             input: userMessage,
             workflowId,
             apiKeys: workflowStore.getApiKeys(),
-            chatHistory,
+            memoryMessages,
           }),
           signal: abortControllerRef.current.signal,
         });
@@ -76,6 +121,15 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
         };
         addMessage(assistantMsg);
 
+        if (memoryBinding) {
+          workflowStore.appendWorkflowMemory(
+            workflowId,
+            memoryBinding.nodeId,
+            [userMsg, assistantMsg],
+            memoryBinding.maxMessages
+          );
+        }
+
         options.onComplete?.(data.output);
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {
@@ -90,12 +144,11 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
         setIsLoading(false);
       }
     },
-    [messages, workflowId, addMessage, options]
+    [workflowId, addMessage, options]
   );
 
   const clearMessages = useCallback(() => {
     setMessages([]);
-    workflowStore.clearChatHistory();
   }, []);
 
   const cancel = useCallback(() => {
