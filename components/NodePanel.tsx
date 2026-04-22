@@ -1,7 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { WorkflowNode, AIAgentNodeData, LLMNodeData } from '@/lib/types';
+import {
+  WorkflowNode,
+  AIAgentNodeData,
+  LLMNodeData,
+  MCPClientNodeData,
+} from '@/lib/types';
 import { workflowStore } from '@/lib/workflowStore';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -144,6 +149,64 @@ export default function NodePanel({
                 className="text-sm"
                 rows={4}
               />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                Max Tool Steps
+              </label>
+              <Input
+                type="number"
+                value={agentData.maxToolSteps || 6}
+                onChange={(e) =>
+                  onUpdate(node.id, {
+                    data: {
+                      ...agentData,
+                      maxToolSteps: Math.max(1, parseInt(e.target.value, 10) || 6),
+                    },
+                  })
+                }
+                min="1"
+                max="12"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Maximum number of MCP tool calls allowed before forcing a final answer.
+              </p>
+            </div>
+          </div>
+        );
+
+      case 'mcpClient':
+        const mcpData = node.data as MCPClientNodeData;
+        return (
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                MCP Server Endpoint
+              </label>
+              <Input
+                value={mcpData.mcpServerEndpoint || ''}
+                onChange={(e) =>
+                  onUpdate(node.id, {
+                    data: {
+                      ...mcpData,
+                      mcpServerEndpoint: e.target.value,
+                    },
+                  })
+                }
+                placeholder="https://your-mcp-server.example.com/mcp"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Required. The AI Agent will connect here to discover and call tools dynamically.
+              </p>
+            </div>
+
+            <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
+              <p className="text-sm font-semibold text-gray-700 mb-1">Behavior</p>
+              <p className="text-xs text-gray-600">
+                This node manages MCP tool discovery and tool execution with automatic reconnect
+                attempts when connections fail.
+              </p>
             </div>
           </div>
         );

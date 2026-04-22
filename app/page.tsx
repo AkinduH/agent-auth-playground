@@ -26,7 +26,7 @@ import {
   SheetDescription,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { validateWorkflow } from '@/lib/workflowExecutor';
+import { validateWorkflow } from '@/lib/workflowValidation';
 import { useEffect, useState } from 'react';
 
 const NEW_WORKFLOW_OPTION = '__new_workflow__';

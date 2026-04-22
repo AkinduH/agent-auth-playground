@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Workflow } from '@/lib/types';
-import { WorkflowExecutor, validateWorkflow } from '@/lib/workflowExecutor';
+import { WorkflowExecutor } from '@/lib/workflowExecutor';
+import { validateWorkflow } from '@/lib/workflowValidation';
 
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { workflow, input, workflowId, apiKeys } = body;
+    const { workflow, input, workflowId, apiKeys, chatHistory } = body;
 
     if (!workflow || !input) {
       return NextResponse.json(
@@ -36,7 +36,8 @@ export async function POST(request: NextRequest) {
       input,
       workflowId || 'temp',
       apiKeys || {},
-      request.nextUrl.origin
+      request.nextUrl.origin,
+      Array.isArray(chatHistory) ? chatHistory : []
     );
     const result = await executor.execute();
 

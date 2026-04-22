@@ -18,12 +18,14 @@ import { generateId } from '@/lib/workflowStore';
 import ChatTriggerNode from '@/components/nodes/ChatTriggerNode';
 import AIAgentNode from '@/components/nodes/AIAgentNode';
 import LLMNode from '@/components/nodes/LLMNode';
+import MCPClientNode from '@/components/nodes/MCPClientNode';
 import { Button } from '@/components/ui/button';
 
 const nodeTypes = {
   chatTrigger: ChatTriggerNode,
   aiAgent: AIAgentNode,
   llm: LLMNode,
+  mcpClient: MCPClientNode,
 };
 
 interface WorkflowEditorProps {
@@ -155,6 +157,7 @@ export default function WorkflowEditor({
           systemPrompt: 'You are a helpful assistant.',
           temperature: 0.7,
           maxTokens: 1000,
+          maxToolSteps: 6,
         };
         break;
       case 'llm':
@@ -165,6 +168,12 @@ export default function WorkflowEditor({
           temperature: 0.7,
           maxTokens: 1000,
           systemPrompt: 'You are a helpful assistant.',
+        };
+        break;
+      case 'mcpClient':
+        data = {
+          label: 'MCP Client',
+          mcpServerEndpoint: '',
         };
         break;
     }
@@ -210,6 +219,14 @@ export default function WorkflowEditor({
           className="text-xs"
         >
           + AI Service
+        </Button>
+        <Button
+          onClick={() => addNode('mcpClient')}
+          variant="outline"
+          size="sm"
+          className="text-xs"
+        >
+          + MCP Client
         </Button>
 
         <div className="flex-1" />

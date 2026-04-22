@@ -29,11 +29,9 @@ export async function POST(request: NextRequest) {
     if (provider === 'gemini') {
       apiKey =
         requestApiKey ||
-        process.env.GOOGLE_API_KEY ||
-        process.env.NEXT_PUBLIC_GOOGLE_API_KEY ||
         undefined;
     } else if (provider === 'openai') {
-      apiKey = requestApiKey || process.env.OPENAI_API_KEY || undefined;
+      apiKey = requestApiKey || undefined;
     }
 
     if (!apiKey) {

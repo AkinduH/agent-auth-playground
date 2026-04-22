@@ -37,6 +37,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
         timestamp: Date.now(),
         workflowId,
       };
+      const chatHistory = [...messages, userMsg];
       addMessage(userMsg);
 
       try {
@@ -50,6 +51,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
             input: userMessage,
             workflowId,
             apiKeys: workflowStore.getApiKeys(),
+            chatHistory,
           }),
           signal: abortControllerRef.current.signal,
         });
@@ -88,7 +90,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
         setIsLoading(false);
       }
     },
-    [workflowId, addMessage, options]
+    [messages, workflowId, addMessage, options]
   );
 
   const clearMessages = useCallback(() => {
