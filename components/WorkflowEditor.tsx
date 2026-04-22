@@ -71,7 +71,7 @@ export default function WorkflowEditor({
       animated: true,
       style: {
         stroke: '#565656',
-        strokeWidth: 2,
+        strokeWidth: 1,
       },
       markerEnd: {
         type: MarkerType.ArrowClosed,
