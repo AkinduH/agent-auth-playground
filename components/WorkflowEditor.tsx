@@ -70,6 +70,8 @@ export default function WorkflowEditor({
       id: edge.id,
       source: edge.source,
       target: edge.target,
+      sourceHandle: edge.sourceHandle,
+      targetHandle: edge.targetHandle,
       animated: true,
       style: {
         stroke: '#565656',
@@ -110,6 +112,28 @@ export default function WorkflowEditor({
     [onNodeUpdate]
   );
 
+  // Enforce handle-level connection rules
+  const isValidConnection = useCallback(
+    (connection: Connection) => {
+      const sourceNode = nodes.find((n) => n.id === connection.source);
+      const targetNode = nodes.find((n) => n.id === connection.target);
+      if (!sourceNode || !targetNode) return false;
+
+      // AIAgent top handle can only connect to LLM nodes
+      if (sourceNode.type === 'aiAgent' && connection.sourceHandle === 'top') {
+        return targetNode.type === 'llm';
+      }
+
+      // AIAgent right handle can only connect to MCP nodes
+      if (sourceNode.type === 'aiAgent' && connection.sourceHandle === 'right') {
+        return targetNode.type === 'mcpClient';
+      }
+
+      return true;
+    },
+    [nodes]
+  );
+
   // Handle connection/edge creation
   const handleConnect = useCallback(
     (connection: Connection) => {
@@ -119,6 +143,8 @@ export default function WorkflowEditor({
         id: generateId('edge-'),
         source: connection.source,
         target: connection.target,
+        sourceHandle: connection.sourceHandle ?? undefined,
+        targetHandle: connection.targetHandle ?? undefined,
         animated: true,
       };
 
@@ -253,6 +279,7 @@ export default function WorkflowEditor({
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={handleConnect}
+          isValidConnection={isValidConnection}
           onNodeClick={handleNodeClick}
           onNodeDoubleClick={handleNodeDoubleClick}
           onNodeDragStop={handleNodeDragStop}

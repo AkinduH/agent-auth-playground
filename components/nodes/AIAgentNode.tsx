@@ -12,8 +12,11 @@ export default function AIAgentNode() {
             className="h-12 w-12 object-contain"
           />
         </div>
-        <Handle type="target" position={Position.Left} />
-        <Handle type="source" position={Position.Right} />
+        <Handle type="source" position={Position.Top} id="top" />
+        <span className="absolute -top-4 left-1/3 -translate-x-1/2 text-[9px] font-medium text-slate-400 whitespace-nowrap pointer-events-none">LLM</span>
+        <Handle type="target" position={Position.Left} id="left" />
+        <Handle type="source" position={Position.Right} id="right" />
+        <span className="absolute top-1/3 -translate-y-1/2 -right-10 text-[9px] font-medium text-slate-400 whitespace-nowrap pointer-events-none">Services</span>
       </div>
       <div className="text-xs font-medium text-slate-700">AI Agent</div>
     </div>
