@@ -120,8 +120,6 @@ export class WorkflowExecutor {
         return this.executeChatTrigger(node);
       case 'mcpClient':
         return this.executeMCPClient(node);
-      case 'memory':
-        return this.executeMemory(node);
       case 'aiAgent':
         return this.executeAIAgent(node);
       case 'llm':
@@ -159,10 +157,6 @@ export class WorkflowExecutor {
 
     const nextNodeId = connectedEdges[0].target;
     return this.executeNode(nextNodeId);
-  }
-
-  private async executeMemory(_node: WorkflowNode): Promise<string> {
-    return this.context.currentInput;
   }
 
   private async executeAIAgent(node: WorkflowNode): Promise<string> {

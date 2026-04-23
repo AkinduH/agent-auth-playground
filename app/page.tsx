@@ -20,12 +20,6 @@ import {
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetTitle,
-} from '@/components/ui/sheet';
 import { validateWorkflow } from '@/lib/workflowValidation';
 import { useEffect, useState } from 'react';
 
@@ -59,7 +53,7 @@ export default function Home() {
   const [workflowName, setWorkflowName] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isNodePanelOpen, setIsNodePanelOpen] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isChatVisible, setIsChatVisible] = useState(true);
 
   const selectedNode =
     workflow?.nodes.find((n) => n.id === selectedNodeId) || null;
@@ -171,8 +165,12 @@ export default function Home() {
               Created {new Date(workflow.createdAt).toLocaleDateString()}
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setIsChatOpen(true)}>
-            Open Chat
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsChatVisible(!isChatVisible)}
+          >
+            {isChatVisible ? 'Hide Chat' : 'Show Chat'}
           </Button>
         </div>
       </div>
@@ -180,7 +178,7 @@ export default function Home() {
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Canvas */}
-        <div className="flex-1">
+        <div className={isChatVisible ? 'flex-1' : 'w-full'}>
           <WorkflowEditor
             workflow={workflow}
             selectedNodeId={selectedNodeId}
@@ -196,24 +194,21 @@ export default function Home() {
             onEdgeDelete={deleteEdge}
           />
         </div>
-      </div>
 
-      <Sheet open={isChatOpen} onOpenChange={setIsChatOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-md p-0 gap-0">
-          <SheetTitle className="sr-only">Workflow Chat</SheetTitle>
-          <SheetDescription className="sr-only">
-            Chat panel for testing the current workflow and viewing responses.
-          </SheetDescription>
-          <ChatPanel
-            messages={messages}
-            isLoading={isLoading}
-            error={error || validationError}
-            onSendMessage={handleSendMessage}
-            onClear={clearMessages}
-            disabled={!workflow || workflow.nodes.length === 0}
-          />
-        </SheetContent>
-      </Sheet>
+        {/* Right: Chat Panel */}
+        {isChatVisible && (
+          <div className="w-96 border-l border-gray-200 flex flex-col">
+            <ChatPanel
+              messages={messages}
+              isLoading={isLoading}
+              error={error || validationError}
+              onSendMessage={handleSendMessage}
+              onClear={clearMessages}
+              disabled={!workflow || workflow.nodes.length === 0}
+            />
+          </div>
+        )}
+      </div>
 
       <Dialog open={isNodePanelOpen} onOpenChange={setIsNodePanelOpen}>
         <DialogContent className="w-[95vw] max-w-2xl p-0">

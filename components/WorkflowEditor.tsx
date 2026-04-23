@@ -19,7 +19,6 @@ import ChatTriggerNode from '@/components/nodes/ChatTriggerNode';
 import AIAgentNode from '@/components/nodes/AIAgentNode';
 import LLMNode from '@/components/nodes/LLMNode';
 import MCPClientNode from '@/components/nodes/MCPClientNode';
-import MemoryNode from '@/components/nodes/MemoryNode';
 import { Button } from '@/components/ui/button';
 
 const nodeTypes = {
@@ -27,7 +26,6 @@ const nodeTypes = {
   aiAgent: AIAgentNode,
   llm: LLMNode,
   mcpClient: MCPClientNode,
-  memory: MemoryNode,
 };
 
 interface WorkflowEditorProps {
@@ -178,12 +176,6 @@ export default function WorkflowEditor({
           mcpServerEndpoint: '',
         };
         break;
-      case 'memory':
-        data = {
-          label: 'Memory',
-          maxMessages: 6,
-        };
-        break;
     }
 
     const newNode: WorkflowNode = {
@@ -236,15 +228,6 @@ export default function WorkflowEditor({
         >
           + MCP Client
         </Button>
-        <Button
-          onClick={() => addNode('memory')}
-          variant="outline"
-          size="sm"
-          className="text-xs"
-        >
-          + Memory
-        </Button>
-
         <div className="flex-1" />
 
         {selectedNodeId && (

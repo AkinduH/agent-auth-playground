@@ -2,10 +2,9 @@
 
 import { useState, useCallback, useRef } from 'react';
 import {
+  AIAgentNodeData,
   ChatMessage,
-  MemoryNodeData,
   Workflow,
-  WorkflowNode,
 } from './types';
 import { workflowStore, generateId } from './workflowStore';
 
@@ -21,32 +20,16 @@ interface MemoryBinding {
 }
 
 function resolveMemoryBinding(workflow: Workflow): MemoryBinding | null {
-  const nodesById = new Map(workflow.nodes.map((node) => [node.id, node]));
+  const agentNode = workflow.nodes.find((node) => node.type === 'aiAgent');
+  if (!agentNode) return null;
 
-  const memoryEdge = workflow.edges.find((edge) => {
-    const sourceNode = nodesById.get(edge.source);
-    const targetNode = nodesById.get(edge.target);
+  const agentData = agentNode.data as AIAgentNodeData;
+  if (!agentData.maxMessages) return null;
 
-    return sourceNode?.type === 'aiAgent' && targetNode?.type === 'memory';
-  });
-
-  if (!memoryEdge) {
-    return null;
-  }
-
-  const memoryNode = nodesById.get(memoryEdge.target) as WorkflowNode | undefined;
-  if (!memoryNode || memoryNode.type !== 'memory') {
-    return null;
-  }
-
-  const memoryData = memoryNode.data as MemoryNodeData;
-  const maxMessages = Math.min(
-    100,
-    Math.max(1, Math.floor(memoryData.maxMessages || 6))
-  );
+  const maxMessages = Math.min(100, Math.max(1, Math.floor(agentData.maxMessages)));
 
   return {
-    nodeId: memoryNode.id,
+    nodeId: agentNode.id,
     maxMessages,
   };
 }

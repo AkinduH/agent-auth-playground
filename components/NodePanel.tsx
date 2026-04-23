@@ -6,7 +6,6 @@ import {
   AIAgentNodeData,
   LLMNodeData,
   MCPClientNodeData,
-  MemoryNodeData,
 } from '@/lib/types';
 import { workflowStore } from '@/lib/workflowStore';
 import { Button } from '@/components/ui/button';
@@ -176,6 +175,52 @@ export default function NodePanel({
                 Maximum number of MCP tool calls allowed before forcing a final answer.
               </p>
             </div>
+
+            <div>
+              <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                Messages to Keep
+              </label>
+              <Input
+                type="number"
+                value={agentData.maxMessages || ''}
+                onChange={(e) =>
+                  onUpdate(node.id, {
+                    data: {
+                      ...agentData,
+                      maxMessages: e.target.value === ''
+                        ? undefined
+                        : Math.min(100, Math.max(1, parseInt(e.target.value, 10) || 1)),
+                    },
+                  })
+                }
+                min="1"
+                max="100"
+                placeholder="Disabled"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Number of recent chat messages to include as memory context. Leave empty to disable memory.
+              </p>
+            </div>
+
+            {agentData.maxMessages && workflowId && (
+              <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
+                <p className="text-sm font-semibold text-gray-700 mb-1">Stored Messages</p>
+                <p className="text-xs text-gray-600 mb-3">
+                  {(() => {
+                    const count = workflowStore.getWorkflowMemory(workflowId, node.id).length;
+                    return `${count} message${count === 1 ? '' : 's'} currently saved.`;
+                  })()}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => workflowStore.clearWorkflowMemory(workflowId, node.id)}
+                >
+                  Clear Memory
+                </Button>
+              </div>
+            )}
           </div>
         );
 
@@ -430,60 +475,6 @@ export default function NodePanel({
                 min="1"
                 max="4000"
               />
-            </div>
-          </div>
-        );
-
-      case 'memory':
-        const memoryData = node.data as MemoryNodeData;
-        const memoryMessageCount = workflowId
-          ? workflowStore.getWorkflowMemory(workflowId, node.id).length
-          : 0;
-        return (
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">
-                Messages to Keep
-              </label>
-              <Input
-                type="number"
-                value={memoryData.maxMessages || 6}
-                onChange={(e) =>
-                  onUpdate(node.id, {
-                    data: {
-                      ...memoryData,
-                      maxMessages: Math.min(
-                        100,
-                        Math.max(1, parseInt(e.target.value, 10) || 6)
-                      ),
-                    },
-                  })
-                }
-                min="1"
-                max="100"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                The latest N chat messages are sent as memory context to the connected AI Agent.
-              </p>
-            </div>
-
-            <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
-              <p className="text-sm font-semibold text-gray-700 mb-1">Stored Messages</p>
-              <p className="text-xs text-gray-600 mb-3">
-                {memoryMessageCount} message{memoryMessageCount === 1 ? '' : 's'} currently saved.
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!workflowId}
-                onClick={() => {
-                  if (!workflowId) return;
-                  workflowStore.clearWorkflowMemory(workflowId, node.id);
-                }}
-              >
-                Clear Memory
-              </Button>
             </div>
           </div>
         );
