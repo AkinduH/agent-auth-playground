@@ -27,19 +27,18 @@ export default function NodePanel({
   variant = 'sidebar',
 }: NodePanelProps) {
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
-  const geminiModels = [
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite',
-    'gemini-2.5-pro',
-    'gemini-3-flash-preview',
-    'gemini-3.1-flash-lite-preview',
-    'gemini-3.1-pro-preview',
-  ];
-  const openaiModels = [
-    'gpt-4o',
-    'gpt-4-turbo',
-    'gpt-3.5-turbo',
-  ];
+  const providerModels: Record<string, string[]> = {
+    gemini: [
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+      'gemini-2.5-pro',
+      'gemini-3-flash-preview',
+      'gemini-3.1-flash-lite-preview',
+      'gemini-3.1-pro-preview',
+    ],
+    openai: ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+    anthropic: ['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
+  };
 
   useEffect(() => {
     setApiKeys(workflowStore.getApiKeys());
@@ -66,7 +65,7 @@ export default function NodePanel({
     );
   }
 
-  const handleApiKeyChange = (provider: 'gemini' | 'openai', key: string) => {
+  const handleApiKeyChange = (provider: 'gemini' | 'openai' | 'anthropic', key: string) => {
     workflowStore.setApiKey(provider, key);
     setApiKeys((prev) => ({ ...prev, [provider]: key }));
   };
@@ -333,7 +332,7 @@ export default function NodePanel({
                   onUpdate(node.id, {
                     data: {
                       ...llmData,
-                      provider: e.target.value as 'gemini' | 'openai',
+                      provider: e.target.value as 'gemini' | 'openai' | 'anthropic',
                     },
                   })
                 }
@@ -341,6 +340,7 @@ export default function NodePanel({
               >
                 <option value="gemini">Google Gemini</option>
                 <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
               </select>
             </div>
 
@@ -358,10 +358,7 @@ export default function NodePanel({
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
               >
                 <option value="">Select a model</option>
-                {(llmData.provider === 'openai'
-                  ? openaiModels
-                  : geminiModels
-                ).map((model) => (
+                {(providerModels[llmData.provider] ?? []).map((model: string) => (
                   <option key={model} value={model}>
                     {model}
                   </option>
@@ -371,7 +368,7 @@ export default function NodePanel({
 
             <div>
               <label className="text-sm font-semibold text-gray-700 mb-2 block">
-                API Key ({llmData.provider === 'openai' ? 'OpenAI' : 'Google'})
+                API Key ({llmData.provider === 'openai' ? 'OpenAI' : llmData.provider === 'anthropic' ? 'Anthropic' : 'Google'})
               </label>
               <Input
                 type="password"
@@ -380,7 +377,7 @@ export default function NodePanel({
                   handleApiKeyChange(llmData.provider, e.target.value)
                 }
                 placeholder={`Enter your ${
-                  llmData.provider === 'openai' ? 'OpenAI' : 'Google'
+                  llmData.provider === 'openai' ? 'OpenAI' : llmData.provider === 'anthropic' ? 'Anthropic' : 'Google'
                 } API key`}
               />
               <p className="text-xs text-gray-500 mt-1">

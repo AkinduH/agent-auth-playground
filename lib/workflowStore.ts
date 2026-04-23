@@ -122,7 +122,7 @@ export const workflowStore = {
   },
 
   // API key management
-  setApiKey(provider: 'gemini' | 'openai', key: string): void {
+  setApiKey(provider: 'gemini' | 'openai' | 'anthropic', key: string): void {
     if (typeof window === 'undefined') return;
     
     const keys = this.getApiKeys();
@@ -130,7 +130,7 @@ export const workflowStore = {
     localStorage.setItem(API_KEYS_KEY, JSON.stringify(keys));
   },
 
-  getApiKey(provider: 'gemini' | 'openai'): string | null {
+  getApiKey(provider: 'gemini' | 'openai' | 'anthropic'): string | null {
     if (typeof window === 'undefined') return null;    
     const stored = localStorage.getItem(API_KEYS_KEY);
     const keys = stored ? JSON.parse(stored) : {};
@@ -144,7 +144,7 @@ export const workflowStore = {
     return stored ? JSON.parse(stored) : {};
   },
 
-  deleteApiKey(provider: 'gemini' | 'openai'): void {
+  deleteApiKey(provider: 'gemini' | 'openai' | 'anthropic'): void {
     if (typeof window === 'undefined') return;
     
     const keys = this.getApiKeys();

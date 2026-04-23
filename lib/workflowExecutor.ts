@@ -46,14 +46,14 @@ type AgentDecision =
 export class WorkflowExecutor {
   private workflow: Workflow;
   private context: ExecutionContext;
-  private apiKeys: Partial<Record<'gemini' | 'openai', string>>;
+  private apiKeys: Partial<Record<'gemini' | 'openai' | 'anthropic', string>>;
   private baseUrl: string;
 
   constructor(
     workflow: Workflow,
     initialInput: string,
     workflowId: string,
-    apiKeys: Partial<Record<'gemini' | 'openai', string>> = {},
+    apiKeys: Partial<Record<'gemini' | 'openai' | 'anthropic', string>> = {},
     baseUrl?: string,
     memoryMessages: ChatMessage[] = []
   ) {

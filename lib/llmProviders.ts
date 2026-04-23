@@ -1,144 +1,49 @@
-import { LLMProvider } from './types';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatOpenAI } from '@langchain/openai';
+import { ChatAnthropic } from '@langchain/anthropic';
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 
-// Google Gemini Provider
-export class GoogleGeminiProvider implements LLMProvider {
-  name: 'gemini' = 'gemini';
-  private apiKey: string;
+export type ProviderName = 'gemini' | 'openai' | 'anthropic';
 
-  constructor(apiKey: string) {
-    this.apiKey = apiKey;
+export const PROVIDER_MODELS: Record<ProviderName, string[]> = {
+  gemini: [
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-2.5-pro',
+    'gemini-3-flash-preview',
+    'gemini-3.1-flash-lite-preview',
+    'gemini-3.1-pro-preview',
+  ],
+  openai: ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+  anthropic: ['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
+};
+
+export async function invokeLLM(
+  provider: ProviderName,
+  apiKey: string,
+  model: string,
+  message: string,
+  systemPrompt: string,
+  temperature: number,
+  maxTokens: number
+): Promise<string> {
+  const messages = [new SystemMessage(systemPrompt), new HumanMessage(message)];
+
+  let llm: ChatGoogleGenerativeAI | ChatOpenAI | ChatAnthropic;
+
+  if (provider === 'gemini') {
+    llm = new ChatGoogleGenerativeAI({ model, apiKey, temperature, maxOutputTokens: maxTokens });
+  } else if (provider === 'openai') {
+    llm = new ChatOpenAI({ model, apiKey, temperature, maxTokens });
+  } else {
+    llm = new ChatAnthropic({ model, apiKey, temperature, maxTokens });
   }
 
-  async generateResponse(
-    message: string,
-    systemPrompt: string,
-    options: {
-      temperature: number;
-      maxTokens: number;
-      model: string;
-    }
-  ): Promise<string> {
-    try {
-      const { GoogleGenerativeAI } = await import('@google/generative-ai');
-      const genAI = new GoogleGenerativeAI(this.apiKey);
-      const model = genAI.getGenerativeModel({ model: options.model });
-
-      const safetySettings = [
-        {
-          category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-          threshold: 'BLOCK_NONE',
-        },
-        {
-          category: 'HARM_CATEGORY_HARASSMENT',
-          threshold: 'BLOCK_NONE',
-        },
-        {
-          category: 'HARM_CATEGORY_HATE_SPEECH',
-          threshold: 'BLOCK_NONE',
-        },
-        {
-          category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-          threshold: 'BLOCK_NONE',
-        },
-      ];
-
-      const result = await model.generateContent({
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                text: `${systemPrompt}\n\nUser message: ${message}`,
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          temperature: options.temperature,
-          maxOutputTokens: options.maxTokens,
-        },
-        safetySettings: safetySettings as any,
-      });
-
-      const response = result.response;
-      return response.text();
-    } catch (error) {
-      console.error('Gemini API error:', error);
-      throw new Error(`Gemini API error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  async listModels(): Promise<string[]> {
-    return ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3.1-pro-preview'];
-  }
+  const response = await llm.invoke(messages);
+  const content = response.content;
+  return typeof content === 'string' ? content : JSON.stringify(content);
 }
 
-// OpenAI Provider
-export class OpenAIProvider implements LLMProvider {
-  name: 'openai' = 'openai';
-  private apiKey: string;
-
-  constructor(apiKey: string) {
-    this.apiKey = apiKey;
-  }
-
-  async generateResponse(
-    message: string,
-    systemPrompt: string,
-    options: {
-      temperature: number;
-      maxTokens: number;
-      model: string;
-    }
-  ): Promise<string> {
-    try {
-      const { default: OpenAI } = await import('openai');
-      const client = new OpenAI({ apiKey: this.apiKey });
-
-      const response = await client.chat.completions.create({
-        model: options.model,
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
-          },
-          {
-            role: 'user',
-            content: message,
-          },
-        ],
-        temperature: options.temperature,
-        max_tokens: options.maxTokens,
-      });
-
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error('No response content from OpenAI');
-      }
-
-      return content;
-    } catch (error) {
-      console.error('OpenAI API error:', error);
-      throw new Error(`OpenAI API error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  async listModels(): Promise<string[]> {
-    return ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'];
-  }
-}
-
-// Factory function to get provider
-export function getLLMProvider(
-  provider: 'gemini' | 'openai',
-  apiKey: string
-): LLMProvider {
-  switch (provider) {
-    case 'gemini':
-      return new GoogleGeminiProvider(apiKey);
-    case 'openai':
-      return new OpenAIProvider(apiKey);
-    default:
-      throw new Error(`Unknown provider: ${provider}`);
-  }
+export function listModels(provider: ProviderName): string[] {
+  return PROVIDER_MODELS[provider] ?? [];
 }

@@ -33,7 +33,7 @@ export interface AIAgentNodeData extends BaseNodeData {
 // LLM node data
 export interface LLMNodeData extends BaseNodeData {
   label: 'AI Service';
-  provider: 'gemini' | 'openai';
+  provider: 'gemini' | 'openai' | 'anthropic';
   model: string;
   temperature: number;
   maxTokens: number;
@@ -109,20 +109,7 @@ export interface ExecutionContext {
   currentInput: string;
 }
 
-// LLM Provider interface
-export interface LLMProvider {
-  name: 'gemini' | 'openai';
-  generateResponse(
-    message: string,
-    systemPrompt: string,
-    options: {
-      temperature: number;
-      maxTokens: number;
-      model: string;
-    }
-  ): Promise<string>;
-  listModels(): Promise<string[]>;
-}
+export type ProviderName = 'gemini' | 'openai' | 'anthropic';
 
 // Workflow execution result
 export interface ExecutionResult {
