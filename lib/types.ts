@@ -44,6 +44,11 @@ export interface LLMNodeData extends BaseNodeData {
 export interface MCPClientNodeData extends BaseNodeData {
   label: 'MCP Client';
   mcpServerEndpoint: string;
+  useOAuth2?: boolean;
+  oauth2OrganizationName?: string;
+  oauth2ClientId?: string;
+  oauth2RedirectUri?: string;
+  oauth2Scope?: string;
 }
 
 // Memory node data

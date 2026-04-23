@@ -33,8 +33,13 @@ export class MCPClientNodeRuntime {
   private transport: MCPTransport | null = null;
   private endpoint: string | null = null;
   private toolsCache: MCPDiscoveredTool[] = [];
+  private accessToken: string | null = null;
 
   constructor(private readonly maxReconnectAttempts: number = 2) {}
+
+  setAccessToken(token: string): void {
+    this.accessToken = token;
+  }
 
   async connect(endpoint: string): Promise<void> {
     const normalizedEndpoint = endpoint.trim();
@@ -56,10 +61,12 @@ export class MCPClientNodeRuntime {
 
     await this.disconnect();
 
+    const token = this.accessToken;
     const transportFactories: Array<() => MCPTransport> = [
       () =>
         new StreamableHTTPClientTransport(url, {
           reconnectionOptions: DEFAULT_RECONNECTION_OPTIONS,
+          ...(token ? { authProvider: { token: async () => token } } : {}),
         }),
     ];
 

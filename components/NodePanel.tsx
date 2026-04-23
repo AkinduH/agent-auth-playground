@@ -205,6 +205,110 @@ export default function NodePanel({
               </p>
             </div>
 
+            <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 p-3">
+              <div>
+                <p className="text-sm font-semibold text-gray-700">Use MCP OAuth2</p>
+                <p className="text-xs text-gray-500">
+                  Authenticate with Asgardeo before connecting
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={!!mcpData.useOAuth2}
+                onClick={() =>
+                  onUpdate(node.id, {
+                    data: { ...mcpData, useOAuth2: !mcpData.useOAuth2 },
+                  })
+                }
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                  mcpData.useOAuth2 ? 'bg-blue-600' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    mcpData.useOAuth2 ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {mcpData.useOAuth2 && (
+              <div className="space-y-3 rounded-md border border-white-200 bg-white-50 p-3">
+                <p className="text-xs font-semibold text-white-700 uppercase tracking-wide">
+                  OAuth2 Configuration
+                </p>
+
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                    Organization Name
+                  </label>
+                  <Input
+                    value={mcpData.oauth2OrganizationName || ''}
+                    onChange={(e) =>
+                      onUpdate(node.id, {
+                        data: { ...mcpData, oauth2OrganizationName: e.target.value },
+                      })
+                    }
+                    placeholder="your-org"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Asgardeo tenant name (used in api.asgardeo.io/t/&#123;org&#125;)
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                    Client ID
+                  </label>
+                  <Input
+                    value={mcpData.oauth2ClientId || ''}
+                    onChange={(e) =>
+                      onUpdate(node.id, {
+                        data: { ...mcpData, oauth2ClientId: e.target.value },
+                      })
+                    }
+                    placeholder="vMH8K3zdIhlSiIDmmvnebNOI_bIa"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                    Redirect URI
+                  </label>
+                  <Input
+                    value={mcpData.oauth2RedirectUri || ''}
+                    onChange={(e) =>
+                      onUpdate(node.id, {
+                        data: { ...mcpData, oauth2RedirectUri: e.target.value },
+                      })
+                    }
+                    placeholder="https://example.com/callback"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                    Scope
+                    <span className="ml-1 text-xs font-normal text-gray-400">(optional)</span>
+                  </label>
+                  <Input
+                    value={mcpData.oauth2Scope || ''}
+                    onChange={(e) =>
+                      onUpdate(node.id, {
+                        data: { ...mcpData, oauth2Scope: e.target.value },
+                      })
+                    }
+                    placeholder="openid read_bookings write_bookings"
+                  />
+                </div>
+
+                <p className="text-xs text-white-600">
+                  Agent ID and Secret are taken from the connected AI Agent node.
+                </p>
+              </div>
+            )}
+
             <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
               <p className="text-sm font-semibold text-gray-700 mb-1">Behavior</p>
               <p className="text-xs text-gray-600">
