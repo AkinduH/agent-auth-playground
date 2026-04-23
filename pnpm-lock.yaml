@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@asgardeo/javascript':
+        specifier: ^0.19.0
+        version: 0.19.0
       '@cfworker/json-schema':
         specifier: ^4.1.1
         version: 4.1.1
@@ -201,6 +204,12 @@ packages:
   '@alloc/quick-lru@5.2.0':
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
     engines: {node: '>=10'}
+
+  '@asgardeo/i18n@0.4.5':
+    resolution: {integrity: sha512-p1DVVI7lNu7KeDqhRNgAuSrHvVgCbbVXc04koyiiwjDx+sJaXychuC9pwVJ2PDUnIyEp3Xgdb3KqMq+Sx4e7xA==}
+
+  '@asgardeo/javascript@0.19.0':
+    resolution: {integrity: sha512-zlveJbY/oQrfokn2PHpOJlHlih5MOq6F4WHcd60oLw0II6nmjw1WTI3drJQsj6W+2emB5gYv257vYjdLcYbYAA==}
 
   '@babel/runtime@7.28.6':
     resolution: {integrity: sha512-05WQkdpL9COIMz4LjTxGpPNCdlpyimKppYNoJ5Di5EUObifl8t4tuLuUBBZEpoLYOmfvIWrsp9fCl0HoPRVTdA==}
@@ -1592,6 +1601,9 @@ packages:
     resolution: {integrity: sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ==}
     hasBin: true
 
+  jose@5.10.0:
+    resolution: {integrity: sha512-s+3Al/p9g32Iq+oqXxkW//7jk2Vig6FF1CFqzVXoTUXt2qz89YWbL+OwS17NFYEvxC35n0FKeGO2LGYSxeM2Gg==}
+
   jose@6.2.2:
     resolution: {integrity: sha512-d7kPDd34KO/YnzaDOlikGpOurfF0ByC2sEV4cANCtdqLlTfBlw2p14O/5d/zv40gJPbIQxfES3nSx1/oYNyuZQ==}
 
@@ -1993,6 +2005,16 @@ packages:
 snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
+
+  '@asgardeo/i18n@0.4.5':
+    dependencies:
+      tslib: 2.8.1
+
+  '@asgardeo/javascript@0.19.0':
+    dependencies:
+      '@asgardeo/i18n': 0.4.5
+      jose: 5.10.0
+      tslib: 2.8.1
 
   '@babel/runtime@7.28.6': {}
 
@@ -3344,6 +3366,8 @@ snapshots:
   isexe@2.0.0: {}
 
   jiti@2.6.1: {}
+
+  jose@5.10.0: {}
 
   jose@6.2.2: {}
 
