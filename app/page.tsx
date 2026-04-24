@@ -46,6 +46,7 @@ export default function Home() {
     messages,
     isLoading,
     error,
+    oboConsentPending,
     executeWorkflow,
     clearMessages,
   } = useChat(workflow?.id || 'temp');
@@ -73,13 +74,15 @@ export default function Home() {
 
     setValidationError(null);
 
-    // Validate workflow
-    const validation = validateWorkflow(workflow);
-    if (!validation.valid) {
-      setValidationError(
-        `Invalid workflow: ${validation.errors.join(', ')}`
-      );
-      return;
+    // Skip workflow validation when the user is submitting an OBO authorization code
+    if (!oboConsentPending) {
+      const validation = validateWorkflow(workflow);
+      if (!validation.valid) {
+        setValidationError(
+          `Invalid workflow: ${validation.errors.join(', ')}`
+        );
+        return;
+      }
     }
 
     await executeWorkflow(message, workflow);
@@ -205,6 +208,7 @@ export default function Home() {
               onSendMessage={handleSendMessage}
               onClear={clearMessages}
               disabled={!workflow || workflow.nodes.length === 0}
+              oboConsentPending={oboConsentPending}
             />
           </div>
         )}

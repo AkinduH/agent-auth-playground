@@ -278,6 +278,52 @@ export default function NodePanel({
             </div>
 
             {mcpData.useOAuth2 && (
+              <div className="space-y-3">
+                {/* Flow type selector */}
+                <div>
+                  <p className="text-sm font-semibold text-gray-700 mb-2">Auth Flow</p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onUpdate(node.id, {
+                          data: { ...mcpData, oauth2Flow: 'agent' },
+                        })
+                      }
+                      className={`flex-1 py-2 px-3 text-sm rounded-md border transition-colors ${
+                        (mcpData.oauth2Flow ?? 'agent') === 'agent'
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      Agent Flow
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onUpdate(node.id, {
+                          data: { ...mcpData, oauth2Flow: 'obo' },
+                        })
+                      }
+                      className={`flex-1 py-2 px-3 text-sm rounded-md border transition-colors ${
+                        mcpData.oauth2Flow === 'obo'
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      OBO Flow
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {(mcpData.oauth2Flow ?? 'agent') === 'agent'
+                      ? 'Agent authenticates using its own credentials (no user interaction).'
+                      : 'Agent acts on behalf of a user — user consent is requested in the chat.'}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {mcpData.useOAuth2 && (
               <div className="space-y-3 rounded-md border border-white-200 bg-white-50 p-3">
                 <p className="text-xs font-semibold text-white-700 uppercase tracking-wide">
                   OAuth2 Configuration
@@ -347,8 +393,10 @@ export default function NodePanel({
                   />
                 </div>
 
-                <p className="text-xs text-white-600">
+                <p className="text-xs text-gray-500">
                   Agent ID and Secret are taken from the connected AI Agent node.
+                  {(mcpData.oauth2Flow ?? 'agent') === 'obo' &&
+                    ' For OBO flow, user consent will be requested in the chat before the first message is processed.'}
                 </p>
               </div>
             )}

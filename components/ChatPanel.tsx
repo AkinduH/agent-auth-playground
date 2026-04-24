@@ -13,6 +13,7 @@ interface ChatPanelProps {
   onSendMessage: (message: string) => void;
   onClear: () => void;
   disabled?: boolean;
+  oboConsentPending?: boolean;
 }
 
 export default function ChatPanel({
@@ -22,6 +23,7 @@ export default function ChatPanel({
   onSendMessage,
   onClear,
   disabled = false,
+  oboConsentPending = false,
 }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -35,12 +37,12 @@ export default function ChatPanel({
   }, [messages]);
 
   const handleSend = () => {
-    if (!input.trim() || disabled) return;
+    if (!input.trim() || (!oboConsentPending && disabled)) return;
     onSendMessage(input);
     setInput('');
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -68,23 +70,40 @@ export default function ChatPanel({
           messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex ${
-                msg.role === 'user' ? 'justify-end' : 'justify-start'
-              }`}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
                 className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                   msg.role === 'user'
                     ? 'bg-blue-500 text-white'
+                    : msg.type === 'obo-consent'
+                    ? 'bg-amber-50 text-gray-900 border border-amber-200'
                     : 'bg-gray-100 text-gray-900'
                 }`}
               >
-                <p className="text-sm break-words">{msg.content}</p>
+                {msg.type === 'obo-consent' && msg.metadata?.authUrl ? (
+                  <>
+                    <p className="text-sm font-semibold text-amber-800 mb-1">
+                      Authorization Required
+                    </p>
+                    <p className="text-xs text-gray-700 mb-3 whitespace-pre-wrap">
+                      {msg.content.replace(/^Authorization Required[^\n]*\n\n/, '')}
+                    </p>
+                    <a
+                      href={msg.metadata.authUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 underline"
+                    >
+                      Open Authorization Page →
+                    </a>
+                  </>
+                ) : (
+                  <p className="text-sm break-words">{msg.content}</p>
+                )}
                 <p
                   className={`text-xs mt-1 ${
-                    msg.role === 'user'
-                      ? 'text-blue-100'
-                      : 'text-gray-500'
+                    msg.role === 'user' ? 'text-blue-100' : 'text-gray-500'
                   }`}
                 >
                   {new Date(msg.timestamp).toLocaleTimeString()}
@@ -99,7 +118,9 @@ export default function ChatPanel({
             <div className="bg-gray-100 text-gray-900 px-4 py-2 rounded-lg">
               <div className="flex items-center gap-2">
                 <Spinner className="w-4 h-4" />
-                <span className="text-sm">Thinking...</span>
+                <span className="text-sm">
+                  {oboConsentPending ? 'Exchanging token...' : 'Thinking...'}
+                </span>
               </div>
             </div>
           </div>
@@ -117,23 +138,36 @@ export default function ChatPanel({
         <div ref={messagesEndRef} />
       </div>
 
+      {/* OBO consent banner */}
+      {oboConsentPending && (
+        <div className="mx-4 mb-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-md">
+          <p className="text-xs text-amber-800 font-medium">
+            Paste the authorization code or full redirect URL below to continue.
+          </p>
+        </div>
+      )}
+
       {/* Input */}
       <div className="border-t border-gray-200 p-4 space-y-2">
         <div className="flex gap-2">
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Type a message..."
-            disabled={disabled || isLoading}
+            onKeyDown={handleKeyDown}
+            placeholder={
+              oboConsentPending
+                ? 'Paste authorization code or redirect URL...'
+                : 'Type a message...'
+            }
+            disabled={(!oboConsentPending && disabled) || isLoading}
             className="flex-1"
           />
           <Button
             onClick={handleSend}
-            disabled={!input.trim() || disabled || isLoading}
+            disabled={!input.trim() || (!oboConsentPending && disabled) || isLoading}
             size="sm"
           >
-            {isLoading ? <Spinner className="w-4 h-4" /> : 'Send'}
+            {isLoading ? <Spinner className="w-4 h-4" /> : oboConsentPending ? 'Submit' : 'Send'}
           </Button>
         </div>
 
@@ -142,7 +176,7 @@ export default function ChatPanel({
             onClick={onClear}
             variant="ghost"
             size="sm"
-            disabled={disabled}
+            disabled={disabled && !oboConsentPending}
             className="w-full text-xs"
           >
             Clear Chat

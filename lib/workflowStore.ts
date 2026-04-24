@@ -4,6 +4,10 @@ const WORKFLOWS_KEY = 'workflows';
 const CURRENT_WORKFLOW_KEY = 'currentWorkflow';
 const WORKFLOW_MEMORY_KEY = 'workflowMemories';
 const API_KEYS_KEY = 'apiKeys';
+const OBO_TOKENS_KEY = 'oboTokens';
+
+type OBOTokenEntry = { accessToken: string; expiresAt: number };
+type OBOTokenStore = Record<string, OBOTokenEntry>;
 
 type WorkflowMemoryStore = Record<string, Record<string, ChatMessage[]>>;
 
@@ -146,10 +150,45 @@ export const workflowStore = {
 
   deleteApiKey(provider: 'gemini' | 'openai' | 'anthropic'): void {
     if (typeof window === 'undefined') return;
-    
+
     const keys = this.getApiKeys();
     delete keys[provider];
     localStorage.setItem(API_KEYS_KEY, JSON.stringify(keys));
+  },
+
+  // OBO token management — keyed by `${workflowId}_${nodeId}`
+  getOBOToken(workflowId: string, nodeId: string): string | null {
+    if (typeof window === 'undefined') return null;
+    const stored = localStorage.getItem(OBO_TOKENS_KEY);
+    if (!stored) return null;
+    const store: OBOTokenStore = JSON.parse(stored);
+    const entry = store[`${workflowId}_${nodeId}`];
+    if (!entry) return null;
+    if (Date.now() > entry.expiresAt) return null;
+    return entry.accessToken;
+  },
+
+  setOBOToken(workflowId: string, nodeId: string, accessToken: string, expiresIn: number): void {
+    if (typeof window === 'undefined') return;
+    const stored = localStorage.getItem(OBO_TOKENS_KEY);
+    const store: OBOTokenStore = stored ? JSON.parse(stored) : {};
+    store[`${workflowId}_${nodeId}`] = {
+      accessToken,
+      expiresAt: Date.now() + expiresIn * 1000,
+    };
+    localStorage.setItem(OBO_TOKENS_KEY, JSON.stringify(store));
+  },
+
+  clearOBOTokens(workflowId: string): void {
+    if (typeof window === 'undefined') return;
+    const stored = localStorage.getItem(OBO_TOKENS_KEY);
+    if (!stored) return;
+    const store: OBOTokenStore = JSON.parse(stored);
+    const prefix = `${workflowId}_`;
+    for (const key of Object.keys(store)) {
+      if (key.startsWith(prefix)) delete store[key];
+    }
+    localStorage.setItem(OBO_TOKENS_KEY, JSON.stringify(store));
   },
 };
 

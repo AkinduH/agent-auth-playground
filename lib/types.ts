@@ -46,6 +46,7 @@ export interface MCPClientNodeData extends BaseNodeData {
   label: 'MCP Client';
   mcpServerEndpoint: string;
   useOAuth2?: boolean;
+  oauth2Flow?: 'agent' | 'obo';
   oauth2OrganizationName?: string;
   oauth2ClientId?: string;
   oauth2RedirectUri?: string;
@@ -95,6 +96,8 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   workflowId?: string;
+  type?: 'obo-consent';
+  metadata?: { authUrl?: string };
 }
 
 // Execution context for workflow runner

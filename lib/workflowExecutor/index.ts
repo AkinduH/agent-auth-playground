@@ -18,6 +18,7 @@ export class WorkflowExecutor {
   private context: ExecutionContext;
   private apiKeys: Partial<Record<'gemini' | 'openai' | 'anthropic', string>>;
   private baseUrl: string;
+  private oboTokens: Record<string, string>;
 
   constructor(
     workflow: Workflow,
@@ -25,11 +26,13 @@ export class WorkflowExecutor {
     workflowId: string,
     apiKeys: Partial<Record<'gemini' | 'openai' | 'anthropic', string>> = {},
     baseUrl?: string,
-    memoryMessages: ChatMessage[] = []
+    memoryMessages: ChatMessage[] = [],
+    oboTokens: Record<string, string> = {}
   ) {
     this.workflow = workflow;
     this.apiKeys = apiKeys;
     this.baseUrl = baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    this.oboTokens = oboTokens;
     this.context = {
       workflowId,
       variables: {},
@@ -100,7 +103,7 @@ export class WorkflowExecutor {
     }
 
     const mcpNodes = this.collectMCPNodes(node.id);
-    const connectedClients = await initializeMCPClients(mcpNodes, node.data as AIAgentNodeData);
+    const connectedClients = await initializeMCPClients(mcpNodes, node.data as AIAgentNodeData, this.oboTokens);
 
     try {
       return await executeAIAgent(
