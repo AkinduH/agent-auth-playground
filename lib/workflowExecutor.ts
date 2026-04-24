@@ -72,7 +72,7 @@ export class WorkflowExecutor {
     const startTime = Date.now();
 
     try {
-      console.log('Starting workflow execution');
+      console.log('[Workflow] Starting execution');
 
       const chatTriggerNode = this.workflow.nodes.find((n) => n.type === 'chatTrigger');
 
@@ -80,11 +80,10 @@ export class WorkflowExecutor {
         throw new Error('No Chat Trigger node found in workflow');
       }
 
-      console.log('Found chat trigger node:', chatTriggerNode.id);
-
       const output = await this.executeNode(chatTriggerNode.id);
-
       const executionTime = Date.now() - startTime;
+
+      console.log(`[Workflow] Completed in ${executionTime}ms`);
 
       return {
         success: true,
@@ -95,7 +94,7 @@ export class WorkflowExecutor {
       const executionTime = Date.now() - startTime;
       const errorMessage = this.getErrorMessage(error);
 
-      console.error('Workflow execution error:', errorMessage);
+      console.error(`[Workflow] Failed after ${executionTime}ms: ${errorMessage}`);
 
       return {
         success: false,
@@ -106,6 +105,60 @@ export class WorkflowExecutor {
     }
   }
 
+  private async initializeMCPClients(
+    mcpNodes: WorkflowNode[],
+    agentData?: AIAgentNodeData
+  ): Promise<ConnectedMCPClient[]> {
+    return Promise.all(
+      mcpNodes.map(async (node) => {
+        const nodeData = node.data as MCPClientNodeData;
+        const endpoint = nodeData.mcpServerEndpoint?.trim();
+
+        if (!endpoint) {
+          throw new Error(`[MCPClient:${node.id}] Missing server endpoint`);
+        }
+
+        const runtime = new MCPClientNodeRuntime();
+
+        if (nodeData.useOAuth2) {
+          if (!nodeData.oauth2OrganizationName?.trim()) {
+            throw new Error(`[MCPClient:${node.id}] OAuth2 organization name is required`);
+          }
+          if (!nodeData.oauth2ClientId?.trim()) {
+            throw new Error(`[MCPClient:${node.id}] OAuth2 client ID is required`);
+          }
+          if (!nodeData.oauth2RedirectUri?.trim()) {
+            throw new Error(`[MCPClient:${node.id}] OAuth2 redirect URI is required`);
+          }
+          if (!agentData?.agentId?.trim()) {
+            throw new Error(`[MCPClient:${node.id}] Agent ID is required on the connected AI Agent node for OAuth2`);
+          }
+          if (!agentData?.agentSecret?.trim()) {
+            throw new Error(`[MCPClient:${node.id}] Agent Secret is required on the connected AI Agent node for OAuth2`);
+          }
+
+          console.log(`[MCPClient:${node.id}] Running OAuth2 agent authentication flow`);
+          const accessToken = await authenticateAgent({
+            organizationName: nodeData.oauth2OrganizationName,
+            clientId: nodeData.oauth2ClientId,
+            redirectUri: nodeData.oauth2RedirectUri,
+            agentId: agentData.agentId,
+            agentSecret: agentData.agentSecret,
+            scope: nodeData.oauth2Scope,
+          });
+          runtime.setAccessToken(accessToken);
+          console.log(`[MCPClient:${node.id}] Access token obtained`);
+        }
+
+        console.log(`[MCPClient:${node.id}] Connecting to ${endpoint}`);
+        await runtime.connect(endpoint);
+        console.log(`[MCPClient:${node.id}] Connected`);
+
+        return { endpoint, nodeId: node.id, runtime };
+      })
+    );
+  }
+
   private async executeNode(nodeId: string): Promise<string> {
     const node = this.workflow.nodes.find((n) => n.id === nodeId);
 
@@ -113,13 +166,9 @@ export class WorkflowExecutor {
       throw new Error(`Node not found: ${nodeId}`);
     }
 
-    console.log('Executing node:', nodeId, 'type:', node.type);
-
     switch (node.type) {
       case 'chatTrigger':
         return this.executeChatTrigger(node);
-      case 'mcpClient':
-        return this.executeMCPClient(node);
       case 'aiAgent':
         return this.executeAIAgent(node);
       case 'llm':
@@ -130,7 +179,7 @@ export class WorkflowExecutor {
   }
 
   private async executeChatTrigger(node: WorkflowNode): Promise<string> {
-    console.log('Chat trigger received input:', this.context.currentInput);
+    console.log(`[ChatTrigger:${node.id}] Received input: "${this.context.currentInput}"`);
 
     const connectedEdges = this.workflow.edges.filter((e) => e.source === node.id);
 
@@ -138,52 +187,24 @@ export class WorkflowExecutor {
       return this.context.currentInput;
     }
 
-    const nextNodeId = connectedEdges[0].target;
-    return this.executeNode(nextNodeId);
-  }
-
-  private async executeMCPClient(node: WorkflowNode): Promise<string> {
-    const data = node.data as MCPClientNodeData;
-
-    if (!data.mcpServerEndpoint?.trim()) {
-      throw new Error('MCP Client node requires a server endpoint.');
-    }
-
-    const connectedEdges = this.workflow.edges.filter((e) => e.source === node.id);
-
-    if (connectedEdges.length === 0) {
-      return this.context.currentInput;
-    }
-
-    const nextNodeId = connectedEdges[0].target;
-    return this.executeNode(nextNodeId);
+    return this.executeNode(connectedEdges[0].target);
   }
 
   private async executeAIAgent(node: WorkflowNode): Promise<string> {
     const data = node.data as AIAgentNodeData;
-    const llmNode = this.getOutgoingNodes(node.id).find((connectedNode) => connectedNode.type === 'llm');
 
+    const llmNode = this.getOutgoingNodes(node.id).find((n) => n.type === 'llm');
     if (!llmNode) {
-      throw new Error('AI Agent node must connect to an AI Service node.');
+      throw new Error(`[AIAgent:${node.id}] Must connect to an AI Service node`);
     }
 
-    const llmData = llmNode.data as LLMNodeData;
-    const outgoingMCPNodes = this.getOutgoingNodes(node.id).filter(
-      (connectedNode) => connectedNode.type === 'mcpClient'
-    );
-    const incomingMCPNodes = this.getIncomingNodes(node.id).filter(
-      (connectedNode) => connectedNode.type === 'mcpClient'
-    );
-    const mcpDependencyNodes = Array.from(
-      new Map(
-        [...outgoingMCPNodes, ...incomingMCPNodes].map((connectedNode) => [
-          connectedNode.id,
-          connectedNode,
-        ])
-      ).values()
+    const mcpNodes = this.collectMCPNodes(node.id);
+    const connectedClients = await this.initializeMCPClients(mcpNodes, data);
+
+    console.log(
+      `[AIAgent:${node.id}] Starting — LLM: ${llmNode.id}, MCP clients: ${connectedClients.length}`
     );
 
-    const connectedClients = await this.initializeMCPClients(mcpDependencyNodes, data);
     const toolExecutionLog: string[] = [];
     const memoryContext = this.formatMemoryMessages(this.context.memoryMessages);
     const maxToolSteps = this.getAgentStepLimit(data);
@@ -191,7 +212,13 @@ export class WorkflowExecutor {
     try {
       const availableTools = await this.buildAgentToolBindings(connectedClients);
 
+      console.log(
+        `[AIAgent:${node.id}] Available tools: [${availableTools.map((t) => t.publicName).join(', ') || 'none'}]`
+      );
+
       for (let step = 1; step <= maxToolSteps; step += 1) {
+        console.log(`[AIAgent:${node.id}] Step ${step}/${maxToolSteps}`);
+
         const stepPrompt = this.buildAgentStepPrompt(
           this.context.currentInput,
           memoryContext,
@@ -201,29 +228,33 @@ export class WorkflowExecutor {
           maxToolSteps
         );
 
-        const rawDecision = await this.invokeLLM(
-          llmData,
+        const rawDecision = await this.executeLLM(
+          llmNode,
           stepPrompt,
           this.buildAgentSystemPrompt(data.systemPrompt)
         );
         const decision = this.parseAgentDecision(rawDecision);
 
         if (!decision) {
+          console.log(`[AIAgent:${node.id}] Step ${step}: unparseable LLM response, returning raw output`);
           const fallbackResponse = rawDecision.trim();
           this.context.variables['agentOutput'] = fallbackResponse;
           return fallbackResponse;
         }
 
         if (decision.type === 'final') {
-          const finalResponse = decision.response.trim();
-          const resolvedResponse = finalResponse.length > 0 ? finalResponse : rawDecision.trim();
-          this.context.variables['agentOutput'] = resolvedResponse;
-          return resolvedResponse;
+          console.log(`[AIAgent:${node.id}] Step ${step}: final answer`);
+          const finalResponse = decision.response.trim() || rawDecision.trim();
+          this.context.variables['agentOutput'] = finalResponse;
+          return finalResponse;
         }
 
         const selectedTool = availableTools.find((tool) => tool.publicName === decision.name);
 
         if (!selectedTool) {
+          console.warn(
+            `[AIAgent:${node.id}] Step ${step}: unknown tool "${decision.name}" — available: [${availableTools.map((t) => t.publicName).join(', ') || 'none'}]`
+          );
           toolExecutionLog.push(
             `Step ${step}: Unknown tool "${decision.name}" was requested. Available tools: ${availableTools
               .map((tool) => tool.publicName)
@@ -232,34 +263,38 @@ export class WorkflowExecutor {
           continue;
         }
 
+        console.log(
+          `[AIAgent:${node.id}] Step ${step}: calling tool "${selectedTool.publicName}" with args ${JSON.stringify(decision.arguments)}`
+        );
+
         try {
-          const toolResult = await selectedTool.client.callTool(
-            selectedTool.sourceToolName,
-            decision.arguments
-          );
+          const toolResult = await this.executeMCPClient(selectedTool, decision.arguments);
+
+          console.log(`[AIAgent:${node.id}] Step ${step}: tool "${selectedTool.publicName}" succeeded`);
 
           toolExecutionLog.push(
             [
               `Step ${step} tool call`,
               `Tool: ${selectedTool.publicName} (${selectedTool.sourceToolName} @ ${selectedTool.endpoint})`,
               `Arguments: ${JSON.stringify(decision.arguments)}`,
-              `Result: ${this.stringifyToolResult(toolResult)}`,
+              `Result: ${toolResult}`,
             ].join('\n')
           );
         } catch (error) {
+          console.error(
+            `[AIAgent:${node.id}] Step ${step}: tool "${selectedTool.publicName}" failed: ${this.getErrorMessage(error)}`
+          );
           toolExecutionLog.push(
             `Step ${step} tool call failed for ${selectedTool.publicName}: ${this.getErrorMessage(error)}`
           );
         }
       }
 
-      const fallbackOutput = await this.invokeLLM(
-        llmData,
-        this.buildAgentFallbackPrompt(
-          this.context.currentInput,
-          memoryContext,
-          toolExecutionLog
-        ),
+      console.log(`[AIAgent:${node.id}] Max steps reached — generating fallback answer`);
+
+      const fallbackOutput = await this.executeLLM(
+        llmNode,
+        this.buildAgentFallbackPrompt(this.context.currentInput, memoryContext, toolExecutionLog),
         data.systemPrompt || 'You are a helpful assistant.'
       );
 
@@ -272,11 +307,28 @@ export class WorkflowExecutor {
     }
   }
 
-  private async executeLLM(node: WorkflowNode): Promise<string> {
-    const data = node.data as LLMNodeData;
-    console.log('LLM node executing with model:', data.model);
+  private async executeMCPClient(
+    tool: AgentToolBinding,
+    args: Record<string, unknown>
+  ): Promise<string> {
+    console.log(`[MCPClient: Calling tool "${tool.publicName}" with args: ${JSON.stringify(args)}`);
+    const result = await tool.client.callTool(tool.sourceToolName, args);
+    console.log(`[MCPClient: Tool "${tool.publicName}" returned result: ${JSON.stringify(result)}`);
+    return this.stringifyToolResult(result);
+  }
 
-    return this.invokeLLM(data, this.context.currentInput, data.systemPrompt);
+  private async executeLLM(
+    node: WorkflowNode,
+    message?: string,
+    systemPrompt?: string
+  ): Promise<string> {
+    const data = node.data as LLMNodeData;
+    const resolvedMessage = message ?? this.context.currentInput;
+    const resolvedSystemPrompt = systemPrompt ?? data.systemPrompt;
+
+    console.log(`[LLM:${node.id}] Calling ${data.provider}/${data.model}`);
+
+    return this.invokeLLM(data, resolvedMessage, resolvedSystemPrompt);
   }
 
   private async invokeLLM(
@@ -337,59 +389,13 @@ export class WorkflowExecutor {
       .filter((node): node is WorkflowNode => Boolean(node));
   }
 
-  private async initializeMCPClients(
-    mcpNodes: WorkflowNode[],
-    agentData?: AIAgentNodeData
-  ): Promise<ConnectedMCPClient[]> {
-    return Promise.all(
-      mcpNodes.map(async (node) => {
-        const nodeData = node.data as MCPClientNodeData;
-        const endpoint = nodeData.mcpServerEndpoint?.trim();
+  // Collects all MCP nodes connected to an AIAgent (both directions), deduplicated.
+  private collectMCPNodes(agentNodeId: string): WorkflowNode[] {
+    const outgoing = this.getOutgoingNodes(agentNodeId).filter((n) => n.type === 'mcpClient');
+    const incoming = this.getIncomingNodes(agentNodeId).filter((n) => n.type === 'mcpClient');
 
-        if (!endpoint) {
-          throw new Error(`MCP Client node ${node.id} is missing a server endpoint.`);
-        }
-
-        const runtime = new MCPClientNodeRuntime();
-
-        if (nodeData.useOAuth2) {
-          if (!nodeData.oauth2OrganizationName?.trim()) {
-            throw new Error(`MCP Client node ${node.id}: OAuth2 organization name is required.`);
-          }
-          if (!nodeData.oauth2ClientId?.trim()) {
-            throw new Error(`MCP Client node ${node.id}: OAuth2 client ID is required.`);
-          }
-          if (!nodeData.oauth2RedirectUri?.trim()) {
-            throw new Error(`MCP Client node ${node.id}: OAuth2 redirect URI is required.`);
-          }
-          if (!agentData?.agentId?.trim()) {
-            throw new Error(`MCP Client node ${node.id}: Agent ID is required on the connected AI Agent node for OAuth2.`);
-          }
-          if (!agentData?.agentSecret?.trim()) {
-            throw new Error(`MCP Client node ${node.id}: Agent Secret is required on the connected AI Agent node for OAuth2.`);
-          }
-
-          console.log(`MCP Client node ${node.id}: running agent OAuth2 flow`);
-          const accessToken = await authenticateAgent({
-            organizationName: nodeData.oauth2OrganizationName,
-            clientId: nodeData.oauth2ClientId,
-            redirectUri: nodeData.oauth2RedirectUri,
-            agentId: agentData.agentId,
-            agentSecret: agentData.agentSecret,
-            scope: nodeData.oauth2Scope,
-          });
-          runtime.setAccessToken(accessToken);
-          console.log(`MCP Client node ${node.id}: access token obtained`);
-        }
-
-        await runtime.connect(endpoint);
-
-        return {
-          endpoint,
-          nodeId: node.id,
-          runtime,
-        };
-      })
+    return Array.from(
+      new Map([...outgoing, ...incoming].map((n) => [n.id, n])).values()
     );
   }
 
@@ -644,4 +650,3 @@ export class WorkflowExecutor {
     return 'Unknown error';
   }
 }
-
