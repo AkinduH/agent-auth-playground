@@ -89,14 +89,24 @@ export default function ChatPanel({
                     <p className="text-xs text-gray-700 mb-3 whitespace-pre-wrap">
                       {msg.content.replace(/^Authorization Required[^\n]*\n\n/, '')}
                     </p>
-                    <a
-                      href={msg.metadata.authUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 underline"
+                    <button
+                      onClick={() =>
+                        window.open(
+                          msg.metadata?.authUrl ?? '',
+                          'obo-auth-popup',
+                          'width=520,height=680,scrollbars=yes,resizable=yes,left=' +
+                            Math.round(window.screenX + (window.outerWidth - 520) / 2) +
+                            ',top=' +
+                            Math.round(window.screenY + (window.outerHeight - 680) / 2)
+                        )
+                      }
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors cursor-pointer"
                     >
-                      Open Authorization Page →
-                    </a>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
+                      </svg>
+                      Authorize
+                    </button>
                   </>
                 ) : (
                   <p className="text-sm break-words">{msg.content}</p>
@@ -142,7 +152,7 @@ export default function ChatPanel({
       {oboConsentPending && (
         <div className="mx-4 mb-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-md">
           <p className="text-xs text-amber-800 font-medium">
-            Paste the authorization code or full redirect URL below to continue.
+            Waiting for authorization... You will be redirected back automatically, or paste the code below.
           </p>
         </div>
       )}
@@ -156,7 +166,7 @@ export default function ChatPanel({
             onKeyDown={handleKeyDown}
             placeholder={
               oboConsentPending
-                ? 'Paste authorization code or redirect URL...'
+                ? 'Or paste authorization code / redirect URL manually...'
                 : 'Type a message...'
             }
             disabled={(!oboConsentPending && disabled) || isLoading}

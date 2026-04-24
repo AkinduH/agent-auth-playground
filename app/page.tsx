@@ -55,6 +55,25 @@ export default function Home() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isNodePanelOpen, setIsNodePanelOpen] = useState(false);
   const [isChatVisible, setIsChatVisible] = useState(true);
+  const [isOAuthCallback, setIsOAuthCallback] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const state = params.get('state');
+    if (code && state) {
+      window.history.replaceState({}, '', '/');
+      const channel = new BroadcastChannel('obo-callback');
+      channel.postMessage({ code, state });
+      channel.close();
+      // If opened as a popup, close automatically; otherwise show the banner
+      if (window.opener) {
+        window.close();
+      } else {
+        setIsOAuthCallback(true);
+      }
+    }
+  }, []);
 
   const selectedNode =
     workflow?.nodes.find((n) => n.id === selectedNodeId) || null;
@@ -177,6 +196,21 @@ export default function Home() {
           </Button>
         </div>
       </div>
+
+      {/* OAuth callback banner */}
+      {isOAuthCallback && (
+        <div className="bg-green-50 border-b border-green-200 px-6 py-3 flex items-center justify-between">
+          <p className="text-sm text-green-800 font-medium">
+            Authorization successful! You can close this tab and return to the previous one.
+          </p>
+          <button
+            onClick={() => window.close()}
+            className="text-xs text-green-700 underline hover:text-green-900"
+          >
+            Close tab
+          </button>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">

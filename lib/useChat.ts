@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   AIAgentNodeData,
   ChatMessage,
@@ -29,6 +29,7 @@ interface OBOPendingNode {
   authUrl: string;
   codeVerifier: string;
   agentAccessToken: string;
+  state: string;
 }
 
 interface OBOConsentState {
@@ -99,7 +100,7 @@ function extractAuthCode(input: string): string {
 
 function buildOBOConsentMessage(nodeId: string, current: number, total: number): string {
   const multi = total > 1 ? ` (${current} of ${total})` : '';
-  return `Authorization Required${multi}\n\nThe AI agent needs your consent to act on your behalf for MCP connection "${nodeId}".\n\nClick the authorization link above to log in and approve. After approving, you will be redirected — paste the full redirect URL or just the authorization code below.`;
+  return `Authorization Required${multi}\n\nThe AI agent needs your consent to act on your behalf for MCP connection.\n\nClick the link below to log in.`;
 }
 
 export function useChat(workflowId: string, options: UseChatOptions = {}) {
@@ -109,6 +110,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
   const [oboConsentPending, setOboConsentPending] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const oboConsentStateRef = useRef<OBOConsentState | null>(null);
+  const processOBOCodeRef = useRef<((code: string, opts?: { silent?: boolean }) => Promise<void>) | null>(null);
 
   const addMessage = useCallback((message: ChatMessage) => {
     setMessages((prev) => [...prev, message]);
@@ -202,17 +204,27 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
   );
 
   const processOBOCode = useCallback(
-    async (codeInput: string) => {
+    async (codeInput: string, { silent = false }: { silent?: boolean } = {}) => {
       const state = oboConsentStateRef.current;
       if (!state) return;
 
-      addMessage({
-        id: generateId('msg-'),
-        role: 'user',
-        content: codeInput,
-        timestamp: Date.now(),
-        workflowId,
-      });
+      if (!silent) {
+        addMessage({
+          id: generateId('msg-'),
+          role: 'user',
+          content: codeInput,
+          timestamp: Date.now(),
+          workflowId,
+        });
+      } else {
+        addMessage({
+          id: generateId('msg-'),
+          role: 'assistant',
+          content: 'Authorization received. Exchanging token...',
+          timestamp: Date.now(),
+          workflowId,
+        });
+      }
 
       setIsLoading(true);
       setError(null);
@@ -298,6 +310,28 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
     [workflowId, addMessage, doExecuteWorkflow, options]
   );
 
+  // Keep ref current so the BroadcastChannel handler always calls the latest version
+  useEffect(() => {
+    processOBOCodeRef.current = processOBOCode;
+  }, [processOBOCode]);
+
+  // Listen for OAuth2 callback codes posted from the redirect tab
+  useEffect(() => {
+    if (!oboConsentPending) return;
+
+    const channel = new BroadcastChannel('obo-callback');
+    channel.onmessage = (event: MessageEvent<{ code: string; state: string }>) => {
+      const { code, state } = event.data;
+      const pending = oboConsentStateRef.current;
+      if (!pending) return;
+      const currentNode = pending.pendingNodes[pending.currentNodeIndex];
+      if (currentNode.state !== state) return;
+      processOBOCodeRef.current?.(code, { silent: true });
+    };
+
+    return () => channel.close();
+  }, [oboConsentPending]);
+
   const executeWorkflow = useCallback(
     async (userMessage: string, workflowDefinition: Workflow) => {
       // If OBO consent is in progress, treat the input as an authorization code
@@ -351,6 +385,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
                 authUrl: data.authUrl as string,
                 codeVerifier: data.codeVerifier as string,
                 agentAccessToken: data.agentAccessToken as string,
+                state: data.state as string,
               } satisfies OBOPendingNode;
             })
           );
