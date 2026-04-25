@@ -2,11 +2,13 @@ import { WorkflowNode, AIAgentNodeData, MCPClientNodeData } from '../types';
 import { MCPClientNodeRuntime } from '../mcpClientNode';
 import { authenticateAgent } from '../agentAuth';
 import { ConnectedMCPClient } from './types';
+import { WorkflowTrace, MCPNodeTrace, deriveIamUrls } from '../authTrace';
 
 export async function initializeMCPClients(
   mcpNodes: WorkflowNode[],
   agentData?: AIAgentNodeData,
-  oboTokens: Record<string, string> = {}
+  oboTokens: Record<string, string> = {},
+  trace?: WorkflowTrace
 ): Promise<ConnectedMCPClient[]> {
   return Promise.all(
     mcpNodes.map(async (node) => {
@@ -19,11 +21,18 @@ export async function initializeMCPClients(
 
       const runtime = new MCPClientNodeRuntime();
 
+      const traceEntry: MCPNodeTrace = {
+        nodeId: node.id,
+        name: nodeData.name?.trim() || undefined,
+        endpoint,
+        flow: 'none',
+        agentId: agentData?.agentId,
+      };
+
       if (nodeData.useOAuth2) {
         const flow = nodeData.oauth2Flow ?? 'agent';
 
         if (flow === 'obo') {
-          // Use the pre-obtained OBO token (user authorized in chat)
           const oboToken = oboTokens[node.id];
           if (!oboToken) {
             throw new Error(
@@ -32,8 +41,16 @@ export async function initializeMCPClients(
           }
           console.log(`[MCPClient:${node.id}] Using OBO token`);
           runtime.setAccessToken(oboToken);
+
+          traceEntry.flow = 'obo';
+          traceEntry.oboToken = oboToken;
+          if (nodeData.oauth2OrganizationName?.trim()) {
+            const urls = deriveIamUrls(nodeData.oauth2OrganizationName.trim());
+            traceEntry.iamBaseUrl = urls.iamBaseUrl;
+            traceEntry.authorizeUrl = urls.authorizeUrl;
+            traceEntry.tokenUrl = urls.tokenUrl;
+          }
         } else {
-          // Agent flow — authenticate using agent credentials
           if (!nodeData.oauth2OrganizationName?.trim()) {
             throw new Error(`[MCPClient:${node.id}] OAuth2 organization name is required`);
           }
@@ -65,12 +82,22 @@ export async function initializeMCPClients(
           });
           runtime.setAccessToken(accessToken);
           console.log(`[MCPClient:${node.id}] Access token obtained`);
+
+          const urls = deriveIamUrls(nodeData.oauth2OrganizationName.trim());
+          traceEntry.flow = 'agent';
+          traceEntry.iamBaseUrl = urls.iamBaseUrl;
+          traceEntry.authorizeUrl = urls.authorizeUrl;
+          traceEntry.authnUrl = urls.authnUrl;
+          traceEntry.tokenUrl = urls.tokenUrl;
+          traceEntry.agentToken = accessToken;
         }
       }
 
       console.log(`[MCPClient:${node.id}] Connecting to ${endpoint}`);
       await runtime.connect(endpoint);
       console.log(`[MCPClient:${node.id}] Connected`);
+
+      if (trace) trace.mcps.push(traceEntry);
 
       return { endpoint, nodeId: node.id, runtime };
     })

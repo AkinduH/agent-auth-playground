@@ -230,6 +230,24 @@ export default function NodePanel({
           <div className="space-y-4">
             <div>
               <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                MCP Server Name
+              </label>
+              <Input
+                value={mcpData.name || ''}
+                onChange={(e) =>
+                  onUpdate(node.id, {
+                    data: { ...mcpData, name: e.target.value },
+                  })
+                }
+                placeholder="e.g. Bookings API"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Optional friendly label shown in the auth flow diagram instead of the node ID.
+              </p>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-gray-700 mb-2 block">
                 MCP Server Endpoint
               </label>
               <Input

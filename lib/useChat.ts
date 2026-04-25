@@ -8,6 +8,7 @@ import {
   Workflow,
 } from './types';
 import { workflowStore, generateId } from './workflowStore';
+import { WorkflowTrace, MCPNodeTrace, dominantFlow } from './authTrace';
 
 export interface UseChatOptions {
   onStreamChunk?: (chunk: string) => void;
@@ -108,8 +109,10 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [oboConsentPending, setOboConsentPending] = useState(false);
+  const [lastTrace, setLastTrace] = useState<WorkflowTrace | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const oboConsentStateRef = useRef<OBOConsentState | null>(null);
+  const oboClientPatchRef = useRef<Record<string, Partial<MCPNodeTrace>>>({});
   const processOBOCodeRef = useRef<((code: string, opts?: { silent?: boolean }) => Promise<void>) | null>(null);
 
   const addMessage = useCallback((message: ChatMessage) => {
@@ -180,6 +183,18 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
           workflowId,
         };
         addMessage(assistantMsg);
+
+        if (data.trace) {
+          const trace: WorkflowTrace = data.trace;
+          // Merge in client-side OBO data (auth URL + agent token captured during init)
+          const patches = oboClientPatchRef.current;
+          for (const m of trace.mcps) {
+            const patch = patches[m.nodeId];
+            if (patch) Object.assign(m, patch);
+          }
+          trace.flow = dominantFlow(trace.mcps);
+          setLastTrace(trace);
+        }
 
         if (memoryBinding) {
           workflowStore.appendWorkflowMemory(
@@ -334,11 +349,9 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
 
   const executeWorkflow = useCallback(
     async (userMessage: string, workflowDefinition: Workflow) => {
-      // If OBO consent is in progress, treat the input as an authorization code
-      if (oboConsentStateRef.current !== null) {
-        await processOBOCode(userMessage);
-        return;
-      }
+      // While OBO consent is pending the chat input is disabled in the UI;
+      // the auth code arrives via the BroadcastChannel popup callback.
+      if (oboConsentStateRef.current !== null) return;
 
       // Check which OBO nodes are missing a valid stored token
       const oboNodes = findOBONodes(workflowDefinition);
@@ -390,6 +403,14 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
             })
           );
 
+          // Stash auth URL + agent token per node for later trace merging
+          for (const r of initResults) {
+            oboClientPatchRef.current[r.nodeId] = {
+              oboAuthUrl: r.authUrl,
+              agentToken: r.agentAccessToken,
+            };
+          }
+
           oboConsentStateRef.current = {
             pendingMessage: userMessage,
             pendingWorkflow: workflowDefinition,
@@ -436,6 +457,8 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
     setMessages([]);
     oboConsentStateRef.current = null;
     setOboConsentPending(false);
+    setLastTrace(null);
+    oboClientPatchRef.current = {};
   }, []);
 
   const cancel = useCallback(() => {
@@ -448,6 +471,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
     isLoading,
     error,
     oboConsentPending,
+    lastTrace,
     addMessage,
     executeWorkflow,
     clearMessages,

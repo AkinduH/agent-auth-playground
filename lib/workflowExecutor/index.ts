@@ -7,11 +7,13 @@ import {
   ExecutionResult,
   AIAgentNodeData,
   ChatMessage,
+  LLMNodeData,
 } from '../types';
 import { initializeMCPClients } from './mcpInitializer';
 import { executeChatTrigger } from './chatTrigger';
 import { executeAIAgent, executeLLM } from './aiAgent';
 import { getErrorMessage } from './utils';
+import { WorkflowTrace, emptyTrace, dominantFlow } from '../authTrace';
 
 export class WorkflowExecutor {
   private workflow: Workflow;
@@ -19,6 +21,7 @@ export class WorkflowExecutor {
   private apiKeys: Partial<Record<'gemini' | 'openai' | 'anthropic', string>>;
   private baseUrl: string;
   private oboTokens: Record<string, string>;
+  private trace: WorkflowTrace;
 
   constructor(
     workflow: Workflow,
@@ -33,6 +36,15 @@ export class WorkflowExecutor {
     this.apiKeys = apiKeys;
     this.baseUrl = baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     this.oboTokens = oboTokens;
+    this.trace = emptyTrace();
+    this.trace.userMessage = initialInput;
+
+    const llmNode = workflow.nodes.find((n) => n.type === 'llm');
+    if (llmNode) {
+      const data = llmNode.data as LLMNodeData;
+      this.trace.llm = { provider: data.provider, model: data.model };
+    }
+
     this.context = {
       workflowId,
       variables: {},
@@ -41,7 +53,7 @@ export class WorkflowExecutor {
     };
   }
 
-  async execute(): Promise<ExecutionResult> {
+  async execute(): Promise<ExecutionResult & { trace: WorkflowTrace }> {
     const startTime = Date.now();
 
     try {
@@ -58,14 +70,21 @@ export class WorkflowExecutor {
 
       console.log(`[Workflow] Completed in ${executionTime}ms`);
 
-      return { success: true, output, executionTime };
+      this.trace.finishedAt = Date.now();
+      this.trace.finalAnswer = output;
+      this.trace.flow = dominantFlow(this.trace.mcps);
+
+      return { success: true, output, executionTime, trace: this.trace };
     } catch (error) {
       const executionTime = Date.now() - startTime;
       const errorMessage = getErrorMessage(error);
 
       console.error(`[Workflow] Failed after ${executionTime}ms: ${errorMessage}`);
 
-      return { success: false, output: '', error: errorMessage, executionTime };
+      this.trace.finishedAt = Date.now();
+      this.trace.flow = dominantFlow(this.trace.mcps);
+
+      return { success: false, output: '', error: errorMessage, executionTime, trace: this.trace };
     }
   }
 
@@ -103,7 +122,12 @@ export class WorkflowExecutor {
     }
 
     const mcpNodes = this.collectMCPNodes(node.id);
-    const connectedClients = await initializeMCPClients(mcpNodes, node.data as AIAgentNodeData, this.oboTokens);
+    const connectedClients = await initializeMCPClients(
+      mcpNodes,
+      node.data as AIAgentNodeData,
+      this.oboTokens,
+      this.trace
+    );
 
     try {
       return await executeAIAgent(
@@ -112,7 +136,8 @@ export class WorkflowExecutor {
         connectedClients,
         this.context,
         this.apiKeys,
-        this.baseUrl
+        this.baseUrl,
+        this.trace
       );
     } finally {
       await Promise.all(

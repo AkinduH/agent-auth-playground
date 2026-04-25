@@ -14,6 +14,8 @@ interface ChatPanelProps {
   onClear: () => void;
   disabled?: boolean;
   oboConsentPending?: boolean;
+  hasTrace?: boolean;
+  onViewAuthFlow?: () => void;
 }
 
 export default function ChatPanel({
@@ -24,6 +26,8 @@ export default function ChatPanel({
   onClear,
   disabled = false,
   oboConsentPending = false,
+  hasTrace = false,
+  onViewAuthFlow,
 }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -37,7 +41,7 @@ export default function ChatPanel({
   }, [messages]);
 
   const handleSend = () => {
-    if (!input.trim() || (!oboConsentPending && disabled)) return;
+    if (!input.trim() || disabled || oboConsentPending) return;
     onSendMessage(input);
     setInput('');
   };
@@ -52,9 +56,19 @@ export default function ChatPanel({
   return (
     <div className="flex flex-col h-full bg-white border-l border-gray-200">
       {/* Header */}
-      <div className="border-b border-gray-200 p-4">
-        <h3 className="font-semibold text-gray-900">Chat</h3>
-        <p className="text-xs text-gray-500">Test your workflow</p>
+      <div className="border-b border-gray-200 p-4 flex items-start justify-between gap-2">
+        <div>
+          <h3 className="font-semibold text-gray-900">Chat</h3>
+          <p className="text-xs text-gray-500">Test your workflow</p>
+        </div>
+        {hasTrace && onViewAuthFlow && (
+          <button
+            onClick={onViewAuthFlow}
+            className="px-3 py-1.5 text-xs font-medium text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 rounded-md transition-colors"
+          >
+            View Auth Flow
+          </button>
+        )}
       </div>
 
       {/* Messages */}
@@ -152,7 +166,7 @@ export default function ChatPanel({
       {oboConsentPending && (
         <div className="mx-4 mb-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-md">
           <p className="text-xs text-amber-800 font-medium">
-            Waiting for authorization... You will be redirected back automatically, or paste the code below.
+            Waiting for authorization...
           </p>
         </div>
       )}
@@ -164,20 +178,16 @@ export default function ChatPanel({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={
-              oboConsentPending
-                ? 'Or paste authorization code / redirect URL manually...'
-                : 'Type a message...'
-            }
-            disabled={(!oboConsentPending && disabled) || isLoading}
+            placeholder="Type a message..."
+            disabled={disabled || isLoading || oboConsentPending}
             className="flex-1"
           />
           <Button
             onClick={handleSend}
-            disabled={!input.trim() || (!oboConsentPending && disabled) || isLoading}
+            disabled={!input.trim() || disabled || isLoading || oboConsentPending}
             size="sm"
           >
-            {isLoading ? <Spinner className="w-4 h-4" /> : oboConsentPending ? 'Submit' : 'Send'}
+            {isLoading ? <Spinner className="w-4 h-4" /> : 'Send'}
           </Button>
         </div>
 

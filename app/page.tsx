@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { validateWorkflow } from '@/lib/workflowValidation';
 import { useEffect, useState } from 'react';
+import { AuthFlowDiagram } from '@/components/AuthFlowDiagram';
 
 const NEW_WORKFLOW_OPTION = '__new_workflow__';
 
@@ -47,6 +48,7 @@ export default function Home() {
     isLoading,
     error,
     oboConsentPending,
+    lastTrace,
     executeWorkflow,
     clearMessages,
   } = useChat(workflow?.id || 'temp');
@@ -56,6 +58,7 @@ export default function Home() {
   const [isNodePanelOpen, setIsNodePanelOpen] = useState(false);
   const [isChatVisible, setIsChatVisible] = useState(true);
   const [isOAuthCallback, setIsOAuthCallback] = useState(false);
+  const [isAuthFlowOpen, setIsAuthFlowOpen] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -243,10 +246,26 @@ export default function Home() {
               onClear={clearMessages}
               disabled={!workflow || workflow.nodes.length === 0}
               oboConsentPending={oboConsentPending}
+              hasTrace={!!lastTrace}
+              onViewAuthFlow={() => setIsAuthFlowOpen(true)}
             />
           </div>
         )}
       </div>
+
+      <Dialog open={isAuthFlowOpen} onOpenChange={setIsAuthFlowOpen}>
+        <DialogContent className="w-[98vw] !max-w-7xl h-[92vh] overflow-y-auto p-6">
+          <DialogTitle>Auth Flow</DialogTitle>
+          <DialogDescription>
+            Sequence diagram of the authorization and tool-call activity from the most recent workflow run.
+          </DialogDescription>
+          {lastTrace ? (
+            <AuthFlowDiagram trace={lastTrace} />
+          ) : (
+            <div className="p-6 text-center text-slate-500 text-sm">No execution recorded yet.</div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isNodePanelOpen} onOpenChange={setIsNodePanelOpen}>
         <DialogContent className="w-[95vw] max-w-2xl p-0">

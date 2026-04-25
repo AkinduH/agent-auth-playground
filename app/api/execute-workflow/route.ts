@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
       output: result.output,
       error: result.error,
       executionTime: result.executionTime,
+      trace: result.trace,
     });
   } catch (error) {
     console.error('Workflow API error:', error);

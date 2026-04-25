@@ -1,5 +1,6 @@
 import { WorkflowNode, AIAgentNodeData, LLMNodeData, ExecutionContext } from '../types';
 import { ConnectedMCPClient, AgentToolBinding } from './types';
+import { WorkflowTrace } from '../authTrace';
 import { executeMCPClient, buildAgentToolBindings } from './mcpClient';
 import {
   getErrorMessage,
@@ -140,7 +141,8 @@ export async function executeAIAgent(
   connectedClients: ConnectedMCPClient[],
   context: ExecutionContext,
   apiKeys: Partial<Record<'gemini' | 'openai' | 'anthropic', string>>,
-  baseUrl: string
+  baseUrl: string,
+  trace?: WorkflowTrace
 ): Promise<string> {
   const data = node.data as AIAgentNodeData;
   const toolExecutionLog: string[] = [];
@@ -211,6 +213,9 @@ export async function executeAIAgent(
       `[AIAgent:${node.id}] Step ${step}: calling tool "${selectedTool.publicName}" with args ${JSON.stringify(decision.arguments)}`
     );
 
+    const matchingClient = connectedClients.find((c) => c.endpoint === selectedTool.endpoint);
+    const toolNodeId = matchingClient?.nodeId ?? '';
+
     try {
       const toolResult = await executeMCPClient(selectedTool, decision.arguments);
       console.log(`[AIAgent:${node.id}] Step ${step}: tool "${selectedTool.publicName}" succeeded`);
@@ -222,6 +227,16 @@ export async function executeAIAgent(
           `Result: ${toolResult}`,
         ].join('\n')
       );
+      trace?.tools.push({
+        step,
+        publicName: selectedTool.publicName,
+        sourceToolName: selectedTool.sourceToolName,
+        endpoint: selectedTool.endpoint,
+        nodeId: toolNodeId,
+        args: JSON.stringify(decision.arguments),
+        result: typeof toolResult === 'string' ? toolResult.slice(0, 500) : '',
+        ok: true,
+      });
     } catch (error) {
       console.error(
         `[AIAgent:${node.id}] Step ${step}: tool "${selectedTool.publicName}" failed: ${getErrorMessage(error)}`
@@ -229,6 +244,16 @@ export async function executeAIAgent(
       toolExecutionLog.push(
         `Step ${step} tool call failed for ${selectedTool.publicName}: ${getErrorMessage(error)}`
       );
+      trace?.tools.push({
+        step,
+        publicName: selectedTool.publicName,
+        sourceToolName: selectedTool.sourceToolName,
+        endpoint: selectedTool.endpoint,
+        nodeId: toolNodeId,
+        args: JSON.stringify(decision.arguments),
+        result: getErrorMessage(error),
+        ok: false,
+      });
     }
   }
 
