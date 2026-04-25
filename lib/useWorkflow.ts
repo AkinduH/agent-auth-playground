@@ -53,6 +53,19 @@ export function useWorkflow() {
     return stored;
   }, []);
 
+  const importWorkflow = useCallback((imported: Workflow) => {
+    const replaced: Workflow = {
+      ...imported,
+      id: workflow?.id || imported.id,
+      updatedAt: Date.now(),
+    };
+    workflowStore.saveWorkflow(replaced);
+    setWorkflow(replaced);
+    setSelectedNodeId(null);
+    refreshWorkflows();
+    return replaced;
+  }, [workflow?.id, refreshWorkflows]);
+
   const updateWorkflow = useCallback((updates: Partial<Workflow>) => {
     setWorkflow((prev) => {
       if (!prev) return null;
@@ -170,6 +183,7 @@ export function useWorkflow() {
     isSaving,
     createWorkflow,
     selectWorkflow,
+    importWorkflow,
     updateWorkflow,
     saveWorkflow,
     addNode,

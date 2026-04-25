@@ -8,34 +8,24 @@ import ChatPanel from '@/components/ChatPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { validateWorkflow } from '@/lib/workflowValidation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AuthFlowDiagram } from '@/components/AuthFlowDiagram';
-
-const NEW_WORKFLOW_OPTION = '__new_workflow__';
+import { Workflow } from '@/lib/types';
 
 export default function Home() {
   const {
     workflow,
-    workflows,
     selectedNodeId,
     setSelectedNodeId,
     isSaving,
-    createWorkflow,
-    selectWorkflow,
     saveWorkflow,
+    importWorkflow,
     addNode,
     updateNode,
     deleteNode,
@@ -110,33 +100,67 @@ export default function Home() {
     await executeWorkflow(message, workflow);
   };
 
-  const handleWorkflowSelection = (value: string) => {
-    if (value === NEW_WORKFLOW_OPTION) {
-      createWorkflow('');
-      return;
-    }
+  const [isSavedDialogOpen, setIsSavedDialogOpen] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-    selectWorkflow(value);
-  };
-
-  const handleSaveWorkflowName = async () => {
+  const handleSaveWorkflow = async () => {
     if (!workflow) return;
 
     const trimmedName = workflowName.trim();
-    if (!trimmedName) return;
-
     const updatedWorkflow = {
       ...workflow,
-      name: trimmedName,
+      name: trimmedName || workflow.name,
       updatedAt: Date.now(),
     };
 
     await saveWorkflow(updatedWorkflow);
+    setIsSavedDialogOpen(true);
   };
 
-  const namedWorkflows = workflows.filter((savedWorkflow) =>
-    savedWorkflow.name.trim().length > 0
-  );
+  const handleDownloadWorkflow = () => {
+    if (!workflow) return;
+    const json = JSON.stringify(workflow, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const safeName = (workflow.name || 'workflow').replace(/[^a-z0-9-_]+/gi, '_');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${safeName}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportClick = () => {
+    setImportError(null);
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as Workflow;
+      if (
+        !parsed ||
+        typeof parsed !== 'object' ||
+        !Array.isArray(parsed.nodes) ||
+        !Array.isArray(parsed.edges)
+      ) {
+        throw new Error('Invalid workflow file');
+      }
+      importWorkflow(parsed);
+    } catch (err) {
+      setImportError(
+        err instanceof Error ? err.message : 'Failed to import workflow'
+      );
+    }
+  };
 
   if (!workflow) {
     return (
@@ -152,41 +176,47 @@ export default function Home() {
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center gap-4">
           <div className="flex-1">
-            <div className="flex gap-2 items-center mb-2">
-              <Select
-                value={workflow.name.trim() ? workflow.id : undefined}
-                onValueChange={handleWorkflowSelection}
-              >
-                <SelectTrigger className="w-full text-xl font-bold">
-                  <SelectValue placeholder="Select workflow" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NEW_WORKFLOW_OPTION}>New workflow</SelectItem>
-                  {namedWorkflows.map((savedWorkflow) => (
-                    <SelectItem key={savedWorkflow.id} value={savedWorkflow.id}>
-                      {savedWorkflow.name || ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center flex-wrap">
               <Input
                 value={workflowName}
                 onChange={(e) => setWorkflowName(e.target.value)}
-                placeholder="Rename workflow"
-                className="max-w-sm"
+                placeholder="Workflow name"
+                className="max-w-sm text-lg font-semibold"
               />
               <Button
-                onClick={handleSaveWorkflowName}
+                onClick={handleSaveWorkflow}
+                size="sm"
+                variant="default"
+                disabled={isSaving}
+              >
+                {isSaving ? 'Saving...' : 'Save Workflow'}
+              </Button>
+              <Button
+                onClick={handleDownloadWorkflow}
                 size="sm"
                 variant="outline"
-                disabled={!workflowName.trim()}
               >
-                Save
+                Download Workflow
               </Button>
+              <Button
+                onClick={handleImportClick}
+                size="sm"
+                variant="outline"
+              >
+                Import Workflow
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={handleImportFile}
+              />
             </div>
-            <p className="text-sm text-gray-500">
+            {importError && (
+              <p className="text-xs text-red-600 mt-1">{importError}</p>
+            )}
+            <p className="text-sm text-gray-500 mt-1">
               Created {new Date(workflow.createdAt).toLocaleDateString()}
             </p>
           </div>
@@ -252,6 +282,25 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      <Dialog open={isSavedDialogOpen} onOpenChange={setIsSavedDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogTitle className="flex items-center gap-2 text-green-700">
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-700">
+              ✓
+            </span>
+            Saved successfully
+          </DialogTitle>
+          <DialogDescription>
+            Your workflow has been saved.
+          </DialogDescription>
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => setIsSavedDialogOpen(false)}>
+              OK
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isAuthFlowOpen} onOpenChange={setIsAuthFlowOpen}>
         <DialogContent className="w-[98vw] !max-w-7xl h-[92vh] overflow-y-auto p-6">
