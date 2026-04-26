@@ -96,12 +96,16 @@ function mcpFullLabel(m: MCPNodeTrace): string {
 
 function pushAgentAuthSteps(items: Item[], primary: MCPNodeTrace | undefined) {
   const agentToken = primary?.agentToken;
+  const base = primary?.iamBaseUrl ?? '';
+  const authorizeUrl = primary?.authorizeUrl ?? `${base}/oauth2/authorize`;
+  const authnUrl = primary?.authnUrl ?? `${base}/oauth2/authn`;
+  const tokenUrl = primary?.tokenUrl ?? `${base}/oauth2/token`;
   items.push({ kind: 'section', label: 'AGENT AUTHENTICATION  (PKCE  ·  Asgardeo Direct Auth)' });
   items.push({
     kind: 'message',
     from: 'Agent',
     to: 'IAM',
-    label: 'POST /oauth2/authorize',
+    label: `POST ${authorizeUrl}`,
     sublabel: 'client_id, redirect_uri, response_type=code, response_mode=direct, scope, code_challenge (S256)',
     color: 'auth',
   });
@@ -118,7 +122,7 @@ function pushAgentAuthSteps(items: Item[], primary: MCPNodeTrace | undefined) {
     kind: 'message',
     from: 'Agent',
     to: 'IAM',
-    label: 'POST /oauth2/authn',
+    label: `POST ${authnUrl}`,
     sublabel: `flowId, selectedAuthenticator { authenticatorId, params: { username: agentId="${primary?.agentId || '—'}", password: agentSecret } }`,
     color: 'auth',
   });
@@ -135,7 +139,7 @@ function pushAgentAuthSteps(items: Item[], primary: MCPNodeTrace | undefined) {
     kind: 'message',
     from: 'Agent',
     to: 'IAM',
-    label: 'POST /oauth2/token',
+    label: `POST ${tokenUrl}`,
     sublabel: 'grant_type=authorization_code, client_id, code, code_verifier, redirect_uri',
     color: 'auth',
   });
@@ -244,6 +248,9 @@ function buildAgentItems(trace: WorkflowTrace): Item[] {
 function buildOboItems(trace: WorkflowTrace): Item[] {
   const items: Item[] = [];
   const primary = trace.mcps.find((m) => m.flow === 'obo') || trace.mcps[0];
+  const oboBase = primary?.iamBaseUrl ?? '';
+  const oboAuthorizeUrl = primary?.authorizeUrl ?? `${oboBase}/oauth2/authorize`;
+  const oboTokenUrl = primary?.tokenUrl ?? `${oboBase}/oauth2/token`;
 
   items.push({ kind: 'section', label: 'USER REQUEST' });
   items.push({
@@ -278,7 +285,7 @@ function buildOboItems(trace: WorkflowTrace): Item[] {
     kind: 'message',
     from: 'User',
     to: 'IAM',
-    label: 'GET /oauth2/authorize',
+    label: `GET ${oboAuthorizeUrl}`,
     sublabel: 'User opens auth URL in browser, IAM presents login + consent screen',
     color: 'auth',
   });
@@ -313,7 +320,7 @@ function buildOboItems(trace: WorkflowTrace): Item[] {
     kind: 'message',
     from: 'Agent',
     to: 'IAM',
-    label: 'POST /oauth2/token',
+    label: `POST ${oboTokenUrl}`,
     sublabel: 'grant_type=authorization_code, client_id, code, code_verifier, redirect_uri,  actor_token = Agent Token',
     color: 'auth',
   });
@@ -381,7 +388,6 @@ function truncate(s: string | undefined, n: number): string {
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function TraceMeta({ trace }: { trace: WorkflowTrace }) {
-  const primary = trace.mcps[0];
   return (
     <div className="grid grid-cols-2 gap-2 text-[11px] mb-3 font-mono bg-slate-50 p-3 rounded border border-slate-200">
       <div>
