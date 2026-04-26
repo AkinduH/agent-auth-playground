@@ -123,3 +123,7 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes node-active-dash {
+  to { stroke-dashoffset: -100; }
+}

@@ -31,6 +31,7 @@ const nodeTypes = {
 interface WorkflowEditorProps {
   workflow: Workflow | null;
   selectedNodeId: string | null;
+  activeNodeIds?: Set<string>;
   onNodeSelect: (nodeId: string | null) => void;
   onNodeDoubleClick: (nodeId: string) => void;
   onNodeAdd: (node: WorkflowNode) => void;
@@ -43,6 +44,7 @@ interface WorkflowEditorProps {
 export default function WorkflowEditor({
   workflow,
   selectedNodeId,
+  activeNodeIds,
   onNodeSelect,
   onNodeDoubleClick,
   onNodeAdd,
@@ -60,7 +62,7 @@ export default function WorkflowEditor({
 
     const rfNodes: Node[] = workflow.nodes.map((node) => ({
       id: node.id,
-      data: node.data,
+      data: { ...node.data, isActive: activeNodeIds?.has(node.id) ?? false },
       position: node.position,
       type: node.type,
       selected: node.id === selectedNodeId,
@@ -87,7 +89,7 @@ export default function WorkflowEditor({
 
     setNodes(rfNodes);
     setEdges(rfEdges);
-  }, [workflow, selectedNodeId, setNodes, setEdges]);
+  }, [workflow, selectedNodeId, activeNodeIds, setNodes, setEdges]);
 
   // Handle node selection
   const handleNodeClick = useCallback(

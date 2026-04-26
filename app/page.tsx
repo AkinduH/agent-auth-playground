@@ -39,6 +39,7 @@ export default function Home() {
     error,
     oboConsentPending,
     lastTrace,
+    activeNodeIds,
     executeWorkflow,
     clearMessages,
   } = useChat(workflow?.id || 'temp');
@@ -252,6 +253,7 @@ export default function Home() {
           <WorkflowEditor
             workflow={workflow}
             selectedNodeId={selectedNodeId}
+            activeNodeIds={activeNodeIds}
             onNodeSelect={setSelectedNodeId}
             onNodeDoubleClick={(nodeId) => {
               setSelectedNodeId(nodeId);

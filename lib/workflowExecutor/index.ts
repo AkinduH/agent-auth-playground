@@ -15,6 +15,12 @@ import { executeAIAgent, executeLLM } from './aiAgent';
 import { getErrorMessage } from './utils';
 import { WorkflowTrace, emptyTrace, dominantFlow } from '../authTrace';
 
+export type WorkflowEvent =
+  | { type: 'node-start'; nodeId: string }
+  | { type: 'node-end'; nodeId: string };
+
+export type WorkflowEventHandler = (event: WorkflowEvent) => void;
+
 export class WorkflowExecutor {
   private workflow: Workflow;
   private context: ExecutionContext;
@@ -22,6 +28,7 @@ export class WorkflowExecutor {
   private baseUrl: string;
   private oboTokens: Record<string, string>;
   private trace: WorkflowTrace;
+  private onEvent?: WorkflowEventHandler;
 
   constructor(
     workflow: Workflow,
@@ -30,12 +37,14 @@ export class WorkflowExecutor {
     apiKeys: Partial<Record<'gemini' | 'openai' | 'anthropic', string>> = {},
     baseUrl?: string,
     memoryMessages: ChatMessage[] = [],
-    oboTokens: Record<string, string> = {}
+    oboTokens: Record<string, string> = {},
+    onEvent?: WorkflowEventHandler
   ) {
     this.workflow = workflow;
     this.apiKeys = apiKeys;
     this.baseUrl = baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     this.oboTokens = oboTokens;
+    this.onEvent = onEvent;
     this.trace = emptyTrace();
     this.trace.userMessage = initialInput;
 
@@ -101,14 +110,21 @@ export class WorkflowExecutor {
           node,
           this.workflow,
           this.context.currentInput,
-          (id) => this.executeNode(id)
+          (id) => this.executeNode(id),
+          this.onEvent
         );
 
       case 'aiAgent':
         return this.runAIAgent(node);
 
-      case 'llm':
-        return executeLLM(node, this.context, this.apiKeys, this.baseUrl);
+      case 'llm': {
+        this.onEvent?.({ type: 'node-start', nodeId: node.id });
+        try {
+          return await executeLLM(node, this.context, this.apiKeys, this.baseUrl);
+        } finally {
+          this.onEvent?.({ type: 'node-end', nodeId: node.id });
+        }
+      }
 
       default:
         throw new Error(`Unknown node type: ${node.type}`);
@@ -129,6 +145,7 @@ export class WorkflowExecutor {
       this.trace
     );
 
+    this.onEvent?.({ type: 'node-start', nodeId: node.id });
     try {
       return await executeAIAgent(
         node,
@@ -137,9 +154,11 @@ export class WorkflowExecutor {
         this.context,
         this.apiKeys,
         this.baseUrl,
-        this.trace
+        this.trace,
+        this.onEvent
       );
     } finally {
+      this.onEvent?.({ type: 'node-end', nodeId: node.id });
       await Promise.all(
         connectedClients.map(({ runtime }) => runtime.disconnect().catch(() => undefined))
       );

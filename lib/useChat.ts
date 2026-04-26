@@ -110,6 +110,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
   const [error, setError] = useState<string | null>(null);
   const [oboConsentPending, setOboConsentPending] = useState(false);
   const [lastTrace, setLastTrace] = useState<WorkflowTrace | null>(null);
+  const [activeNodeIds, setActiveNodeIds] = useState<Set<string>>(new Set());
   const abortControllerRef = useRef<AbortController | null>(null);
   const oboConsentStateRef = useRef<OBOConsentState | null>(null);
   const oboClientPatchRef = useRef<Record<string, Partial<MCPNodeTrace>>>({});
@@ -148,6 +149,48 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
             .slice(-memoryBinding.maxMessages)
         : [];
 
+      const MIN_GLOW_MS = 1000;
+      const startTimes = new Map<string, number>();
+      const pendingRemovals = new Map<string, ReturnType<typeof setTimeout>>();
+
+      const removeActive = (nodeId: string) => {
+        setActiveNodeIds((prev) => {
+          if (!prev.has(nodeId)) return prev;
+          const next = new Set(prev);
+          next.delete(nodeId);
+          return next;
+        });
+      };
+
+      const handleStart = (nodeId: string) => {
+        const existing = pendingRemovals.get(nodeId);
+        if (existing) {
+          clearTimeout(existing);
+          pendingRemovals.delete(nodeId);
+        }
+        startTimes.set(nodeId, Date.now());
+        setActiveNodeIds((prev) => {
+          if (prev.has(nodeId)) return prev;
+          const next = new Set(prev);
+          next.add(nodeId);
+          return next;
+        });
+      };
+
+      const handleEnd = (nodeId: string) => {
+        const start = startTimes.get(nodeId) ?? Date.now();
+        const elapsed = Date.now() - start;
+        if (elapsed >= MIN_GLOW_MS) {
+          removeActive(nodeId);
+          return;
+        }
+        const timer = setTimeout(() => {
+          pendingRemovals.delete(nodeId);
+          removeActive(nodeId);
+        }, MIN_GLOW_MS - elapsed);
+        pendingRemovals.set(nodeId, timer);
+      };
+
       try {
         abortControllerRef.current = new AbortController();
 
@@ -165,11 +208,46 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
           signal: abortControllerRef.current.signal,
         });
 
-        if (!response.ok) {
-          throw new Error(`API error: ${response.statusText}`);
+        if (!response.body) {
+          throw new Error('No response body from workflow API');
         }
 
-        const data = await response.json();
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let data: any = null;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          let sepIndex: number;
+          while ((sepIndex = buffer.indexOf('\n\n')) !== -1) {
+            const rawEvent = buffer.slice(0, sepIndex);
+            buffer = buffer.slice(sepIndex + 2);
+            const line = rawEvent.split('\n').find((l) => l.startsWith('data:'));
+            if (!line) continue;
+            let parsed: any;
+            try {
+              parsed = JSON.parse(line.slice(5).trim());
+            } catch {
+              continue;
+            }
+
+            if (parsed.type === 'node-start') {
+              handleStart(parsed.nodeId);
+            } else if (parsed.type === 'node-end') {
+              handleEnd(parsed.nodeId);
+            } else if (parsed.type === 'result') {
+              data = parsed;
+            }
+          }
+        }
+
+        if (!data) {
+          throw new Error('Workflow stream ended without a result');
+        }
 
         if (!data.success) {
           throw new Error(data.error || 'Workflow execution failed');
@@ -207,6 +285,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
 
         options.onComplete?.(data.output);
       } catch (err) {
+        setActiveNodeIds(new Set());
         if (err instanceof Error && err.name === 'AbortError') return;
         const errorMsg = err instanceof Error ? err.message : 'Unknown error occurred';
         setError(errorMsg);
@@ -458,12 +537,14 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
     oboConsentStateRef.current = null;
     setOboConsentPending(false);
     setLastTrace(null);
+    setActiveNodeIds(new Set());
     oboClientPatchRef.current = {};
   }, []);
 
   const cancel = useCallback(() => {
     abortControllerRef.current?.abort();
     setIsLoading(false);
+    setActiveNodeIds(new Set());
   }, []);
 
   return {
@@ -472,6 +553,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
     error,
     oboConsentPending,
     lastTrace,
+    activeNodeIds,
     addMessage,
     executeWorkflow,
     clearMessages,

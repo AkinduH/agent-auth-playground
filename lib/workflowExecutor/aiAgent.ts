@@ -2,6 +2,7 @@ import { WorkflowNode, AIAgentNodeData, LLMNodeData, ExecutionContext } from '..
 import { ConnectedMCPClient, AgentToolBinding } from './types';
 import { WorkflowTrace } from '../authTrace';
 import { executeMCPClient, buildAgentToolBindings } from './mcpClient';
+import type { WorkflowEventHandler } from './index';
 import {
   getErrorMessage,
   formatMemoryMessages,
@@ -142,7 +143,8 @@ export async function executeAIAgent(
   context: ExecutionContext,
   apiKeys: Partial<Record<'gemini' | 'openai' | 'anthropic', string>>,
   baseUrl: string,
-  trace?: WorkflowTrace
+  trace?: WorkflowTrace,
+  onEvent?: WorkflowEventHandler
 ): Promise<string> {
   const data = node.data as AIAgentNodeData;
   const toolExecutionLog: string[] = [];
@@ -171,14 +173,20 @@ export async function executeAIAgent(
       maxToolSteps
     );
 
-    const rawDecision = await executeLLM(
-      llmNode,
-      context,
-      apiKeys,
-      baseUrl,
-      stepPrompt,
-      buildAgentSystemPrompt(data.systemPrompt)
-    );
+    onEvent?.({ type: 'node-start', nodeId: llmNode.id });
+    let rawDecision: string;
+    try {
+      rawDecision = await executeLLM(
+        llmNode,
+        context,
+        apiKeys,
+        baseUrl,
+        stepPrompt,
+        buildAgentSystemPrompt(data.systemPrompt)
+      );
+    } finally {
+      onEvent?.({ type: 'node-end', nodeId: llmNode.id });
+    }
     const decision = parseAgentDecision(rawDecision);
 
     if (!decision) {
@@ -216,6 +224,7 @@ export async function executeAIAgent(
     const matchingClient = connectedClients.find((c) => c.endpoint === selectedTool.endpoint);
     const toolNodeId = matchingClient?.nodeId ?? '';
 
+    if (toolNodeId) onEvent?.({ type: 'node-start', nodeId: toolNodeId });
     try {
       const toolResult = await executeMCPClient(selectedTool, decision.arguments);
       console.log(`[AIAgent:${node.id}] Step ${step}: tool "${selectedTool.publicName}" succeeded`);
@@ -254,19 +263,27 @@ export async function executeAIAgent(
         result: getErrorMessage(error),
         ok: false,
       });
+    } finally {
+      if (toolNodeId) onEvent?.({ type: 'node-end', nodeId: toolNodeId });
     }
   }
 
   console.log(`[AIAgent:${node.id}] Max steps reached — generating fallback answer`);
 
-  const fallbackOutput = await executeLLM(
-    llmNode,
-    context,
-    apiKeys,
-    baseUrl,
-    buildAgentFallbackPrompt(context.currentInput, memoryContext, toolExecutionLog),
-    data.systemPrompt || 'You are a helpful assistant.'
-  );
+  onEvent?.({ type: 'node-start', nodeId: llmNode.id });
+  let fallbackOutput: string;
+  try {
+    fallbackOutput = await executeLLM(
+      llmNode,
+      context,
+      apiKeys,
+      baseUrl,
+      buildAgentFallbackPrompt(context.currentInput, memoryContext, toolExecutionLog),
+      data.systemPrompt || 'You are a helpful assistant.'
+    );
+  } finally {
+    onEvent?.({ type: 'node-end', nodeId: llmNode.id });
+  }
 
   context.variables['agentOutput'] = fallbackOutput;
   return fallbackOutput;

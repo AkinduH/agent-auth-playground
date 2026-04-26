@@ -56,10 +56,27 @@ React Flow enforces connection constraints in [components/WorkflowEditor.tsx](co
 5. If `MCPClientNode.useOAuth2` is enabled, `authenticateAgent()` from [lib/agentAuth.ts](lib/agentAuth.ts) runs a 3-step PKCE flow against Asgardeo before MCP connects
 6. Memory context: the last `maxMessages` saved messages from `workflowMemories` are prepended as context for the agent
 
+### Streaming Protocol (SSE)
+
+`POST /api/execute-workflow` returns `text/event-stream`, not JSON. Each `data:` frame is a JSON `WorkflowEvent` (defined in [lib/workflowExecutor/index.ts](lib/workflowExecutor/index.ts)):
+
+- `{ type: 'node-start', nodeId }` / `{ type: 'node-end', nodeId }` — emitted around each LLM, MCP tool call, and AIAgent execution. `useChat.ts` consumes these into `activeNodeIds` (a 1 s minimum glow window is enforced client-side and rendered by [components/nodes/ActiveBorder.tsx](components/nodes/ActiveBorder.tsx)).
+- `{ type: 'result', success, output, error, executionTime, trace }` — terminal frame; treated as the final response payload.
+
+The executor takes an optional `onEvent: WorkflowEventHandler` constructor arg; the route handler bridges it to the SSE stream. Error responses (validation failure, bad body) are still emitted as a single `result` SSE frame with `success: false`.
+
+### Auth Tracing
+
+[lib/authTrace.ts](lib/authTrace.ts) defines `WorkflowTrace`, `MCPNodeTrace`, and `ToolCallTrace` — a structured record of every auth step (agent OAuth2, OBO token exchange) and tool call during a run. The executor populates a `WorkflowTrace`, returns it in the terminal `result` SSE frame, and [components/AuthFlowDiagram.tsx](components/AuthFlowDiagram.tsx) renders it as a sequence diagram. `dominantFlow()` classifies the run as `'agent' | 'obo' | 'none'`; use `previewToken()` when surfacing tokens in UI or logs.
+
+### OBO (On-Behalf-Of) Tokens
+
+The executor accepts an `oboTokens: Record<string, string>` map (MCPClient `nodeId` → access token). When present, the MCP call forwards the user's OBO token instead of the agent's client-credentials token. `useChat.ts` manages an in-UI consent handshake (`oboConsentPending`); when the server requests consent, the user approves and the token is patched into the next workflow request.
+
 ### Key Files
 
 - [lib/workflowExecutor/](lib/workflowExecutor/) — modular executor directory:
-  - `index.ts` — `WorkflowExecutor` class; orchestrates the flow
+  - `index.ts` — `WorkflowExecutor` class; orchestrates the flow; defines `WorkflowEvent` / `WorkflowEventHandler`
   - `aiAgent.ts` — AIAgent execution loop, system prompt building, tool binding
   - `chatTrigger.ts` — ChatTrigger node handler
   - `mcpClient.ts` — MCP tool binding and execution
@@ -68,16 +85,19 @@ React Flow enforces connection constraints in [components/WorkflowEditor.tsx](co
   - `types.ts` — `ConnectedMCPClient`, `AgentToolBinding`, `AgentDecision` interfaces
 - [lib/workflowValidation.ts](lib/workflowValidation.ts) — workflow validation logic
 - [lib/agentAuth.ts](lib/agentAuth.ts) — Asgardeo OAuth2 + PKCE flow; called by `mcpInitializer.ts`
+- [lib/authTrace.ts](lib/authTrace.ts) — auth/tool trace types and helpers
 - [lib/llmProviders.ts](lib/llmProviders.ts) — `LLMProvider` interface; factory for OpenAI, Gemini, and Anthropic providers
 - [lib/mcpClientNode.ts](lib/mcpClientNode.ts) — MCP HTTP connection, tool discovery, tool execution, reconnection with exponential backoff (1 s → 10 s, factor 1.5, max 2 retries)
 - [lib/types.ts](lib/types.ts) — `Workflow`, `WorkflowNode`, `NodeData` union types, `ExecutionContext`
 - [lib/workflowStore.ts](lib/workflowStore.ts) — localStorage wrapper for workflows, memory, and API keys
 - [lib/useWorkflow.ts](lib/useWorkflow.ts) — React hook for CRUD on workflows and node/edge manipulation
-- [lib/useChat.ts](lib/useChat.ts) — React hook for chat message management and workflow execution
+- [lib/useChat.ts](lib/useChat.ts) — React hook for chat message management, SSE parsing, OBO consent, `activeNodeIds`
 - [components/WorkflowEditor.tsx](components/WorkflowEditor.tsx) — React Flow canvas, node/edge event handlers
 - [components/NodePanel.tsx](components/NodePanel.tsx) — configuration UI for the selected node
 - [components/ChatPanel.tsx](components/ChatPanel.tsx) — chat UI (right panel)
-- [app/api/execute-workflow/route.ts](app/api/execute-workflow/route.ts) — POST endpoint wrapping WorkflowExecutor (60 s timeout)
+- [components/AuthFlowDiagram.tsx](components/AuthFlowDiagram.tsx) — renders `WorkflowTrace` as a sequence diagram
+- [components/nodes/ActiveBorder.tsx](components/nodes/ActiveBorder.tsx) — shared glowing-border element used by every node when active
+- [app/api/execute-workflow/route.ts](app/api/execute-workflow/route.ts) — POST endpoint streaming SSE events from WorkflowExecutor (60 s timeout)
 - [app/api/execute-llm/route.ts](app/api/execute-llm/route.ts) — POST endpoint for single LLM calls; input: `{ provider, model, message, systemPrompt, temperature, maxTokens, apiKey }`
 
 ### Agent Authentication (`lib/agentAuth.ts`)
