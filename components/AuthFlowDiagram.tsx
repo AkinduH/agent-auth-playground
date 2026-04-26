@@ -198,7 +198,7 @@ function pushOperationsAndTools(items: Item[], trace: WorkflowTrace) {
       sublabel: `${serverLabel}    args: ${truncate(t.args, 80)}`,
       color: 'blue',
       token,
-      tokenLabel: token ? `Decode ${tokenKind} JWT` : undefined,
+      tokenLabel: token ? `${tokenKind} JWT` : undefined,
     });
     items.push({
       kind: 'message',

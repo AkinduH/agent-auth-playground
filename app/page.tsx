@@ -9,10 +9,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { X } from 'lucide-react';
 import { validateWorkflow } from '@/lib/workflowValidation';
 import { useEffect, useRef, useState } from 'react';
 import { AuthFlowDiagram } from '@/components/AuthFlowDiagram';
@@ -319,7 +321,10 @@ export default function Home() {
       </Dialog>
 
       <Dialog open={isNodePanelOpen} onOpenChange={setIsNodePanelOpen}>
-        <DialogContent className="w-[95vw] max-w-2xl p-0">
+        <DialogContent
+          showCloseButton={false}
+          className="w-[95vw] max-w-2xl p-0 gap-0 overflow-hidden rounded-xl border border-gray-200 shadow-2xl"
+        >
           <DialogTitle className="sr-only">
             {selectedNode ? `Configure ${selectedNode.data.label}` : 'Configure node'}
           </DialogTitle>
@@ -332,6 +337,12 @@ export default function Home() {
             workflowId={workflow.id}
             variant="modal"
           />
+          <DialogClose
+            aria-label="Close"
+            className="absolute top-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </DialogClose>
         </DialogContent>
       </Dialog>
     </div>

@@ -106,6 +106,10 @@ export default function WorkflowEditor({
     [onNodeDoubleClick]
   );
 
+  const handlePaneClick = useCallback(() => {
+    onNodeSelect(null);
+  }, [onNodeSelect]);
+
   // Persist position changes in workflow state so later updates don't reset node locations
   const handleNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node) => {
@@ -284,6 +288,7 @@ export default function WorkflowEditor({
           isValidConnection={isValidConnection}
           onNodeClick={handleNodeClick}
           onNodeDoubleClick={handleNodeDoubleClick}
+          onPaneClick={handlePaneClick}
           onNodeDragStop={handleNodeDragStop}
           nodeTypes={nodeTypes}
           defaultEdgeOptions={{

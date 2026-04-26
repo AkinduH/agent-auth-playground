@@ -26,6 +26,13 @@ export default function NodePanel({
   variant = 'sidebar',
 }: NodePanelProps) {
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [memoryCount, setMemoryCount] = useState(0);
+
+  useEffect(() => {
+    if (workflowId && node?.type === 'aiAgent') {
+      setMemoryCount(workflowStore.getWorkflowMemory(workflowId, node.id).length);
+    }
+  }, [workflowId, node?.id, node?.type]);
   const providerModels: Record<string, string[]> = {
     gemini: [
       'gemini-2.5-flash',
@@ -45,7 +52,7 @@ export default function NodePanel({
 
   const containerClassName =
     variant === 'modal'
-      ? 'w-full max-h-[80vh] bg-white p-6 overflow-y-auto'
+      ? 'w-full bg-white overflow-hidden flex flex-col max-h-[85vh]'
       : 'w-80 bg-white border-l border-gray-200 p-6 overflow-y-auto';
 
   const emptyStateClassName =
@@ -206,16 +213,17 @@ export default function NodePanel({
               <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
                 <p className="text-sm font-semibold text-gray-700 mb-1">Stored Messages</p>
                 <p className="text-xs text-gray-600 mb-3">
-                  {(() => {
-                    const count = workflowStore.getWorkflowMemory(workflowId, node.id).length;
-                    return `${count} message${count === 1 ? '' : 's'} currently saved.`;
-                  })()}
+                  {`${memoryCount} message${memoryCount === 1 ? '' : 's'} currently saved.`}
                 </p>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => workflowStore.clearWorkflowMemory(workflowId, node.id)}
+                  onClick={() => {
+                    workflowStore.clearWorkflowMemory(workflowId, node.id);
+                    setMemoryCount(0);
+                  }}
+                  disabled={memoryCount === 0}
                 >
                   Clear Memory
                 </Button>
@@ -549,6 +557,24 @@ export default function NodePanel({
         return <p className="text-sm text-gray-500">Unknown node type</p>;
     }
   };
+
+  if (variant === 'modal') {
+    return (
+      <div className={containerClassName}>
+        <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-6 py-4 pr-14">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 leading-tight">
+              {node.data.label}
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">Node configuration</p>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          {renderNodeConfig()}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={containerClassName}>
