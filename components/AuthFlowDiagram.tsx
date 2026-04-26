@@ -392,9 +392,6 @@ function TraceMeta({ trace }: { trace: WorkflowTrace }) {
         <span className="text-slate-500">LLM:</span>{' '}
         {trace.llm ? `${trace.llm.provider}/${trace.llm.model}` : '—'}
       </div>
-      <div className="col-span-2 truncate">
-        <span className="text-slate-500">IAM Base:</span> {primary?.iamBaseUrl ?? '—'}
-      </div>
       <div className="col-span-2">
         <span className="text-slate-500">MCP servers:</span> {trace.mcps.length},{' '}
         <span className="text-slate-500">tool calls:</span> {trace.tools.length}

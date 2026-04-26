@@ -17,7 +17,6 @@ import {
 import { X } from 'lucide-react';
 import { validateWorkflow } from '@/lib/workflowValidation';
 import { useEffect, useRef, useState } from 'react';
-import { AuthFlowDiagram } from '@/components/AuthFlowDiagram';
 import { Workflow } from '@/lib/types';
 
 export default function Home() {
@@ -51,7 +50,6 @@ export default function Home() {
   const [isNodePanelOpen, setIsNodePanelOpen] = useState(false);
   const [isChatVisible, setIsChatVisible] = useState(true);
   const [isOAuthCallback, setIsOAuthCallback] = useState(false);
-  const [isAuthFlowOpen, setIsAuthFlowOpen] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -83,6 +81,15 @@ export default function Home() {
   useEffect(() => {
     setWorkflowName(workflow?.name || '');
   }, [workflow?.id, workflow?.name]);
+
+  useEffect(() => {
+    if (!lastTrace) return;
+    try {
+      localStorage.setItem('lastAuthTrace', JSON.stringify(lastTrace));
+    } catch {
+      // ignore quota or disabled storage
+    }
+  }, [lastTrace]);
 
   const handleSendMessage = async (message: string) => {
     if (!workflow) return;
@@ -281,7 +288,16 @@ export default function Home() {
               disabled={!workflow || workflow.nodes.length === 0}
               oboConsentPending={oboConsentPending}
               hasTrace={!!lastTrace}
-              onViewAuthFlow={() => setIsAuthFlowOpen(true)}
+              onViewAuthFlow={() => {
+                if (lastTrace) {
+                  try {
+                    localStorage.setItem('lastAuthTrace', JSON.stringify(lastTrace));
+                  } catch {
+                    // storage may be full or disabled — proceed anyway
+                  }
+                }
+                window.open('/auth-flow', '_blank', 'noopener,noreferrer');
+              }}
             />
           </div>
         )}
@@ -303,20 +319,6 @@ export default function Home() {
               OK
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isAuthFlowOpen} onOpenChange={setIsAuthFlowOpen}>
-        <DialogContent className="w-[98vw] !max-w-7xl h-[92vh] overflow-y-auto p-6">
-          <DialogTitle>Auth Flow</DialogTitle>
-          <DialogDescription>
-            Sequence diagram of the authorization and tool-call activity from the most recent workflow run.
-          </DialogDescription>
-          {lastTrace ? (
-            <AuthFlowDiagram trace={lastTrace} />
-          ) : (
-            <div className="p-6 text-center text-slate-500 text-sm">No execution recorded yet.</div>
-          )}
         </DialogContent>
       </Dialog>
 
