@@ -104,8 +104,32 @@ function buildOBOConsentMessage(nodeId: string, current: number, total: number):
   return `Authorization Required${multi}\n\nThe AI agent needs your consent to act on your behalf for MCP connection.\n\nClick the link below to log in.`;
 }
 
+const CHAT_STORAGE_PREFIX = 'chatMessages:';
+
+function loadStoredMessages(workflowId: string): ChatMessage[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(CHAT_STORAGE_PREFIX + workflowId);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as ChatMessage[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredMessages(workflowId: string, messages: ChatMessage[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(CHAT_STORAGE_PREFIX + workflowId, JSON.stringify(messages));
+  } catch {
+    // storage may be full or disabled — drop silently
+  }
+}
+
 export function useChat(workflowId: string, options: UseChatOptions = {}) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => loadStoredMessages(workflowId));
+  const hydratedWorkflowIdRef = useRef<string>(workflowId);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [oboConsentPending, setOboConsentPending] = useState(false);
@@ -119,6 +143,18 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
   const addMessage = useCallback((message: ChatMessage) => {
     setMessages((prev) => [...prev, message]);
   }, []);
+
+  // When the active workflow changes, hydrate messages for the new workflow
+  useEffect(() => {
+    if (hydratedWorkflowIdRef.current === workflowId) return;
+    hydratedWorkflowIdRef.current = workflowId;
+    setMessages(loadStoredMessages(workflowId));
+  }, [workflowId]);
+
+  // Persist chat history whenever it changes
+  useEffect(() => {
+    saveStoredMessages(workflowId, messages);
+  }, [workflowId, messages]);
 
   const doExecuteWorkflow = useCallback(
     async (
@@ -539,7 +575,14 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
     setLastTrace(null);
     setActiveNodeIds(new Set());
     oboClientPatchRef.current = {};
-  }, []);
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.removeItem(CHAT_STORAGE_PREFIX + workflowId);
+      } catch {
+        // ignore
+      }
+    }
+  }, [workflowId]);
 
   const cancel = useCallback(() => {
     abortControllerRef.current?.abort();
