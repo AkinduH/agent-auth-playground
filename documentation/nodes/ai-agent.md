@@ -1,164 +1,56 @@
-# AI Agent Node
+# AI Agent
 
-The AI Agent node is the core reasoning engine of a workflow. It runs an autonomous decision loop — consulting the LLM at each step to decide whether to call a tool or produce a final answer.
-
----
-
-## Overview
-
-| Property | Value |
-|----------|-------|
-| Node type | `aiAgent` |
-| Handles | Left (input), Top (to LLM), Right (to MCP Clients) |
-| Required connections | Must connect to exactly one LLM node via **top** handle |
-| Optional connections | Zero or more MCP Client nodes via **right** handle |
+The AI Agent is the reasoning engine of your workflow. It receives your message, consults an AI model (via the connected AI Service), and decides what to do - call a tool, call another tool, or give a final answer.
 
 ---
 
-## Configuration Fields
-
-### Identity
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| Agent Name | string | No | Friendly display name used in logs and the auth flow diagram |
-| Agent ID | string | OAuth2 only | Service-account username for Asgardeo authentication |
-| Agent Secret | string (masked) | OAuth2 only | Password for the Agent ID; only required when an MCP Client node has OAuth2 enabled |
-
-> Agent ID and Agent Secret are consumed by connected MCP Client nodes configured for OAuth2. The agent itself does not authenticate — the MCP Client nodes do on the agent's behalf.
-
----
-
-### Behavior
-
-| Field | Type | Default | Range | Description |
-|-------|------|---------|-------|-------------|
-| System Prompt | string | `"You are a helpful assistant."` | — | Instructions prepended to every LLM call the agent makes. Defines persona, constraints, and domain rules. |
-| Temperature | float | `0.7` | 0 – 2 | Controls LLM output randomness. `0` is deterministic; `2` is highly creative. |
-| Max Tokens | integer | `1000` | 1 – 4000 | Maximum tokens the LLM may generate per call. |
-| Max Tool Steps | integer | `6` | 1 – 12 | Maximum number of tool-call iterations before the agent is forced to produce a final answer. Clamped automatically. |
-
----
-
-### Memory
-
-| Field | Type | Default | Range | Description |
-|-------|------|---------|-------|-------------|
-| Messages to Keep | integer | (empty) | 1 – 100 | If set, the last N chat messages are stored in `localStorage` and prepended as context for the next execution. Leave empty to disable memory. |
-
-When memory is enabled, the configuration panel shows:
-- **"N message(s) currently saved"** — the current stored count.
-- **Clear Memory** button — wipes stored messages for this agent in this workflow.
-
-Up to **16** messages from the stored history are forwarded to the LLM per execution, even if `maxMessages` is set higher.
-
----
-
-## Execution Loop
-
-The agent loop runs up to `maxToolSteps` iterations. Each iteration:
-
-```
-Step N of maxToolSteps:
-  1. Build a prompt containing:
-     - The user's current request
-     - Memory context (last ≤16 stored messages)
-     - Available tool schemas (name, description, parameters)
-     - Execution log from previous steps
-  2. Call the LLM with the agent system prompt + step prompt
-  3. Parse the LLM response as JSON:
-     - { "type": "final", "response": "..." }  → return response, end loop
-     - { "type": "tool", "name": "...", "arguments": {...} }  → call tool, continue
-  4. If unparseable → return raw LLM text
-```
-
-If all `maxToolSteps` are exhausted without a `"final"` decision, the agent makes one more LLM call with a fallback prompt that instructs the LLM to synthesize a final answer from the tool results so far.
-
-### LLM Response Format
-
-The agent instructs the LLM to respond with **exactly one JSON object**:
-
-```json
-{ "type": "final", "response": "The answer is 42." }
-```
-
-or
-
-```json
-{ "type": "tool", "name": "tool_name", "arguments": { "key": "value" } }
-```
-
-Any other output is treated as a final plain-text response.
-
----
-
-## Tool Binding
-
-When the agent connects to MCP Client nodes, all discovered tools are bound before execution. Tool names are normalized:
-
-- Lowercase, alphanumeric and underscores only.
-- Deduplicated: if two MCP servers expose a tool with the same normalized name, the second gets a `_2` suffix.
-- Truncated to 64 characters.
-
-The original MCP tool name is preserved internally and used for the actual tool call.
-
----
-
-## Memory Storage
-
-Memory is keyed by **workflow ID** + **agent node ID**. This means:
-- Multiple agents in the same workflow each have independent memory.
-- Memory persists across browser sessions.
-- Clearing the workflow does not automatically clear memory — use the **Clear Memory** button in the node panel, or clear `localStorage` manually.
-
-See [Persistence](../persistence.md) for the full storage schema.
-
----
-
-## Connection Rules
+## Connections
 
 | Handle | Direction | Connects to |
 |--------|-----------|-------------|
-| Left | Target (input) | Chat Trigger |
-| Top | Source (output) | **LLM only** (enforced by canvas) |
-| Right | Source (output) | **MCP Client only** (enforced by canvas) |
+| Left | Input | Chat Trigger |
+| Top | Output | AI Service (required) |
+| Right | Output | MCP Client (optional, one or more) |
 
-The canvas blocks invalid connections: dragging the **top** handle to anything other than an LLM node will be rejected.
+The **top handle - AI Service** connection is required. The agent cannot run without an AI model to consult.
 
----
-
-## Validation
-
-Before execution, the workflow validator checks:
-
-- Every AI Agent node must have an outgoing edge to an LLM node.
-  - Error: `"AI Agent node {nodeId} must connect to an AI Service node"`
+The **right handle - MCP Client** connections are optional. Add them when you want the agent to be able to call external tools.
 
 ---
 
-## Defaults on Creation
+## Configuration
 
-When you click **+ AI Agent** in the toolbar:
+Double-click the AI Agent node to open its configuration.
 
-```json
-{
-  "label": "AI Agent",
-  "systemPrompt": "You are a helpful assistant.",
-  "temperature": 0.7,
-  "maxTokens": 1000,
-  "maxToolSteps": 6
-}
-```
+### Identity
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **Agent Name** | No | A friendly label shown in the auth flow diagram and logs |
+| **Agent ID** | Only if using OAuth2 | The agent username used to authenticate with Asgardeo |
+| **Agent Secret** | Only if using OAuth2 | The password for the Agent ID to authenticate with Asgardeo |
+
+To get an Agent ID and Secret, create a new agent in your Asgardeo dashboard. Refer the [Register and Manage Agents](https://wso2.com/asgardeo/docs/guides/agentic-ai/ai-agents/register-and-manage-agents/) for detailed instructions.
+
+Agent ID and Agent Secret are only needed when a connected MCP Client node has OAuth2 enabled. See [Auth Flows](../auth-flows.md) for details.
+
+### Behavior
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| **System Prompt** | `You are a helpful assistant.` | Instructions sent to the AI model on every step. Use this to define the agent's persona, tone, and constraints. |
+| **Max Tool Steps** | `6` | How many tool calls the agent can make before it must produce a final answer. Range: 1–12. |
+
+### Memory
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| **Messages to Keep** | (empty) | If set, the last N conversations are saved and provided as context the next time you send a message. Leave empty to disable memory. |
 
 ---
 
-## Error Scenarios
+## Tips
 
-| Situation | Behavior |
-|-----------|----------|
-| LLM is not connected | Validation error before execution starts |
-| LLM call fails | Executor throws; workflow returns error |
-| Tool not found (LLM hallucinated name) | Logs warning, appends error to execution log, continues to next step |
-| Tool call fails (MCP error) | Logs error, appends error to execution log, continues to next step |
-| All steps exhausted | One final LLM call with fallback prompt to synthesize an answer |
-| LLM returns unparseable JSON | Raw text returned immediately as final response |
+- **System Prompt first** — the clearest way to shape your agent's behavior is a well-written system prompt. Be specific about what the agent should and shouldn't do.
+- **Max Tool Steps** — start with the default (6) and increase only if your workflows regularly run out of steps. More steps means longer execution time.
+- **Memory** — useful for conversational agents where context from previous messages matters. For stateless task automation, leave it disabled.

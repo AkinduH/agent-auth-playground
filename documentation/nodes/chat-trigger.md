@@ -1,72 +1,32 @@
-# Chat Trigger Node
+# Chat Trigger
 
-The Chat Trigger node is the **mandatory entry point** of every workflow. It receives the user's message from the chat panel and passes it to the first connected node.
-
----
-
-## Overview
-
-| Property | Value |
-|----------|-------|
-| Node type | `chatTrigger` |
-| Handle | Source — right side |
-| Configurable fields | None |
-| Required in workflow | Yes (exactly one) |
+The Chat Trigger is the entry point of every workflow. It receives the message you type in the chat panel and passes it to the next connected node.
 
 ---
 
-## What It Does
+## At a Glance
 
-When the user submits a message in the chat panel, execution begins at the Chat Trigger node. The node:
-
-1. Emits a `node-start` event (triggers the canvas glow effect).
-2. Logs the incoming message to the server console.
-3. Emits a `node-end` event.
-4. Finds its first outgoing edge and delegates execution to the connected node.
-
-If the Chat Trigger has no outgoing edges, it returns the user's message as the final response (the workflow is a pass-through).
+- Every workflow must have exactly one Chat Trigger.
+- It has no configuration options — just add it and connect it.
+- Connect it to an **AI Agent** using the handle on its right side.
 
 ---
 
-## Configuration
+## How to Use It
 
-The Chat Trigger has no configurable fields. Its configuration panel shows a read-only description:
+1. Click **+ Chat Trigger** in the toolbar.
+2. Drag from its **right handle** to the **left handle** of an AI Agent node.
 
-> "This node receives messages from the chat interface and passes them to the next node in the workflow."
+That's it. When you send a message in the chat panel, the Chat Trigger receives it and kicks off the rest of the workflow.
 
 ---
 
-## Connection Rules
+## Connection
 
 | Handle | Direction | Connects to |
 |--------|-----------|-------------|
-| Right | Source (output) | AI Agent |
+| Right | Output | AI Agent |
 
-The Chat Trigger can only connect forward. It cannot receive edges from other nodes.
-
----
-
-## Validation
-
-Workflow validation enforces:
-
-- **Exactly one Chat Trigger must be present.** Submitting a workflow without a Chat Trigger returns: `"Workflow must contain a Chat Trigger node"`.
+The Chat Trigger only outputs — it cannot receive connections from other nodes.
 
 ---
-
-## Example
-
-A minimal valid workflow:
-
-```
-[Chat Trigger] ──▶ [AI Agent] ──▶ [LLM]
-```
-
-The Chat Trigger passes the user's text to the AI Agent, which uses the LLM to generate a response.
-
----
-
-## Notes
-
-- Only the **first** outgoing edge is used. If you accidentally connect a Chat Trigger to multiple nodes, only the first edge in the workflow's edge list is followed.
-- The node's label is fixed as `"Chat Trigger"` and cannot be renamed.
