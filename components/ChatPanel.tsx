@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { ChatMessage } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -16,6 +18,54 @@ interface ChatPanelProps {
   oboConsentPending?: boolean;
   hasTrace?: boolean;
   onViewAuthFlow?: () => void;
+}
+
+function MarkdownContent({ content }: { content: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        p: ({ children }) => <p className="mb-1 last:mb-0 break-words">{children}</p>,
+        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+        em: ({ children }) => <em className="italic">{children}</em>,
+        ul: ({ children }) => <ul className="list-disc pl-4 mb-1 space-y-0.5">{children}</ul>,
+        ol: ({ children }) => <ol className="list-decimal pl-4 mb-1 space-y-0.5">{children}</ol>,
+        li: ({ children }) => <li className="text-sm">{children}</li>,
+        pre: ({ children }) => (
+          <pre className="bg-slate-800 text-slate-100 rounded-lg p-3 text-xs font-mono overflow-x-auto my-2 whitespace-pre-wrap">
+            {children}
+          </pre>
+        ),
+        code: ({ children, className }) => (
+          <code
+            className={
+              className
+                ? 'text-inherit font-mono text-xs'
+                : 'bg-gray-200 text-gray-800 px-1 py-0.5 rounded text-xs font-mono'
+            }
+          >
+            {children}
+          </code>
+        ),
+        h1: ({ children }) => <h1 className="text-base font-bold mb-1 mt-2">{children}</h1>,
+        h2: ({ children }) => <h2 className="text-sm font-bold mb-1 mt-2">{children}</h2>,
+        h3: ({ children }) => <h3 className="text-sm font-semibold mb-1 mt-1">{children}</h3>,
+        a: ({ href, children }) => (
+          <a href={href} target="_blank" rel="noopener noreferrer" className="underline text-blue-600 hover:text-blue-800">
+            {children}
+          </a>
+        ),
+        blockquote: ({ children }) => (
+          <blockquote className="border-l-2 border-gray-400 pl-2 italic my-1 text-gray-600">
+            {children}
+          </blockquote>
+        ),
+        hr: () => <hr className="border-gray-300 my-2" />,
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  );
 }
 
 export default function ChatPanel({
@@ -31,6 +81,12 @@ export default function ChatPanel({
 }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // ID of the most recent obo-consent message — only that button stays active while consent is pending
+  const lastConsentMsgId = useMemo(() => {
+    const consentMsgs = messages.filter((m) => m.type === 'obo-consent');
+    return consentMsgs.length > 0 ? consentMsgs[consentMsgs.length - 1].id : null;
+  }, [messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -103,25 +159,41 @@ export default function ChatPanel({
                     <p className="text-xs text-gray-700 mb-3 whitespace-pre-wrap">
                       {msg.content.replace(/^Authorization Required[^\n]*\n\n/, '')}
                     </p>
-                    <button
-                      onClick={() =>
-                        window.open(
-                          msg.metadata?.authUrl ?? '',
-                          'obo-auth-popup',
-                          'width=520,height=680,scrollbars=yes,resizable=yes,left=' +
-                            Math.round(window.screenX + (window.outerWidth - 520) / 2) +
-                            ',top=' +
-                            Math.round(window.screenY + (window.outerHeight - 680) / 2)
-                        )
-                      }
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors cursor-pointer"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
-                      </svg>
-                      Authorize
-                    </button>
+                    {(() => {
+                      const isActive = oboConsentPending && msg.id === lastConsentMsgId;
+                      return isActive ? (
+                        <button
+                          onClick={() =>
+                            window.open(
+                              msg.metadata?.authUrl ?? '',
+                              'obo-auth-popup',
+                              'width=520,height=680,scrollbars=yes,resizable=yes,left=' +
+                                Math.round(window.screenX + (window.outerWidth - 520) / 2) +
+                                ',top=' +
+                                Math.round(window.screenY + (window.outerHeight - 680) / 2)
+                            )
+                          }
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors cursor-pointer"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
+                          </svg>
+                          Authorize
+                        </button>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-400 bg-gray-100 border border-gray-200 rounded-md cursor-not-allowed select-none">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
+                          </svg>
+                          Authorized
+                        </span>
+                      );
+                    })()}
                   </>
+                ) : msg.role === 'assistant' ? (
+                  <div className="text-sm">
+                    <MarkdownContent content={msg.content} />
+                  </div>
                 ) : (
                   <p className="text-sm break-words">{msg.content}</p>
                 )}
