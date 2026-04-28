@@ -1,14 +1,15 @@
 import { WorkflowNode, AIAgentNodeData, MCPClientNodeData } from '../types';
 import { MCPClientNodeRuntime } from '../mcpClientNode';
 import { authenticateAgent } from '../agentAuth';
-import { ConnectedMCPClient } from './types';
+import { ConnectedMCPClient, CachedMCPToolsMap } from './types';
 import { WorkflowTrace, MCPNodeTrace, deriveIamUrls } from '../authTrace';
 
 export async function initializeMCPClients(
   mcpNodes: WorkflowNode[],
   agentData?: AIAgentNodeData,
   oboTokens: Record<string, string> = {},
-  trace?: WorkflowTrace
+  trace?: WorkflowTrace,
+  cachedTools: CachedMCPToolsMap = {}
 ): Promise<ConnectedMCPClient[]> {
   return Promise.all(
     mcpNodes.map(async (node) => {
@@ -93,8 +94,17 @@ export async function initializeMCPClients(
         }
       }
 
-      console.log(`[MCPClient:${node.id}] Connecting to ${endpoint}`);
-      await runtime.connect(endpoint);
+      const cachedEntry = cachedTools[node.id];
+      if (!cachedEntry || !Array.isArray(cachedEntry.tools) || cachedEntry.tools.length === 0) {
+        throw new Error(
+          `[MCPClient:${node.id}] No cached tool schemas. Open the MCP Client node and click "Initialize & Connect" before running the workflow.`
+        );
+      }
+
+      console.log(
+        `[MCPClient:${node.id}] Connecting to ${endpoint} with ${cachedEntry.tools.length} cached tools`
+      );
+      await runtime.connect(endpoint, { cachedTools: cachedEntry.tools });
       console.log(`[MCPClient:${node.id}] Connected`);
 
       if (trace) trace.mcps.push(traceEntry);

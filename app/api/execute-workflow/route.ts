@@ -10,13 +10,16 @@ export async function POST(request: NextRequest) {
     return sseError('Invalid request body');
   }
 
-  const { workflow, input, workflowId, apiKeys, memoryMessages, oboTokens } = body;
+  const { workflow, input, workflowId, apiKeys, memoryMessages, oboTokens, mcpDiscoveredTools } = body;
 
   if (!workflow || !input) {
     return sseError('Missing workflow or input');
   }
 
-  const validation = validateWorkflow(workflow);
+  const validation = validateWorkflow(workflow, {
+    mcpDiscoveredTools:
+      mcpDiscoveredTools && typeof mcpDiscoveredTools === 'object' ? mcpDiscoveredTools : undefined,
+  });
   if (!validation.valid) {
     return sseError(`Invalid workflow: ${validation.errors.join(', ')}`);
   }
@@ -44,7 +47,8 @@ export async function POST(request: NextRequest) {
           request.nextUrl.origin,
           Array.isArray(memoryMessages) ? memoryMessages : [],
           oboTokens && typeof oboTokens === 'object' ? oboTokens : {},
-          onEvent
+          onEvent,
+          mcpDiscoveredTools && typeof mcpDiscoveredTools === 'object' ? mcpDiscoveredTools : {}
         );
         const result = await executor.execute();
 

@@ -1,10 +1,18 @@
 import { Workflow, MCPClientNodeData } from './types';
 
-export function validateWorkflow(workflow: Workflow): {
+export interface ValidationOptions {
+  mcpDiscoveredTools?: Record<string, { tools: unknown[] }>;
+}
+
+export function validateWorkflow(
+  workflow: Workflow,
+  options: ValidationOptions = {}
+): {
   valid: boolean;
   errors: string[];
 } {
   const errors: string[] = [];
+  const cachedTools = options.mcpDiscoveredTools;
 
   if (!workflow.nodes || workflow.nodes.length === 0) {
     errors.push('Workflow must contain at least one node');
@@ -38,8 +46,18 @@ export function validateWorkflow(workflow: Workflow): {
 
     if (node.type === 'mcpClient') {
       const data = node.data as MCPClientNodeData;
+      const label = data.name?.trim() || node.id;
       if (!data.mcpServerEndpoint?.trim()) {
-        errors.push(`MCP Client node ${node.id} requires a server endpoint`);
+        errors.push(`MCP Client node ${label} requires a server endpoint`);
+      }
+
+      if (cachedTools) {
+        const entry = cachedTools[node.id];
+        if (!entry || !Array.isArray(entry.tools) || entry.tools.length === 0) {
+          errors.push(
+            `MCP Client "${label}" is not initialized. Open the node and click "Initialize & Connect".`
+          );
+        }
       }
     }
 

@@ -1,4 +1,11 @@
-import { MCPClientNodeRuntime } from '../mcpClientNode';
+import { MCPClientNodeRuntime, MCPDiscoveredTool } from '../mcpClientNode';
+
+export interface CachedMCPToolsEntry {
+  endpoint: string;
+  tools: MCPDiscoveredTool[];
+}
+
+export type CachedMCPToolsMap = Record<string, CachedMCPToolsEntry>;
 
 export interface ConnectedMCPClient {
   endpoint: string;

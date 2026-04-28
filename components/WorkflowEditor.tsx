@@ -14,7 +14,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Workflow, WorkflowNode, WorkflowEdge as WorkflowEdgeType, NodeType } from '@/lib/types';
-import { generateId } from '@/lib/workflowStore';
+import { generateId, workflowStore } from '@/lib/workflowStore';
 import ChatTriggerNode from '@/components/nodes/ChatTriggerNode';
 import AIAgentNode from '@/components/nodes/AIAgentNode';
 import LLMNode from '@/components/nodes/LLMNode';
@@ -32,6 +32,7 @@ interface WorkflowEditorProps {
   workflow: Workflow | null;
   selectedNodeId: string | null;
   activeNodeIds?: Set<string>;
+  mcpInitVersion?: number;
   onNodeSelect: (nodeId: string | null) => void;
   onNodeDoubleClick: (nodeId: string) => void;
   onNodeAdd: (node: WorkflowNode) => void;
@@ -45,6 +46,7 @@ export default function WorkflowEditor({
   workflow,
   selectedNodeId,
   activeNodeIds,
+  mcpInitVersion,
   onNodeSelect,
   onNodeDoubleClick,
   onNodeAdd,
@@ -60,13 +62,22 @@ export default function WorkflowEditor({
   useEffect(() => {
     if (!workflow) return;
 
-    const rfNodes: Node[] = workflow.nodes.map((node) => ({
-      id: node.id,
-      data: { ...node.data, isActive: activeNodeIds?.has(node.id) ?? false },
-      position: node.position,
-      type: node.type,
-      selected: node.id === selectedNodeId,
-    }));
+    const rfNodes: Node[] = workflow.nodes.map((node) => {
+      const extra: Record<string, unknown> = {
+        isActive: activeNodeIds?.has(node.id) ?? false,
+      };
+      if (node.type === 'mcpClient') {
+        const cached = workflowStore.getMCPTools(workflow.id, node.id);
+        extra.needsInit = !cached || !Array.isArray(cached.tools) || cached.tools.length === 0;
+      }
+      return {
+        id: node.id,
+        data: { ...node.data, ...extra },
+        position: node.position,
+        type: node.type,
+        selected: node.id === selectedNodeId,
+      };
+    });
 
     const rfEdges: Edge[] = workflow.edges.map((edge) => ({
       id: edge.id,
@@ -89,7 +100,7 @@ export default function WorkflowEditor({
 
     setNodes(rfNodes);
     setEdges(rfEdges);
-  }, [workflow, selectedNodeId, activeNodeIds, setNodes, setEdges]);
+  }, [workflow, selectedNodeId, activeNodeIds, mcpInitVersion, setNodes, setEdges]);
 
   // Handle node selection
   const handleNodeClick = useCallback(

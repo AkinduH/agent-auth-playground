@@ -67,6 +67,8 @@ export async function invokeLLM(
   gcpAccessToken?: string,
   gcpProjectId?: string
 ): Promise<string> {
+
+  console.log(`message: ${message}`);
   if (provider === 'gemini' && gcpAccessToken && gcpProjectId) {
     return invokeVertexAI(gcpAccessToken, gcpProjectId, model, message, systemPrompt, temperature, maxTokens);
   }

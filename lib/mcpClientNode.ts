@@ -41,7 +41,10 @@ export class MCPClientNodeRuntime {
     this.accessToken = token;
   }
 
-  async connect(endpoint: string): Promise<void> {
+  async connect(
+    endpoint: string,
+    options?: { cachedTools?: MCPDiscoveredTool[]; skipDiscovery?: boolean }
+  ): Promise<void> {
     const normalizedEndpoint = endpoint.trim();
 
     if (!normalizedEndpoint) {
@@ -49,6 +52,9 @@ export class MCPClientNodeRuntime {
     }
 
     if (this.client && this.endpoint === normalizedEndpoint) {
+      if (options?.cachedTools && this.toolsCache.length === 0) {
+        this.toolsCache = options.cachedTools;
+      }
       return;
     }
 
@@ -85,7 +91,14 @@ export class MCPClientNodeRuntime {
         this.client = client;
         this.transport = transport;
         this.endpoint = normalizedEndpoint;
-        this.toolsCache = await this.fetchTools(client);
+
+        if (options?.cachedTools) {
+          this.toolsCache = options.cachedTools;
+        } else if (options?.skipDiscovery) {
+          this.toolsCache = [];
+        } else {
+          this.toolsCache = await this.fetchTools(client);
+        }
         return;
       } catch (error) {
         lastError = error;
@@ -180,7 +193,8 @@ export class MCPClientNodeRuntime {
       throw new Error('Cannot reconnect MCP client without an endpoint.');
     }
 
-    await this.connect(this.endpoint);
+    const preservedTools = this.toolsCache.length > 0 ? [...this.toolsCache] : undefined;
+    await this.connect(this.endpoint, preservedTools ? { cachedTools: preservedTools } : undefined);
   }
 
   private async fetchTools(client: Client): Promise<MCPDiscoveredTool[]> {

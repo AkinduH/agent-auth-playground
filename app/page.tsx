@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { X } from 'lucide-react';
 import { validateWorkflow } from '@/lib/workflowValidation';
+import { workflowStore } from '@/lib/workflowStore';
 import { useEffect, useRef, useState } from 'react';
 import { Workflow } from '@/lib/types';
 
@@ -50,6 +51,7 @@ export default function Home() {
   const [isNodePanelOpen, setIsNodePanelOpen] = useState(false);
   const [isChatVisible, setIsChatVisible] = useState(true);
   const [isOAuthCallback, setIsOAuthCallback] = useState(false);
+  const [mcpInitVersion, setMcpInitVersion] = useState(0);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -98,7 +100,15 @@ export default function Home() {
 
     // Skip workflow validation when the user is submitting an OBO authorization code
     if (!oboConsentPending) {
-      const validation = validateWorkflow(workflow);
+      const cachedToolsForValidation: Record<string, { tools: unknown[] }> = {};
+      for (const node of workflow.nodes) {
+        if (node.type !== 'mcpClient') continue;
+        const entry = workflowStore.getMCPTools(workflow.id, node.id);
+        if (entry) cachedToolsForValidation[node.id] = { tools: entry.tools };
+      }
+      const validation = validateWorkflow(workflow, {
+        mcpDiscoveredTools: cachedToolsForValidation,
+      });
       if (!validation.valid) {
         setValidationError(
           `Invalid workflow: ${validation.errors.join(', ')}`
@@ -263,6 +273,7 @@ export default function Home() {
             workflow={workflow}
             selectedNodeId={selectedNodeId}
             activeNodeIds={activeNodeIds}
+            mcpInitVersion={mcpInitVersion}
             onNodeSelect={setSelectedNodeId}
             onNodeDoubleClick={(nodeId) => {
               setSelectedNodeId(nodeId);
@@ -337,7 +348,9 @@ export default function Home() {
             node={selectedNode}
             onUpdate={updateNode}
             workflowId={workflow.id}
+            workflow={workflow}
             variant="modal"
+            onMCPInitChange={() => setMcpInitVersion((v) => v + 1)}
           />
           <DialogClose
             aria-label="Close"

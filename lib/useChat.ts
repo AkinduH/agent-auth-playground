@@ -52,6 +52,34 @@ function resolveMemoryBinding(workflow: Workflow): MemoryBinding | null {
   return { nodeId: agentNode.id, maxMessages };
 }
 
+function findUninitializedMCPNodes(workflow: Workflow, workflowId: string): string[] {
+  return workflow.nodes
+    .filter((n) => n.type === 'mcpClient')
+    .filter((n) => {
+      const entry = workflowStore.getMCPTools(workflowId, n.id);
+      return !entry || !Array.isArray(entry.tools) || entry.tools.length === 0;
+    })
+    .map((n) => {
+      const data = n.data as MCPClientNodeData;
+      return data.name?.trim() || n.id;
+    });
+}
+
+function collectCachedMCPTools(
+  workflow: Workflow,
+  workflowId: string
+): Record<string, { endpoint: string; tools: unknown[] }> {
+  const out: Record<string, { endpoint: string; tools: unknown[] }> = {};
+  for (const node of workflow.nodes) {
+    if (node.type !== 'mcpClient') continue;
+    const entry = workflowStore.getMCPTools(workflowId, node.id);
+    if (entry) {
+      out[node.id] = { endpoint: entry.endpoint, tools: entry.tools };
+    }
+  }
+  return out;
+}
+
 function findOBONodes(workflow: Workflow): Array<{
   nodeId: string;
   organizationName: string;
@@ -240,6 +268,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
             apiKeys: workflowStore.getApiKeys(),
             memoryMessages,
             oboTokens,
+            mcpDiscoveredTools: collectCachedMCPTools(workflowDefinition, workflowId),
           }),
           signal: abortControllerRef.current.signal,
         });
@@ -467,6 +496,16 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
       // While OBO consent is pending the chat input is disabled in the UI;
       // the auth code arrives via the BroadcastChannel popup callback.
       if (oboConsentStateRef.current !== null) return;
+
+      const uninitializedMCPs = findUninitializedMCPNodes(workflowDefinition, workflowId);
+      if (uninitializedMCPs.length > 0) {
+        const errorMsg = `Initialize MCP Client${
+          uninitializedMCPs.length > 1 ? 's' : ''
+        } before chatting: ${uninitializedMCPs.join(', ')}. Open each MCP node and click "Initialize & Connect".`;
+        setError(errorMsg);
+        options.onError?.(errorMsg);
+        return;
+      }
 
       // Check which OBO nodes are missing a valid stored token
       const oboNodes = findOBONodes(workflowDefinition);

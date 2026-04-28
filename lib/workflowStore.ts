@@ -5,11 +5,27 @@ const CURRENT_WORKFLOW_KEY = 'currentWorkflow';
 const WORKFLOW_MEMORY_KEY = 'workflowMemories';
 const API_KEYS_KEY = 'apiKeys';
 const OBO_TOKENS_KEY = 'oboTokens';
+const MCP_TOOLS_KEY = 'mcpDiscoveredTools';
 
 type OBOTokenEntry = { accessToken: string; expiresAt: number };
 type OBOTokenStore = Record<string, OBOTokenEntry>;
 
 type WorkflowMemoryStore = Record<string, Record<string, ChatMessage[]>>;
+
+export interface StoredMCPTool {
+  name: string;
+  description?: string;
+  inputSchema: Record<string, unknown>;
+  outputSchema?: Record<string, unknown>;
+}
+
+export interface MCPToolsEntry {
+  endpoint: string;
+  tools: StoredMCPTool[];
+  discoveredAt: number;
+}
+
+type MCPToolsStore = Record<string, Record<string, MCPToolsEntry>>;
 
 // Client-side storage utilities
 export const workflowStore = {
@@ -49,6 +65,8 @@ export const workflowStore = {
     const filtered = workflows.filter(w => w.id !== id);
     localStorage.setItem(WORKFLOWS_KEY, JSON.stringify(filtered));
     this.clearWorkflowMemories(id);
+    this.clearAllMCPTools(id);
+    this.clearOBOTokens(id);
   },
 
   // Current workflow
@@ -189,6 +207,48 @@ export const workflowStore = {
       if (key.startsWith(prefix)) delete store[key];
     }
     localStorage.setItem(OBO_TOKENS_KEY, JSON.stringify(store));
+  },
+
+  // MCP discovered tools — keyed by workflowId -> mcpClientNodeId -> entry
+  getMCPTools(workflowId: string, nodeId: string): MCPToolsEntry | null {
+    if (typeof window === 'undefined') return null;
+    const stored = localStorage.getItem(MCP_TOOLS_KEY);
+    if (!stored) return null;
+    const store: MCPToolsStore = JSON.parse(stored);
+    return store[workflowId]?.[nodeId] || null;
+  },
+
+  setMCPTools(workflowId: string, nodeId: string, entry: MCPToolsEntry): void {
+    if (typeof window === 'undefined') return;
+    const stored = localStorage.getItem(MCP_TOOLS_KEY);
+    const store: MCPToolsStore = stored ? JSON.parse(stored) : {};
+    const workflowEntries = store[workflowId] || {};
+    workflowEntries[nodeId] = entry;
+    store[workflowId] = workflowEntries;
+    localStorage.setItem(MCP_TOOLS_KEY, JSON.stringify(store));
+  },
+
+  clearMCPTools(workflowId: string, nodeId: string): void {
+    if (typeof window === 'undefined') return;
+    const stored = localStorage.getItem(MCP_TOOLS_KEY);
+    if (!stored) return;
+    const store: MCPToolsStore = JSON.parse(stored);
+    if (!store[workflowId]) return;
+    delete store[workflowId][nodeId];
+    if (Object.keys(store[workflowId]).length === 0) {
+      delete store[workflowId];
+    }
+    localStorage.setItem(MCP_TOOLS_KEY, JSON.stringify(store));
+  },
+
+  clearAllMCPTools(workflowId: string): void {
+    if (typeof window === 'undefined') return;
+    const stored = localStorage.getItem(MCP_TOOLS_KEY);
+    if (!stored) return;
+    const store: MCPToolsStore = JSON.parse(stored);
+    if (!store[workflowId]) return;
+    delete store[workflowId];
+    localStorage.setItem(MCP_TOOLS_KEY, JSON.stringify(store));
   },
 };
 

@@ -6,6 +6,7 @@ import {
   AIAgentNodeData,
   LLMNodeData,
   MCPClientNodeData,
+  Workflow,
 } from '@/lib/types';
 import { workflowStore } from '@/lib/workflowStore';
 import { Button } from '@/components/ui/button';
@@ -16,23 +17,128 @@ interface NodePanelProps {
   node: WorkflowNode | null;
   onUpdate: (nodeId: string, updates: Partial<WorkflowNode>) => void;
   workflowId?: string;
+  workflow?: Workflow | null;
   variant?: 'sidebar' | 'modal';
+  onMCPInitChange?: () => void;
+}
+
+function findConnectedAgentCreds(
+  workflow: Workflow | null | undefined,
+  mcpNodeId: string
+): { agentId?: string; agentSecret?: string } | null {
+  if (!workflow) return null;
+  const edge = workflow.edges.find((e) => e.target === mcpNodeId);
+  if (!edge) return null;
+  const agent = workflow.nodes.find((n) => n.id === edge.source && n.type === 'aiAgent');
+  if (!agent) return null;
+  const data = agent.data as AIAgentNodeData;
+  return { agentId: data.agentId, agentSecret: data.agentSecret };
 }
 
 export default function NodePanel({
   node,
   onUpdate,
   workflowId,
+  workflow,
   variant = 'sidebar',
+  onMCPInitChange,
 }: NodePanelProps) {
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [memoryCount, setMemoryCount] = useState(0);
+  const [mcpInitInfo, setMcpInitInfo] = useState<{
+    count: number;
+    discoveredAt: number;
+  } | null>(null);
+  const [mcpInitLoading, setMcpInitLoading] = useState(false);
+  const [mcpInitError, setMcpInitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (workflowId && node?.type === 'aiAgent') {
       setMemoryCount(workflowStore.getWorkflowMemory(workflowId, node.id).length);
     }
   }, [workflowId, node?.id, node?.type]);
+
+  useEffect(() => {
+    setMcpInitError(null);
+    if (workflowId && node?.type === 'mcpClient') {
+      const entry = workflowStore.getMCPTools(workflowId, node.id);
+      setMcpInitInfo(
+        entry ? { count: entry.tools.length, discoveredAt: entry.discoveredAt } : null
+      );
+    } else {
+      setMcpInitInfo(null);
+    }
+  }, [workflowId, node?.id, node?.type]);
+
+  const runMCPInit = async (mcpData: MCPClientNodeData, nodeId: string) => {
+    if (!workflowId) return;
+    const endpoint = mcpData.mcpServerEndpoint?.trim();
+    if (!endpoint) {
+      setMcpInitError('Add an MCP server endpoint above before initializing.');
+      return;
+    }
+
+    let oauth2Body: Record<string, string> | undefined;
+    if (mcpData.useOAuth2) {
+      const organizationName = mcpData.oauth2OrganizationName?.trim();
+      const clientId = mcpData.oauth2ClientId?.trim();
+      const redirectUri = mcpData.oauth2RedirectUri?.trim();
+      if (!organizationName || !clientId || !redirectUri) {
+        setMcpInitError(
+          'OAuth2 is enabled but Organization Name, Client ID, or Redirect URI is missing.'
+        );
+        return;
+      }
+      const agentCreds = findConnectedAgentCreds(workflow, nodeId);
+      if (!agentCreds || !agentCreds.agentId?.trim() || !agentCreds.agentSecret?.trim()) {
+        setMcpInitError(
+          'Agent ID and Secret are required on the connected AI Agent node for OAuth2 init.'
+        );
+        return;
+      }
+      oauth2Body = {
+        flow: mcpData.oauth2Flow ?? 'agent',
+        organizationName,
+        clientId,
+        redirectUri,
+        scope: mcpData.oauth2Scope ?? '',
+        agentId: agentCreds.agentId,
+        agentSecret: agentCreds.agentSecret,
+      };
+    }
+
+    setMcpInitLoading(true);
+    setMcpInitError(null);
+    try {
+      const res = await fetch('/api/initialize-mcp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint, oauth2: oauth2Body }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data?.error || `Initialization failed (${res.status})`);
+      }
+      const tools = Array.isArray(data.tools) ? data.tools : [];
+      const discoveredAt = Date.now();
+      workflowStore.setMCPTools(workflowId, nodeId, { endpoint, tools, discoveredAt });
+      setMcpInitInfo({ count: tools.length, discoveredAt });
+      onMCPInitChange?.();
+    } catch (err) {
+      setMcpInitError(err instanceof Error ? err.message : 'Initialization failed.');
+    } finally {
+      setMcpInitLoading(false);
+    }
+  };
+
+  const clearMCPInit = (nodeId: string) => {
+    if (!workflowId) return;
+    workflowStore.clearMCPTools(workflowId, nodeId);
+    setMcpInitInfo(null);
+    setMcpInitError(null);
+    onMCPInitChange?.();
+  };
+
   const providerModels: Record<string, string[]> = {
     gemini: [
       'gemini-2.5-flash',
@@ -427,11 +533,53 @@ export default function NodePanel({
               </div>
             )}
 
-            <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
-              <p className="text-sm font-semibold text-gray-700 mb-1">Behavior</p>
-              <p className="text-xs text-gray-600">
-                This node manages MCP tool discovery and tool execution with automatic reconnect
-                attempts when connections fail.
+            <div className="rounded-md border border-gray-200 bg-gray-50 p-3 space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-700">Initialization</p>
+                  {mcpInitInfo ? (
+                    <p className="text-xs text-gray-600">
+                      {mcpInitInfo.count} tool{mcpInitInfo.count === 1 ? '' : 's'} cached &middot;{' '}
+                      {new Date(mcpInitInfo.discoveredAt).toLocaleString()}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-red-600">
+                      Not initialized. Tools must be discovered before this MCP client can be used in a chat.
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-shrink-0 gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={mcpInitInfo ? 'outline' : 'default'}
+                    disabled={mcpInitLoading || !workflowId}
+                    onClick={() => runMCPInit(mcpData, node.id)}
+                  >
+                    {mcpInitLoading
+                      ? 'Connecting...'
+                      : mcpInitInfo
+                      ? 'Re-discover'
+                      : 'Initialize & Connect'}
+                  </Button>
+                  {mcpInitInfo && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={mcpInitLoading}
+                      onClick={() => clearMCPInit(node.id)}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {mcpInitError && (
+                <p className="text-xs text-red-600 mt-1">{mcpInitError}</p>
+              )}
+              <p className="text-xs text-gray-500">
+                Tool schemas are cached locally. The agent only sees a <code>tool_search</code> meta-tool at chat time and pulls in matching schemas on demand.
               </p>
             </div>
           </div>

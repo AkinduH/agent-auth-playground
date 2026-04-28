@@ -14,6 +14,7 @@ import { executeChatTrigger } from './chatTrigger';
 import { executeAIAgent, executeLLM } from './aiAgent';
 import { getErrorMessage } from './utils';
 import { WorkflowTrace, emptyTrace, dominantFlow } from '../authTrace';
+import { CachedMCPToolsMap } from './types';
 
 export type WorkflowEvent =
   | { type: 'node-start'; nodeId: string }
@@ -27,6 +28,7 @@ export class WorkflowExecutor {
   private apiKeys: Record<string, string>;
   private baseUrl: string;
   private oboTokens: Record<string, string>;
+  private mcpDiscoveredTools: CachedMCPToolsMap;
   private trace: WorkflowTrace;
   private onEvent?: WorkflowEventHandler;
 
@@ -38,12 +40,14 @@ export class WorkflowExecutor {
     baseUrl?: string,
     memoryMessages: ChatMessage[] = [],
     oboTokens: Record<string, string> = {},
-    onEvent?: WorkflowEventHandler
+    onEvent?: WorkflowEventHandler,
+    mcpDiscoveredTools: CachedMCPToolsMap = {}
   ) {
     this.workflow = workflow;
     this.apiKeys = apiKeys;
     this.baseUrl = baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     this.oboTokens = oboTokens;
+    this.mcpDiscoveredTools = mcpDiscoveredTools;
     this.onEvent = onEvent;
     this.trace = emptyTrace();
     this.trace.userMessage = initialInput;
@@ -142,7 +146,8 @@ export class WorkflowExecutor {
       mcpNodes,
       node.data as AIAgentNodeData,
       this.oboTokens,
-      this.trace
+      this.trace,
+      this.mcpDiscoveredTools
     );
 
     this.onEvent?.({ type: 'node-start', nodeId: node.id });

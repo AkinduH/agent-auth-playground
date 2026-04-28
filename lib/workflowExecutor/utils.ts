@@ -1,6 +1,6 @@
 import { ChatMessage, AIAgentNodeData } from '../types';
 import { MCPToolCallResult } from '../mcpClientNode';
-import { AgentDecision } from './types';
+import { AgentDecision, AgentToolBinding } from './types';
 
 export function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -86,6 +86,66 @@ export function parseJsonObject(value: string): unknown {
       return null;
     }
   }
+}
+
+const SEARCH_STOPWORDS = new Set([
+  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'has', 'have',
+  'in', 'is', 'it', 'of', 'on', 'or', 'that', 'the', 'this', 'to', 'was', 'were',
+  'will', 'with', 'tool', 'tools',
+]);
+
+function tokenizeForSearch(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length >= 2 && !SEARCH_STOPWORDS.has(token));
+}
+
+export function searchToolBindings(
+  query: string,
+  bindings: AgentToolBinding[],
+  limit: number = 10
+): AgentToolBinding[] {
+  if (!query || bindings.length === 0) return [];
+
+  const queryTokens = Array.from(new Set(tokenizeForSearch(query)));
+  if (queryTokens.length === 0) return [];
+
+  const docs = bindings.map((b) => {
+    const nameText = `${b.publicName} ${b.sourceToolName}`;
+    const descText = b.description ?? '';
+    return {
+      binding: b,
+      nameTokens: new Set(tokenizeForSearch(nameText)),
+      allTokens: new Set([...tokenizeForSearch(nameText), ...tokenizeForSearch(descText)]),
+    };
+  });
+
+  const N = docs.length;
+  const idf = new Map<string, number>();
+  for (const token of queryTokens) {
+    const df = docs.reduce((acc, d) => acc + (d.allTokens.has(token) ? 1 : 0), 0);
+    if (df === 0) continue;
+    idf.set(token, Math.log(1 + N / df));
+  }
+
+  const scored = docs.map((d) => {
+    let score = 0;
+    let nameMatches = 0;
+    for (const token of queryTokens) {
+      if (!d.allTokens.has(token)) continue;
+      score += idf.get(token) ?? 0;
+      if (d.nameTokens.has(token)) nameMatches += 1;
+    }
+    score += 0.5 * nameMatches;
+    return { binding: d.binding, score };
+  });
+
+  return scored
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, Math.max(1, limit))
+    .map((s) => s.binding);
 }
 
 export function parseAgentDecision(rawDecision: string): AgentDecision | null {

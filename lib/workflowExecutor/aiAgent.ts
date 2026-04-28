@@ -8,7 +8,27 @@ import {
   formatMemoryMessages,
   getAgentStepLimit,
   parseAgentDecision,
+  searchToolBindings,
 } from './utils';
+
+const TOOL_SEARCH_NAME = 'tool_search';
+const TOOL_SEARCH_LIMIT = 10;
+
+const TOOL_SEARCH_SCHEMA = {
+  name: TOOL_SEARCH_NAME,
+  description:
+    'Search the catalogue of available MCP tools by keyword. Returns up to 10 tool schemas matching your query; matched tools then become callable on subsequent steps.',
+  parameters: {
+    type: 'object',
+    properties: {
+      query: {
+        type: 'string',
+        description: 'Keywords describing the capability you need (e.g., "send email", "list github issues").',
+      },
+    },
+    required: ['query'],
+  },
+};
 
 // ── LLM execution ─────────────────────────────────────────────────────────────
 
@@ -94,7 +114,9 @@ export function buildAgentSystemPrompt(systemPrompt: string): string {
     'Allowed response formats:',
     '{"type":"final","response":"..."}',
     '{"type":"tool","name":"tool_name","arguments":{}}',
-    'Use only tools provided in the current request.',
+    `You begin with only one tool: \`${TOOL_SEARCH_NAME}\`. The catalogue of MCP tools is large and not shown up-front.`,
+    `To find a tool, call \`${TOOL_SEARCH_NAME}\` with {"query":"keywords"}. The result contains up to ${TOOL_SEARCH_LIMIT} matching tool schemas; once returned they remain available to call on later steps.`,
+    'Only call tools whose schemas are listed in "Available function schemas" for the current step. If no listed tool fits, search for one first.',
     'If a tool call is not needed, return type "final".',
   ].join('\n');
 }
@@ -102,22 +124,27 @@ export function buildAgentSystemPrompt(systemPrompt: string): string {
 export function buildAgentStepPrompt(
   userInput: string,
   memoryContext: string,
-  tools: AgentToolBinding[],
+  exposedTools: AgentToolBinding[],
   toolExecutionLog: string[],
   step: number,
-  maxSteps: number
+  maxSteps: number,
+  totalToolCount: number
 ): string {
-  const functionSchemas = tools.map((tool) => ({
-    name: tool.publicName,
-    description: tool.description || `MCP tool ${tool.sourceToolName} exposed by ${tool.endpoint}`,
-    parameters: tool.parameters,
-  }));
+  const functionSchemas: Array<Record<string, unknown>> = [TOOL_SEARCH_SCHEMA];
+  for (const tool of exposedTools) {
+    functionSchemas.push({
+      name: tool.publicName,
+      description: tool.description || `MCP tool ${tool.sourceToolName} exposed by ${tool.endpoint}`,
+      parameters: tool.parameters,
+    });
+  }
 
   return [
     `Step ${step} of ${maxSteps}. Decide the next best action for the user.`,
     `Current user request:\n${userInput}`,
     `Memory context:\n${memoryContext}`,
-    `Available function schemas:\n${JSON.stringify(functionSchemas, null, 2)}`,
+    `Tool catalogue size: ${totalToolCount} MCP tools available via \`${TOOL_SEARCH_NAME}\`.`,
+    `Available function schemas (${functionSchemas.length}):\n${JSON.stringify(functionSchemas, null, 2)}`,
     `Tool execution context:\n${
       toolExecutionLog.length > 0 ? toolExecutionLog.join('\n\n') : '(no tools used yet)'
     }`,
@@ -162,22 +189,25 @@ export async function executeAIAgent(
     `[AIAgent:${node.id}] Starting — LLM: ${llmNode.id}, MCP clients: ${connectedClients.length}`
   );
 
-  const availableTools = await buildAgentToolBindings(connectedClients);
+  const allBindings = await buildAgentToolBindings(connectedClients);
+  const exposedToolNames = new Set<string>();
 
   console.log(
-    `[AIAgent:${node.id}] Available tools: [${availableTools.map((t) => t.publicName).join(', ') || 'none'}]`
+    `[AIAgent:${node.id}] Tool catalogue: ${allBindings.length} tools (exposed via ${TOOL_SEARCH_NAME})`
   );
 
   for (let step = 1; step <= maxToolSteps; step += 1) {
     console.log(`[AIAgent:${node.id}] Step ${step}/${maxToolSteps}`);
 
+    const exposedTools = allBindings.filter((t) => exposedToolNames.has(t.publicName));
     const stepPrompt = buildAgentStepPrompt(
       context.currentInput,
       memoryContext,
-      availableTools,
+      exposedTools,
       toolExecutionLog,
       step,
-      maxToolSteps
+      maxToolSteps,
+      allBindings.length
     );
 
     onEvent?.({ type: 'node-start', nodeId: llmNode.id });
@@ -210,16 +240,63 @@ export async function executeAIAgent(
       return finalResponse;
     }
 
-    const selectedTool = availableTools.find((t) => t.publicName === decision.name);
+    if (decision.name === TOOL_SEARCH_NAME) {
+      const rawQuery = decision.arguments['query'];
+      const query = typeof rawQuery === 'string' ? rawQuery.trim() : '';
 
-    if (!selectedTool) {
+      if (!query) {
+        console.warn(`[AIAgent:${node.id}] Step ${step}: tool_search called without a query`);
+        toolExecutionLog.push(
+          `Step ${step} ${TOOL_SEARCH_NAME} call failed: missing required string argument "query".`
+        );
+        continue;
+      }
+
+      const matches = searchToolBindings(query, allBindings, TOOL_SEARCH_LIMIT);
+      for (const m of matches) exposedToolNames.add(m.publicName);
+
+      const matchSummary = matches.map((m) => ({
+        name: m.publicName,
+        description: m.description || `MCP tool ${m.sourceToolName} exposed by ${m.endpoint}`,
+        parameters: m.parameters,
+      }));
+
+      console.log(
+        `[AIAgent:${node.id}] Step ${step}: tool_search query="${query}" -> ${matches.length} match(es): [${matches.map((m) => m.publicName).join(', ') || 'none'}]`
+      );
+
+      toolExecutionLog.push(
+        [
+          `Step ${step} tool call`,
+          `Tool: ${TOOL_SEARCH_NAME}`,
+          `Arguments: ${JSON.stringify({ query })}`,
+          `Result: ${JSON.stringify({ matches: matchSummary }, null, 2)}`,
+        ].join('\n')
+      );
+
+      trace?.tools.push({
+        step,
+        publicName: TOOL_SEARCH_NAME,
+        sourceToolName: TOOL_SEARCH_NAME,
+        endpoint: 'local',
+        nodeId: '',
+        args: JSON.stringify({ query }),
+        result: `${matches.length} match(es): ${matches.map((m) => m.publicName).join(', ')}`.slice(0, 500),
+        ok: true,
+      });
+
+      continue;
+    }
+
+    const selectedTool = allBindings.find((t) => t.publicName === decision.name);
+
+    if (!selectedTool || !exposedToolNames.has(selectedTool.publicName)) {
+      const exposedList = Array.from(exposedToolNames).join(', ') || '(none yet)';
       console.warn(
-        `[AIAgent:${node.id}] Step ${step}: unknown tool "${decision.name}" — available: [${availableTools.map((t) => t.publicName).join(', ') || 'none'}]`
+        `[AIAgent:${node.id}] Step ${step}: tool "${decision.name}" not callable — exposed: [${exposedList}]`
       );
       toolExecutionLog.push(
-        `Step ${step}: Unknown tool "${decision.name}" was requested. Available tools: ${
-          availableTools.map((t) => t.publicName).join(', ') || '(none)'
-        }.`
+        `Step ${step}: Tool "${decision.name}" is not currently exposed. Use ${TOOL_SEARCH_NAME} to discover and expose tools first. Currently exposed: ${exposedList}.`
       );
       continue;
     }
