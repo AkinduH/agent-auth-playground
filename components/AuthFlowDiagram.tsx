@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { WorkflowTrace, MCPNodeTrace, previewToken } from '@/lib/authTrace';
+import { WorkflowTrace, MCPNodeTrace, ToolCallTrace, previewToken } from '@/lib/authTrace';
 
 interface Props {
   trace: WorkflowTrace;
@@ -207,50 +207,26 @@ function pushOBOConsentSteps(items: Item[], mcp: MCPNodeTrace) {
   });
 }
 
-function pushOperationsAndTools(items: Item[], trace: WorkflowTrace) {
-  items.push({ kind: 'section', label: 'AGENT OPERATIONS' });
+function pushToolCall(items: Item[], t: ToolCallTrace, trace: WorkflowTrace) {
+  const mcp = trace.mcps.find((m) => m.nodeId === t.nodeId);
+  const token = mcp?.oboToken || mcp?.agentToken;
+  const laneId = mcp ? `MCP:${mcp.nodeId}` : `MCP:${t.nodeId}` || 'MCP:none';
+  const tokenKind = mcp?.oboToken ? 'OBO' : mcp?.agentToken ? 'Agent' : '';
+  const serverLabel = mcp ? mcpFullLabel(mcp) : t.endpoint;
   items.push({
-    kind: 'message', from: 'Agent', to: 'LLM',
-    label: 'Prompt + tool schemas + memory',
-    sublabel: 'Builds JSON tool list, sends step prompt',
+    kind: 'message', from: 'Agent', to: laneId,
+    label: token
+      ? `Tool call: ${t.publicName}  ·  Authorization: Bearer <${tokenKind} Token>`
+      : `Tool call: ${t.publicName}  ·  (no auth header)`,
+    sublabel: `${serverLabel}    args: ${truncate(t.args, 80)}`,
+    color: 'blue', token, tokenLabel: token ? `${tokenKind} JWT` : undefined,
   });
   items.push({
-    kind: 'message', from: 'LLM', to: 'Agent',
-    label: 'Tool decision (JSON)',
-    sublabel: '{ type: "tool" | "final", name, arguments }',
-    dashed: true,
+    kind: 'message', from: laneId, to: 'Agent',
+    label: t.ok ? `Result (${t.publicName})` : `Error (${t.publicName})`,
+    sublabel: truncate(t.result, 110),
+    color: t.ok ? 'green' : 'auth', dashed: true,
   });
-
-  if (trace.tools.length === 0) {
-    items.push({
-      kind: 'message', from: 'Agent', to: 'LLM',
-      label: 'No tool calls in this run',
-      sublabel: 'Agent answered directly',
-      color: 'default', dashed: true,
-    });
-  }
-
-  for (const t of trace.tools) {
-    const mcp = trace.mcps.find((m) => m.nodeId === t.nodeId);
-    const token = mcp?.oboToken || mcp?.agentToken;
-    const laneId = mcp ? `MCP:${mcp.nodeId}` : `MCP:${t.nodeId}` || 'MCP:none';
-    const tokenKind = mcp?.oboToken ? 'OBO' : mcp?.agentToken ? 'Agent' : '';
-    const serverLabel = mcp ? mcpFullLabel(mcp) : t.endpoint;
-    items.push({
-      kind: 'message', from: 'Agent', to: laneId,
-      label: token
-        ? `Tool call: ${t.publicName}  ·  Authorization: Bearer <${tokenKind} Token>`
-        : `Tool call: ${t.publicName}  ·  (no auth header)`,
-      sublabel: `${serverLabel}    args: ${truncate(t.args, 80)}`,
-      color: 'blue', token, tokenLabel: token ? `${tokenKind} JWT` : undefined,
-    });
-    items.push({
-      kind: 'message', from: laneId, to: 'Agent',
-      label: t.ok ? `Result (${t.publicName})` : `Error (${t.publicName})`,
-      sublabel: truncate(t.result, 110),
-      color: t.ok ? 'green' : 'auth', dashed: true,
-    });
-  }
 }
 
 function buildItems(trace: WorkflowTrace): Item[] {
@@ -264,16 +240,46 @@ function buildItems(trace: WorkflowTrace): Item[] {
   });
   items.push({ kind: 'message', from: 'App', to: 'Agent', label: 'Forward request to Agent' });
 
-  // Per-MCP auth sections — only for MCPs that actually authenticated
-  for (const mcp of trace.mcps) {
-    if (mcp.flow === 'agent') {
-      pushAgentAuthSteps(items, mcp);
-    } else if (mcp.flow === 'obo') {
-      pushOBOConsentSteps(items, mcp);
-    }
+  items.push({ kind: 'section', label: 'AGENT OPERATIONS' });
+  items.push({
+    kind: 'message', from: 'Agent', to: 'LLM',
+    label: 'Prompt + tool schemas + memory',
+    sublabel: 'Builds JSON tool list, sends step prompt',
+  });
+  items.push({
+    kind: 'message', from: 'LLM', to: 'Agent',
+    label: 'Tool decision (JSON)',
+    sublabel: '{ type: "tool" | "final", name, arguments }',
+    dashed: true,
+  });
+
+  // Exclude internal tool_search calls — they are implementation details, not auth-relevant operations
+  const realTools = trace.tools.filter((t) => t.publicName !== 'tool_search');
+
+  if (realTools.length === 0) {
+    items.push({
+      kind: 'message', from: 'Agent', to: 'LLM',
+      label: 'No tool calls in this run',
+      sublabel: 'Agent answered directly',
+      color: 'default', dashed: true,
+    });
   }
 
-  pushOperationsAndTools(items, trace);
+  // Interleave auth steps and tool calls in chronological execution order.
+  // MCP auth is lazy: it fires on the first tool call to each MCP node.
+  const shownMCPAuth = new Set<string>();
+  for (const t of realTools) {
+    const mcp = trace.mcps.find((m) => m.nodeId === t.nodeId);
+    if (mcp && mcp.flow !== 'none' && !shownMCPAuth.has(mcp.nodeId)) {
+      shownMCPAuth.add(mcp.nodeId);
+      if (mcp.flow === 'agent') {
+        pushAgentAuthSteps(items, mcp);
+      } else if (mcp.flow === 'obo') {
+        pushOBOConsentSteps(items, mcp);
+      }
+    }
+    pushToolCall(items, t, trace);
+  }
 
   items.push({ kind: 'section', label: 'RESPONSE' });
   items.push({
@@ -306,7 +312,7 @@ function TraceMeta({ trace }: { trace: WorkflowTrace }) {
       </div>
       <div className="col-span-2">
         <span className="text-slate-500">MCP servers:</span> {trace.mcps.length},{' '}
-        <span className="text-slate-500">tool calls:</span> {trace.tools.length}
+        <span className="text-slate-500">tool calls:</span> {trace.tools.filter((t) => t.publicName !== 'tool_search').length}
       </div>
     </div>
   );
@@ -356,12 +362,13 @@ function MCPList({ trace }: { trace: WorkflowTrace }) {
 }
 
 function ToolCallList({ trace }: { trace: WorkflowTrace }) {
-  if (trace.tools.length === 0) return null;
+  const tools = trace.tools.filter((t) => t.publicName !== 'tool_search');
+  if (tools.length === 0) return null;
   return (
     <details className="mt-2 text-xs">
-      <summary className="cursor-pointer font-semibold text-slate-700">Tool Calls ({trace.tools.length})</summary>
+      <summary className="cursor-pointer font-semibold text-slate-700">Tool Calls ({tools.length})</summary>
       <div className="mt-2 space-y-2">
-        {trace.tools.map((t, i) => {
+        {tools.map((t, i) => {
           const mcp = trace.mcps.find((m) => m.nodeId === t.nodeId);
           const token = mcp?.oboToken || mcp?.agentToken;
           return (
