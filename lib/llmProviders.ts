@@ -18,6 +18,44 @@ export const PROVIDER_MODELS: Record<ProviderName, string[]> = {
   anthropic: ['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
 };
 
+async function invokeVertexAI(
+  gcpAccessToken: string,
+  gcpProjectId: string,
+  model: string,
+  message: string,
+  systemPrompt: string,
+  temperature: number,
+  maxTokens: number
+): Promise<string> {
+  const location = 'us-central1';
+  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${gcpProjectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
+
+  const body = {
+    contents: [{ role: 'user', parts: [{ text: message }] }],
+    ...(systemPrompt && {
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+    }),
+    generationConfig: { temperature, maxOutputTokens: maxTokens },
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${gcpAccessToken}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Vertex AI error ${response.status}: ${err}`);
+  }
+
+  const data = await response.json();
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+}
+
 export async function invokeLLM(
   provider: ProviderName,
   apiKey: string,
@@ -25,8 +63,14 @@ export async function invokeLLM(
   message: string,
   systemPrompt: string,
   temperature: number,
-  maxTokens: number
+  maxTokens: number,
+  gcpAccessToken?: string,
+  gcpProjectId?: string
 ): Promise<string> {
+  if (provider === 'gemini' && gcpAccessToken && gcpProjectId) {
+    return invokeVertexAI(gcpAccessToken, gcpProjectId, model, message, systemPrompt, temperature, maxTokens);
+  }
+
   const messages = [new SystemMessage(systemPrompt), new HumanMessage(message)];
 
   let llm: ChatGoogleGenerativeAI | ChatOpenAI | ChatAnthropic;

@@ -71,7 +71,7 @@ export default function NodePanel({
     );
   }
 
-  const handleApiKeyChange = (provider: 'gemini' | 'openai' | 'anthropic', key: string) => {
+  const handleApiKeyChange = (provider: 'gemini' | 'openai' | 'anthropic' | 'gcpAccessToken' | 'gcpProjectId', key: string) => {
     workflowStore.setApiKey(provider, key);
     setApiKeys((prev) => ({ ...prev, [provider]: key }));
   };
@@ -439,6 +439,8 @@ export default function NodePanel({
 
       case 'llm':
         const llmData = node.data as LLMNodeData;
+        const isGemini = llmData.provider === 'gemini';
+        const isGcpAuth = isGemini && llmData.geminiAuthType === 'gcp-access-token';
         return (
           <div className="space-y-4">
             <div>
@@ -452,6 +454,7 @@ export default function NodePanel({
                     data: {
                       ...llmData,
                       provider: e.target.value as 'gemini' | 'openai' | 'anthropic',
+                      geminiAuthType: undefined,
                     },
                   })
                 }
@@ -485,24 +488,98 @@ export default function NodePanel({
               </select>
             </div>
 
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">
-                API Key ({llmData.provider === 'openai' ? 'OpenAI' : llmData.provider === 'anthropic' ? 'Anthropic' : 'Google'})
-              </label>
-              <Input
-                type="password"
-                value={apiKeys[llmData.provider] || ''}
-                onChange={(e) =>
-                  handleApiKeyChange(llmData.provider, e.target.value)
-                }
-                placeholder={`Enter your ${
-                  llmData.provider === 'openai' ? 'OpenAI' : llmData.provider === 'anthropic' ? 'Anthropic' : 'Google'
-                } API key`}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Stored securely in your browser
-              </p>
-            </div>
+            {isGemini && (
+              <div>
+                <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                  Authentication
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdate(node.id, {
+                        data: { ...llmData, geminiAuthType: 'api-key' },
+                      })
+                    }
+                    className={`flex-1 py-2 px-3 text-sm rounded-md border transition-colors ${
+                      !isGcpAuth
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    Gemini API Key
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdate(node.id, {
+                        data: { ...llmData, geminiAuthType: 'gcp-access-token' },
+                      })
+                    }
+                    className={`flex-1 py-2 px-3 text-sm rounded-md border transition-colors ${
+                      isGcpAuth
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    GCP Access Token
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!isGcpAuth && (
+              <div>
+                <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                  API Key ({llmData.provider === 'openai' ? 'OpenAI' : llmData.provider === 'anthropic' ? 'Anthropic' : 'Google'})
+                </label>
+                <Input
+                  type="password"
+                  value={apiKeys[llmData.provider] || ''}
+                  onChange={(e) =>
+                    handleApiKeyChange(llmData.provider, e.target.value)
+                  }
+                  placeholder={`Enter your ${
+                    llmData.provider === 'openai' ? 'OpenAI' : llmData.provider === 'anthropic' ? 'Anthropic' : 'Google'
+                  } API key`}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Stored securely in your browser
+                </p>
+              </div>
+            )}
+
+            {isGcpAuth && (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                    GCP Access Token
+                  </label>
+                  <Input
+                    type="password"
+                    value={apiKeys['gcpAccessToken'] || ''}
+                    onChange={(e) => handleApiKeyChange('gcpAccessToken', e.target.value)}
+                    placeholder="Paste your GCP access token"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Obtain via <code>gcloud auth print-access-token</code>
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                    GCP Project ID
+                  </label>
+                  <Input
+                    value={apiKeys['gcpProjectId'] || ''}
+                    onChange={(e) => handleApiKeyChange('gcpProjectId', e.target.value)}
+                    placeholder="my-gcp-project"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Calls Vertex AI in <code>us-central1</code>
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="text-sm font-semibold text-gray-700 mb-2 block">

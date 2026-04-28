@@ -15,7 +15,7 @@ import {
 export async function executeLLM(
   node: WorkflowNode,
   context: ExecutionContext,
-  apiKeys: Partial<Record<'gemini' | 'openai' | 'anthropic', string>>,
+  apiKeys: Record<string, string>,
   baseUrl: string,
   message?: string,
   systemPrompt?: string
@@ -33,12 +33,19 @@ async function invokeLLM(
   data: LLMNodeData,
   message: string,
   systemPrompt: string,
-  apiKeys: Partial<Record<'gemini' | 'openai' | 'anthropic', string>>,
+  apiKeys: Record<string, string>,
   baseUrl: string
 ): Promise<string> {
-  const apiKey = apiKeys[data.provider];
+  const isGcpAuth = data.provider === 'gemini' && data.geminiAuthType === 'gcp-access-token';
+  const gcpAccessToken = isGcpAuth ? apiKeys['gcpAccessToken'] : undefined;
+  const gcpProjectId = isGcpAuth ? apiKeys['gcpProjectId'] : undefined;
+  const apiKey = isGcpAuth ? undefined : apiKeys[data.provider];
 
-  if (!apiKey) {
+  if (isGcpAuth && (!gcpAccessToken || !gcpProjectId)) {
+    throw new Error('GCP Access Token and Project ID are required for Vertex AI. Please configure them in the LLM node.');
+  }
+
+  if (!isGcpAuth && !apiKey) {
     throw new Error(
       `No API key configured for ${data.provider}. Please set up your credentials.`
     );
@@ -55,7 +62,7 @@ async function invokeLLM(
         systemPrompt,
         temperature: data.temperature,
         maxTokens: data.maxTokens,
-        apiKey,
+        ...(isGcpAuth ? { gcpAccessToken, gcpProjectId } : { apiKey }),
       }),
     });
 
@@ -141,7 +148,7 @@ export async function executeAIAgent(
   llmNode: WorkflowNode,
   connectedClients: ConnectedMCPClient[],
   context: ExecutionContext,
-  apiKeys: Partial<Record<'gemini' | 'openai' | 'anthropic', string>>,
+  apiKeys: Record<string, string>,
   baseUrl: string,
   trace?: WorkflowTrace,
   onEvent?: WorkflowEventHandler

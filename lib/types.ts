@@ -39,6 +39,7 @@ export interface LLMNodeData extends BaseNodeData {
   temperature: number;
   maxTokens: number;
   systemPrompt: string;
+  geminiAuthType?: 'api-key' | 'gcp-access-token';
 }
 
 // MCP Client node data

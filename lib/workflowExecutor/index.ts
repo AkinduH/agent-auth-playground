@@ -24,7 +24,7 @@ export type WorkflowEventHandler = (event: WorkflowEvent) => void;
 export class WorkflowExecutor {
   private workflow: Workflow;
   private context: ExecutionContext;
-  private apiKeys: Partial<Record<'gemini' | 'openai' | 'anthropic', string>>;
+  private apiKeys: Record<string, string>;
   private baseUrl: string;
   private oboTokens: Record<string, string>;
   private trace: WorkflowTrace;
@@ -34,7 +34,7 @@ export class WorkflowExecutor {
     workflow: Workflow,
     initialInput: string,
     workflowId: string,
-    apiKeys: Partial<Record<'gemini' | 'openai' | 'anthropic', string>> = {},
+    apiKeys: Record<string, string> = {},
     baseUrl?: string,
     memoryMessages: ChatMessage[] = [],
     oboTokens: Record<string, string> = {},
