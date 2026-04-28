@@ -1,7 +1,10 @@
 import { WorkflowNode, AIAgentNodeData, LLMNodeData, ExecutionContext } from '../types';
-import { ConnectedMCPClient, AgentToolBinding } from './types';
+import { MCPClientNodeRuntime } from '../mcpClientNode';
+import { MCPClientConfig, AgentToolBinding, ConsentRequiredError } from './types';
 import { WorkflowTrace } from '../authTrace';
-import { executeMCPClient, buildAgentToolBindings } from './mcpClient';
+import { connectMCPClient } from './mcpInitializer';
+import { executeMCPClient, buildToolBindingsFromCache } from './mcpClient';
+import { CachedMCPToolsMap } from './types';
 import type { WorkflowEventHandler } from './index';
 import {
   getErrorMessage,
@@ -168,12 +171,36 @@ export function buildAgentFallbackPrompt(
   ].join('\n\n');
 }
 
+// ── Lazy runtime cache ─────────────────────────────────────────────────────────
+
+async function getOrConnectRuntime(
+  nodeId: string,
+  mcpConfigs: MCPClientConfig[],
+  runtimeCache: Map<string, MCPClientNodeRuntime>,
+  oboTokens: Record<string, string>,
+  trace: WorkflowTrace | undefined
+): Promise<MCPClientNodeRuntime> {
+  const cached = runtimeCache.get(nodeId);
+  if (cached) return cached;
+
+  const config = mcpConfigs.find((c) => c.nodeId === nodeId);
+  if (!config) throw new Error(`[MCPClient:${nodeId}] Config not found`);
+
+  // connectMCPClient throws ConsentRequiredError for OBO nodes with no token
+  const runtime = await connectMCPClient(config, oboTokens, trace);
+  runtimeCache.set(nodeId, runtime);
+  return runtime;
+}
+
 // ── AI Agent execution loop ────────────────────────────────────────────────────
 
 export async function executeAIAgent(
   node: WorkflowNode,
   llmNode: WorkflowNode,
-  connectedClients: ConnectedMCPClient[],
+  mcpConfigs: MCPClientConfig[],
+  runtimeCache: Map<string, MCPClientNodeRuntime>,
+  oboTokens: Record<string, string>,
+  cachedToolsMap: CachedMCPToolsMap,
   context: ExecutionContext,
   apiKeys: Record<string, string>,
   baseUrl: string,
@@ -186,10 +213,10 @@ export async function executeAIAgent(
   const maxToolSteps = getAgentStepLimit(data);
 
   console.log(
-    `[AIAgent:${node.id}] Starting — LLM: ${llmNode.id}, MCP clients: ${connectedClients.length}`
+    `[AIAgent:${node.id}] Starting — LLM: ${llmNode.id}, MCP configs: ${mcpConfigs.length}`
   );
 
-  const allBindings = await buildAgentToolBindings(connectedClients);
+  const allBindings = buildToolBindingsFromCache(mcpConfigs, cachedToolsMap);
   const exposedToolNames = new Set<string>();
 
   console.log(
@@ -305,12 +332,20 @@ export async function executeAIAgent(
       `[AIAgent:${node.id}] Step ${step}: calling tool "${selectedTool.publicName}" with args ${JSON.stringify(decision.arguments)}`
     );
 
-    const matchingClient = connectedClients.find((c) => c.endpoint === selectedTool.endpoint);
-    const toolNodeId = matchingClient?.nodeId ?? '';
-
+    const toolNodeId = selectedTool.nodeId;
     if (toolNodeId) onEvent?.({ type: 'node-start', nodeId: toolNodeId });
+
     try {
-      const toolResult = await executeMCPClient(selectedTool, decision.arguments);
+      // Lazy auth + connect — throws ConsentRequiredError for OBO nodes with no token
+      const runtime = await getOrConnectRuntime(
+        toolNodeId,
+        mcpConfigs,
+        runtimeCache,
+        oboTokens,
+        trace
+      );
+
+      const toolResult = await executeMCPClient(runtime, selectedTool, decision.arguments);
       console.log(`[AIAgent:${node.id}] Step ${step}: tool "${selectedTool.publicName}" succeeded`);
       toolExecutionLog.push(
         [
@@ -331,6 +366,10 @@ export async function executeAIAgent(
         ok: true,
       });
     } catch (error) {
+      if (error instanceof ConsentRequiredError) {
+        onEvent?.({ type: 'consent-required', nodeId: error.nodeId });
+        throw error;
+      }
       console.error(
         `[AIAgent:${node.id}] Step ${step}: tool "${selectedTool.publicName}" failed: ${getErrorMessage(error)}`
       );

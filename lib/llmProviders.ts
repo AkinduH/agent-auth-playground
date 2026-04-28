@@ -53,6 +53,7 @@ async function invokeVertexAI(
   }
 
   const data = await response.json();
+  console.log(`Vertex AI response: ${JSON.stringify(data?.candidates?.[0]?.content?.parts?.[0]?.text)}`);
   return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 }
 
@@ -87,6 +88,7 @@ export async function invokeLLM(
 
   const response = await llm.invoke(messages);
   const content = response.content;
+  console.log(`LLM response: ${content}`);
   return typeof content === 'string' ? content : JSON.stringify(content);
 }
 

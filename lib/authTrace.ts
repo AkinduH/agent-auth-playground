@@ -1,4 +1,4 @@
-export type AuthFlowKind = 'agent' | 'obo' | 'none';
+export type AuthFlowKind = 'agent' | 'obo' | 'mixed' | 'none';
 
 export interface MCPNodeTrace {
   nodeId: string;
@@ -63,7 +63,10 @@ export function deriveIamUrls(organizationName: string): {
 }
 
 export function dominantFlow(mcps: MCPNodeTrace[]): AuthFlowKind {
-  if (mcps.some((m) => m.flow === 'obo')) return 'obo';
-  if (mcps.some((m) => m.flow === 'agent')) return 'agent';
+  const hasAgent = mcps.some((m) => m.flow === 'agent');
+  const hasObo = mcps.some((m) => m.flow === 'obo');
+  if (hasAgent && hasObo) return 'mixed';
+  if (hasObo) return 'obo';
+  if (hasAgent) return 'agent';
   return 'none';
 }

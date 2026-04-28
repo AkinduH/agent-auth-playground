@@ -49,10 +49,12 @@ function buildLanes(trace: WorkflowTrace): Lane[] {
     { id: 'App', label: 'App', x: 0, shape: 'rect', fill: '#fdf4f0', stroke: '#94a3b8', textColor: '#334155' },
     { id: 'Agent', label: 'Agent', x: 0, shape: 'rect', fill: '#cbd5e1', stroke: '#64748b', textColor: '#1e293b' },
   ];
-  // Only show IAM lane when auth is actually used in this run
-  if (trace.flow === 'agent' || trace.flow === 'obo') {
+
+  const hasAuth = trace.mcps.some((m) => m.flow !== 'none');
+  if (hasAuth) {
     lanes.push({ id: 'IAM', label: 'IAM (Asgardeo)', x: 0, shape: 'rect', fill: '#ffedd5', stroke: '#f59e0b', textColor: '#92400e' });
   }
+
   lanes.push({
     id: 'LLM',
     label: trace.llm ? `${trace.llm.provider}/${trace.llm.model}` : 'LLM',
@@ -62,6 +64,7 @@ function buildLanes(trace: WorkflowTrace): Lane[] {
     stroke: '#06b6d4',
     textColor: '#155e75',
   });
+
   for (const m of trace.mcps) {
     lanes.push({
       id: `MCP:${m.nodeId}`,
@@ -77,11 +80,10 @@ function buildLanes(trace: WorkflowTrace): Lane[] {
   if (trace.mcps.length === 0) {
     lanes.push({ id: 'MCP:none', label: 'MCP', x: 0, shape: 'rect', fill: '#fef08a', stroke: '#a3a3a3', textColor: '#3f3f46' });
   }
+
   const startX = 100;
   const gap = 200;
-  lanes.forEach((l, i) => {
-    l.x = startX + i * gap;
-  });
+  lanes.forEach((l, i) => { l.x = startX + i * gap; });
   return lanes;
 }
 
@@ -94,81 +96,126 @@ function mcpFullLabel(m: MCPNodeTrace): string {
   return name ? `${name}  ·  ${m.endpoint}` : m.endpoint;
 }
 
-function pushAgentAuthSteps(items: Item[], primary: MCPNodeTrace | undefined) {
-  const agentToken = primary?.agentToken;
-  const base = primary?.iamBaseUrl ?? '';
-  const authorizeUrl = primary?.authorizeUrl ?? `${base}/oauth2/authorize`;
-  const authnUrl = primary?.authnUrl ?? `${base}/oauth2/authn`;
-  const tokenUrl = primary?.tokenUrl ?? `${base}/oauth2/token`;
-  items.push({ kind: 'section', label: 'AGENT AUTHENTICATION  (PKCE  ·  Asgardeo Direct Auth)' });
+// ── Per-MCP auth sections ──────────────────────────────────────────────────────
+
+function pushAgentAuthSteps(items: Item[], mcp: MCPNodeTrace) {
+  const base = mcp.iamBaseUrl ?? '';
+  const authorizeUrl = mcp.authorizeUrl ?? `${base}/oauth2/authorize`;
+  const authnUrl = mcp.authnUrl ?? `${base}/oauth2/authn`;
+  const tokenUrl = mcp.tokenUrl ?? `${base}/oauth2/token`;
+  const mcpLabel = mcpDisplayName(mcp);
+
+  items.push({ kind: 'section', label: `AGENT AUTHENTICATION  ·  ${mcpLabel}  (PKCE  ·  Asgardeo Direct Auth)` });
   items.push({
-    kind: 'message',
-    from: 'Agent',
-    to: 'IAM',
+    kind: 'message', from: 'Agent', to: 'IAM',
     label: `POST ${authorizeUrl}`,
     sublabel: 'client_id, redirect_uri, response_type=code, response_mode=direct, scope, code_challenge (S256)',
     color: 'auth',
   });
   items.push({
-    kind: 'message',
-    from: 'IAM',
-    to: 'Agent',
+    kind: 'message', from: 'IAM', to: 'Agent',
     label: 'flowId  +  authenticatorId',
     sublabel: 'response_mode=direct returns flow handle (no browser redirect)',
-    color: 'auth',
-    dashed: true,
+    color: 'auth', dashed: true,
   });
   items.push({
-    kind: 'message',
-    from: 'Agent',
-    to: 'IAM',
+    kind: 'message', from: 'Agent', to: 'IAM',
     label: `POST ${authnUrl}`,
-    sublabel: `flowId, selectedAuthenticator { authenticatorId, params: { username: agentId="${primary?.agentId || '—'}", password: agentSecret } }`,
+    sublabel: `flowId, selectedAuthenticator { authenticatorId, params: { username: agentId="${mcp.agentId || '—'}", password: agentSecret } }`,
     color: 'auth',
   });
   items.push({
-    kind: 'message',
-    from: 'IAM',
-    to: 'Agent',
+    kind: 'message', from: 'IAM', to: 'Agent',
     label: 'Authorization code',
     sublabel: 'authData.code (one-time use)',
-    color: 'auth',
-    dashed: true,
+    color: 'auth', dashed: true,
   });
   items.push({
-    kind: 'message',
-    from: 'Agent',
-    to: 'IAM',
+    kind: 'message', from: 'Agent', to: 'IAM',
     label: `POST ${tokenUrl}`,
     sublabel: 'grant_type=authorization_code, client_id, code, code_verifier, redirect_uri',
     color: 'auth',
   });
   items.push({
-    kind: 'message',
-    from: 'IAM',
-    to: 'Agent',
+    kind: 'message', from: 'IAM', to: 'Agent',
     label: 'Agent access_token',
-    sublabel: agentToken ? `access_token = ${previewToken(agentToken)}` : '(no token captured)',
-    color: 'auth',
-    dashed: true,
-    token: agentToken,
+    sublabel: mcp.agentToken ? `access_token = ${previewToken(mcp.agentToken)}` : '(no token captured)',
+    color: 'auth', dashed: true,
+    token: mcp.agentToken,
     tokenLabel: 'Agent JWT',
+  });
+}
+
+function pushOBOConsentSteps(items: Item[], mcp: MCPNodeTrace) {
+  const base = mcp.iamBaseUrl ?? '';
+  const authorizeUrl = mcp.authorizeUrl ?? `${base}/oauth2/authorize`;
+  const tokenUrl = mcp.tokenUrl ?? `${base}/oauth2/token`;
+  const mcpLabel = mcpDisplayName(mcp);
+
+  // OBO always starts with the agent authenticating first
+  pushAgentAuthSteps(items, mcp);
+
+  items.push({ kind: 'section', label: `USER AUTHORIZATION  ·  ${mcpLabel}  (OBO Consent)` });
+  items.push({
+    kind: 'message', from: 'Agent', to: 'App',
+    label: 'Build /oauth2/authorize URL',
+    sublabel: 'response_type=code, scope, state, code_challenge (S256), requested_actor=agentId',
+  });
+  items.push({
+    kind: 'message', from: 'App', to: 'User',
+    label: 'Show "Authorize" button (chat consent prompt)',
+    sublabel: mcp.oboAuthUrl ? truncate(mcp.oboAuthUrl, 130) : undefined,
+  });
+  items.push({
+    kind: 'message', from: 'User', to: 'IAM',
+    label: `GET ${authorizeUrl}`,
+    sublabel: 'User opens auth URL in browser, IAM presents login + consent screen',
+    color: 'auth',
+  });
+  items.push({
+    kind: 'message', from: 'IAM', to: 'User',
+    label: 'User authenticates & grants consent',
+    sublabel: 'Login UI confirms requested_actor (Agent) + scopes',
+    color: 'auth',
+  });
+  items.push({
+    kind: 'message', from: 'IAM', to: 'User',
+    label: 'Redirect to redirect_uri with auth code',
+    sublabel: 'redirect_uri?code=...&state=...',
+    color: 'auth', dashed: true,
+  });
+  items.push({
+    kind: 'message', from: 'User', to: 'Agent',
+    label: 'Callback delivers auth code',
+    sublabel: 'Page posts {code,state} on BroadcastChannel("obo-callback")',
+  });
+
+  items.push({ kind: 'section', label: `OBO TOKEN EXCHANGE  ·  ${mcpLabel}` });
+  items.push({
+    kind: 'message', from: 'Agent', to: 'IAM',
+    label: `POST ${tokenUrl}`,
+    sublabel: 'grant_type=authorization_code, client_id, code, code_verifier, redirect_uri,  actor_token = Agent Token',
+    color: 'auth',
+  });
+  items.push({
+    kind: 'message', from: 'IAM', to: 'Agent',
+    label: 'OBO access_token',
+    sublabel: mcp.oboToken ? `access_token = ${previewToken(mcp.oboToken)}` : '(no token captured)',
+    color: 'auth', dashed: true,
+    token: mcp.oboToken,
+    tokenLabel: 'OBO JWT',
   });
 }
 
 function pushOperationsAndTools(items: Item[], trace: WorkflowTrace) {
   items.push({ kind: 'section', label: 'AGENT OPERATIONS' });
   items.push({
-    kind: 'message',
-    from: 'Agent',
-    to: 'LLM',
+    kind: 'message', from: 'Agent', to: 'LLM',
     label: 'Prompt + tool schemas + memory',
     sublabel: 'Builds JSON tool list, sends step prompt',
   });
   items.push({
-    kind: 'message',
-    from: 'LLM',
-    to: 'Agent',
+    kind: 'message', from: 'LLM', to: 'Agent',
     label: 'Tool decision (JSON)',
     sublabel: '{ type: "tool" | "final", name, arguments }',
     dashed: true,
@@ -176,13 +223,10 @@ function pushOperationsAndTools(items: Item[], trace: WorkflowTrace) {
 
   if (trace.tools.length === 0) {
     items.push({
-      kind: 'message',
-      from: 'Agent',
-      to: 'LLM',
+      kind: 'message', from: 'Agent', to: 'LLM',
       label: 'No tool calls in this run',
       sublabel: 'Agent answered directly',
-      color: 'default',
-      dashed: true,
+      color: 'default', dashed: true,
     });
   }
 
@@ -193,191 +237,53 @@ function pushOperationsAndTools(items: Item[], trace: WorkflowTrace) {
     const tokenKind = mcp?.oboToken ? 'OBO' : mcp?.agentToken ? 'Agent' : '';
     const serverLabel = mcp ? mcpFullLabel(mcp) : t.endpoint;
     items.push({
-      kind: 'message',
-      from: 'Agent',
-      to: laneId,
+      kind: 'message', from: 'Agent', to: laneId,
       label: token
         ? `Tool call: ${t.publicName}  ·  Authorization: Bearer <${tokenKind} Token>`
         : `Tool call: ${t.publicName}  ·  (no auth header)`,
       sublabel: `${serverLabel}    args: ${truncate(t.args, 80)}`,
-      color: 'blue',
-      token,
-      tokenLabel: token ? `${tokenKind} JWT` : undefined,
+      color: 'blue', token, tokenLabel: token ? `${tokenKind} JWT` : undefined,
     });
     items.push({
-      kind: 'message',
-      from: laneId,
-      to: 'Agent',
+      kind: 'message', from: laneId, to: 'Agent',
       label: t.ok ? `Result (${t.publicName})` : `Error (${t.publicName})`,
       sublabel: truncate(t.result, 110),
-      color: t.ok ? 'green' : 'auth',
-      dashed: true,
+      color: t.ok ? 'green' : 'auth', dashed: true,
     });
   }
 }
 
-function buildAgentItems(trace: WorkflowTrace): Item[] {
-  const items: Item[] = [];
-  const primary = trace.mcps.find((m) => m.flow === 'agent') || trace.mcps[0];
-
-  items.push({ kind: 'section', label: 'USER REQUEST' });
-  items.push({
-    kind: 'message',
-    from: 'User',
-    to: 'App',
-    label: 'Asks query',
-    sublabel: trace.userMessage ? `"${truncate(trace.userMessage, 90)}"` : undefined,
-  });
-  items.push({ kind: 'message', from: 'App', to: 'Agent', label: 'Forward request to Agent' });
-
-  pushAgentAuthSteps(items, primary);
-  pushOperationsAndTools(items, trace);
-
-  items.push({ kind: 'section', label: 'RESPONSE' });
-  items.push({
-    kind: 'message',
-    from: 'Agent',
-    to: 'App',
-    label: 'Final answer',
-    sublabel: trace.finalAnswer ? `"${truncate(trace.finalAnswer, 90)}"` : undefined,
-  });
-  items.push({ kind: 'message', from: 'App', to: 'User', label: 'Display response', dashed: true });
-  return items;
-}
-
-function buildOboItems(trace: WorkflowTrace): Item[] {
-  const items: Item[] = [];
-  const primary = trace.mcps.find((m) => m.flow === 'obo') || trace.mcps[0];
-  const oboBase = primary?.iamBaseUrl ?? '';
-  const oboAuthorizeUrl = primary?.authorizeUrl ?? `${oboBase}/oauth2/authorize`;
-  const oboTokenUrl = primary?.tokenUrl ?? `${oboBase}/oauth2/token`;
-
-  items.push({ kind: 'section', label: 'USER REQUEST' });
-  items.push({
-    kind: 'message',
-    from: 'User',
-    to: 'App',
-    label: 'Asks query',
-    sublabel: trace.userMessage ? `"${truncate(trace.userMessage, 90)}"` : undefined,
-  });
-  items.push({ kind: 'message', from: 'App', to: 'Agent', label: 'Forward request to Agent' });
-
-  // Step 1 of OBO: agent authenticates itself first to get actor_token
-  pushAgentAuthSteps(items, primary);
-
-  // Step 2: Build user-facing OBO authorization URL
-  items.push({ kind: 'section', label: 'USER AUTHORIZATION  (OBO Consent)' });
-  items.push({
-    kind: 'message',
-    from: 'Agent',
-    to: 'App',
-    label: 'Build /oauth2/authorize URL',
-    sublabel: 'response_type=code, scope, state, code_challenge (S256), requested_actor=agentId',
-  });
-  items.push({
-    kind: 'message',
-    from: 'App',
-    to: 'User',
-    label: 'Show "Authorize" button (chat consent prompt)',
-    sublabel: primary?.oboAuthUrl ? truncate(primary.oboAuthUrl, 130) : undefined,
-  });
-  items.push({
-    kind: 'message',
-    from: 'User',
-    to: 'IAM',
-    label: `GET ${oboAuthorizeUrl}`,
-    sublabel: 'User opens auth URL in browser, IAM presents login + consent screen',
-    color: 'auth',
-  });
-  items.push({
-    kind: 'message',
-    from: 'IAM',
-    to: 'User',
-    label: 'User authenticates & grants consent',
-    sublabel: 'Login UI confirms requested_actor (Agent) + scopes',
-    color: 'auth',
-  });
-  items.push({
-    kind: 'message',
-    from: 'IAM',
-    to: 'User',
-    label: 'Redirect to redirect_uri with auth code',
-    sublabel: 'redirect_uri?code=...&state=...',
-    color: 'auth',
-    dashed: true,
-  });
-  items.push({
-    kind: 'message',
-    from: 'User',
-    to: 'Agent',
-    label: 'Callback delivers auth code',
-    sublabel: 'Page posts {code,state} on BroadcastChannel("obo-callback")',
-  });
-
-  // Step 3: Exchange the code for an OBO token using actor_token
-  items.push({ kind: 'section', label: 'OBO TOKEN EXCHANGE' });
-  items.push({
-    kind: 'message',
-    from: 'Agent',
-    to: 'IAM',
-    label: `POST ${oboTokenUrl}`,
-    sublabel: 'grant_type=authorization_code, client_id, code, code_verifier, redirect_uri,  actor_token = Agent Token',
-    color: 'auth',
-  });
-  items.push({
-    kind: 'message',
-    from: 'IAM',
-    to: 'Agent',
-    label: 'OBO access_token',
-    sublabel: primary?.oboToken ? `access_token = ${previewToken(primary.oboToken)}` : '(no token captured)',
-    color: 'auth',
-    dashed: true,
-    token: primary?.oboToken,
-    tokenLabel: 'OBO JWT',
-  });
-
-  pushOperationsAndTools(items, trace);
-
-  items.push({ kind: 'section', label: 'RESPONSE' });
-  items.push({
-    kind: 'message',
-    from: 'Agent',
-    to: 'App',
-    label: 'Final answer',
-    sublabel: trace.finalAnswer ? `"${truncate(trace.finalAnswer, 90)}"` : undefined,
-  });
-  items.push({ kind: 'message', from: 'App', to: 'User', label: 'Display response', dashed: true });
-  return items;
-}
-
-function buildPlainItems(trace: WorkflowTrace): Item[] {
-  const items: Item[] = [];
-  items.push({ kind: 'section', label: 'USER REQUEST' });
-  items.push({
-    kind: 'message',
-    from: 'User',
-    to: 'App',
-    label: 'Asks query',
-    sublabel: trace.userMessage ? `"${truncate(trace.userMessage, 90)}"` : undefined,
-  });
-  items.push({ kind: 'message', from: 'App', to: 'Agent', label: 'Forward request' });
-  pushOperationsAndTools(items, trace);
-  items.push({ kind: 'section', label: 'RESPONSE' });
-  items.push({
-    kind: 'message',
-    from: 'Agent',
-    to: 'App',
-    label: 'Final answer',
-    sublabel: trace.finalAnswer ? `"${truncate(trace.finalAnswer, 90)}"` : undefined,
-  });
-  items.push({ kind: 'message', from: 'App', to: 'User', label: 'Display response', dashed: true });
-  return items;
-}
-
 function buildItems(trace: WorkflowTrace): Item[] {
-  if (trace.flow === 'agent') return buildAgentItems(trace);
-  if (trace.flow === 'obo') return buildOboItems(trace);
-  return buildPlainItems(trace);
+  const items: Item[] = [];
+
+  items.push({ kind: 'section', label: 'USER REQUEST' });
+  items.push({
+    kind: 'message', from: 'User', to: 'App',
+    label: 'Asks query',
+    sublabel: trace.userMessage ? `"${truncate(trace.userMessage, 90)}"` : undefined,
+  });
+  items.push({ kind: 'message', from: 'App', to: 'Agent', label: 'Forward request to Agent' });
+
+  // Per-MCP auth sections — only for MCPs that actually authenticated
+  for (const mcp of trace.mcps) {
+    if (mcp.flow === 'agent') {
+      pushAgentAuthSteps(items, mcp);
+    } else if (mcp.flow === 'obo') {
+      pushOBOConsentSteps(items, mcp);
+    }
+  }
+
+  pushOperationsAndTools(items, trace);
+
+  items.push({ kind: 'section', label: 'RESPONSE' });
+  items.push({
+    kind: 'message', from: 'Agent', to: 'App',
+    label: 'Final answer',
+    sublabel: trace.finalAnswer ? `"${truncate(trace.finalAnswer, 90)}"` : undefined,
+  });
+  items.push({ kind: 'message', from: 'App', to: 'User', label: 'Display response', dashed: true });
+
+  return items;
 }
 
 function truncate(s: string | undefined, n: number): string {
@@ -517,7 +423,6 @@ export function AuthFlowDiagram({ trace }: Props) {
   const lanes = useMemo(() => buildLanes(trace), [trace]);
   const items = useMemo(() => buildItems(trace), [trace]);
 
-  // Pre-compute message numbering & layout
   const layout = useMemo(() => {
     const messageRowH = 78;
     const sectionRowH = 40;
@@ -538,9 +443,7 @@ export function AuthFlowDiagram({ trace }: Props) {
   const [step, setStep] = useState(layout.totalMessages);
   const [autoplay, setAutoplay] = useState(false);
 
-  useEffect(() => {
-    setStep(layout.totalMessages);
-  }, [layout.totalMessages]);
+  useEffect(() => { setStep(layout.totalMessages); }, [layout.totalMessages]);
 
   useEffect(() => {
     if (!autoplay) return;
@@ -555,7 +458,9 @@ export function AuthFlowDiagram({ trace }: Props) {
   const lanesById = useMemo(() => new Map(lanes.map((l) => [l.id, l])), [lanes]);
 
   const flowTitle =
-    trace.flow === 'obo'
+    trace.flow === 'mixed'
+      ? 'Mixed — Agent OAuth2 + On-Behalf-Of (OBO)'
+      : trace.flow === 'obo'
       ? 'On-Behalf-Of (OBO) — Agent acts on behalf of user'
       : trace.flow === 'agent'
       ? 'Agent OAuth2 — Direct Auth + PKCE'
@@ -568,19 +473,13 @@ export function AuthFlowDiagram({ trace }: Props) {
         <h3 className="text-base font-bold text-slate-800">Sequence Flow: {flowTitle}</h3>
         <div className="ml-auto flex items-center gap-2">
           <button
-            onClick={() => {
-              setStep(0);
-              setAutoplay(true);
-            }}
+            onClick={() => { setStep(0); setAutoplay(true); }}
             className="text-xs px-3 py-1 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 text-cyan-800 rounded font-medium"
           >
             ▶ Animate
           </button>
           <button
-            onClick={() => {
-              setAutoplay(false);
-              setStep(layout.totalMessages);
-            }}
+            onClick={() => { setAutoplay(false); setStep(layout.totalMessages); }}
             className="text-xs px-3 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded font-medium"
           >
             Show all
@@ -604,15 +503,7 @@ export function AuthFlowDiagram({ trace }: Props) {
             const headerY = lane.sublabel ? 12 : 18;
             return (
               <g key={lane.id}>
-                <line
-                  x1={lane.x}
-                  y1={80}
-                  x2={lane.x}
-                  y2={height - 10}
-                  stroke="#e2e8f0"
-                  strokeWidth="2"
-                  strokeDasharray="5,5"
-                />
+                <line x1={lane.x} y1={80} x2={lane.x} y2={height - 10} stroke="#e2e8f0" strokeWidth="2" strokeDasharray="5,5" />
                 {lane.shape === 'circle' ? (
                   <>
                     <circle cx={lane.x} cy={40} r={22} fill={lane.fill} stroke={lane.stroke} />
@@ -652,25 +543,8 @@ export function AuthFlowDiagram({ trace }: Props) {
             if (item.kind === 'section') {
               return (
                 <g key={idx}>
-                  <rect
-                    x={20}
-                    y={row.y + 6}
-                    width={width - 40}
-                    height={row.height - 12}
-                    fill="#ecfeff"
-                    stroke="#67e8f9"
-                    strokeOpacity={0.6}
-                    rx={4}
-                  />
-                  <text
-                    x={width / 2}
-                    y={row.y + row.height / 2 + 4}
-                    textAnchor="middle"
-                    fontSize="12"
-                    fontWeight="700"
-                    fill="#0e7490"
-                    letterSpacing="1.5"
-                  >
+                  <rect x={20} y={row.y + 6} width={width - 40} height={row.height - 12} fill="#ecfeff" stroke="#67e8f9" strokeOpacity={0.6} rx={4} />
+                  <text x={width / 2} y={row.y + row.height / 2 + 4} textAnchor="middle" fontSize="12" fontWeight="700" fill="#0e7490" letterSpacing="1.5">
                     — {item.label} —
                   </text>
                 </g>
@@ -691,15 +565,9 @@ export function AuthFlowDiagram({ trace }: Props) {
 
             return (
               <g key={idx} opacity={opacity} className="transition-opacity duration-300">
-                {/* Label area */}
-                <foreignObject
-                  x={labelLeft - 80}
-                  y={row.y + 4}
-                  width={labelWidth + 160}
-                  height={row.height - 18}
-                >
+                <foreignObject x={labelLeft - 80} y={row.y + 4} width={labelWidth + 160} height={row.height - 18}>
                   <div
-                    // @ts-ignore — xmlns required for HTML inside foreignObject
+                    // @ts-ignore
                     xmlns="http://www.w3.org/1999/xhtml"
                     className="text-center text-[10.5px] leading-snug px-1"
                   >
@@ -721,13 +589,8 @@ export function AuthFlowDiagram({ trace }: Props) {
                     )}
                   </div>
                 </foreignObject>
-
-                {/* Arrow */}
                 <line
-                  x1={x1}
-                  y1={arrowY}
-                  x2={x2}
-                  y2={arrowY}
+                  x1={x1} y1={arrowY} x2={x2} y2={arrowY}
                   stroke={stroke}
                   strokeWidth={item.color === 'blue' ? 2.2 : 1.8}
                   strokeDasharray={item.dashed ? '5 4' : undefined}

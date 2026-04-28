@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
           error: result.error,
           executionTime: result.executionTime,
           trace: result.trace,
+          requiresConsent: result.requiresConsent,
         });
       } catch (error) {
         console.error('Workflow API error:', error);

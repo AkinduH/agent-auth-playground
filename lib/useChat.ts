@@ -97,7 +97,6 @@ function findOBONodes(workflow: Workflow): Array<{
     })
     .map((n) => {
       const data = n.data as MCPClientNodeData;
-      // Find the AIAgent node that connects to this MCPClient
       const edge = workflow.edges.find((e) => e.target === n.id);
       const agentNode = edge
         ? workflow.nodes.find((an) => an.id === edge.source && an.type === 'aiAgent')
@@ -172,14 +171,12 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
     setMessages((prev) => [...prev, message]);
   }, []);
 
-  // When the active workflow changes, hydrate messages for the new workflow
   useEffect(() => {
     if (hydratedWorkflowIdRef.current === workflowId) return;
     hydratedWorkflowIdRef.current = workflowId;
     setMessages(loadStoredMessages(workflowId));
   }, [workflowId]);
 
-  // Persist chat history whenever it changes
   useEffect(() => {
     saveStoredMessages(workflowId, messages);
   }, [workflowId, messages]);
@@ -307,11 +304,18 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
             } else if (parsed.type === 'result') {
               data = parsed;
             }
+            // consent-required is signalled via result.requiresConsent; no separate handling needed here
           }
         }
 
         if (!data) {
           throw new Error('Workflow stream ended without a result');
+        }
+
+        // Server aborted because an OBO MCP needs user consent
+        if (data.requiresConsent) {
+          await startOBOConsentFlow(userMessage, workflowDefinition, userMsg, oboTokens);
+          return;
         }
 
         if (!data.success) {
@@ -329,7 +333,6 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
 
         if (data.trace) {
           const trace: WorkflowTrace = data.trace;
-          // Merge in client-side OBO data (auth URL + agent token captured during init)
           const patches = oboClientPatchRef.current;
           for (const m of trace.mcps) {
             const patch = patches[m.nodeId];
@@ -360,6 +363,102 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
       }
     },
     [workflowId, addMessage, options]
+  );
+
+  // Starts the OBO consent flow for all OBO MCP nodes that still lack a valid token.
+  // Called when the server emits requiresConsent=true (i.e. the agent tried to call
+  // a tool on an OBO-protected MCP and had no token).
+  const startOBOConsentFlow = useCallback(
+    async (
+      pendingMessage: string,
+      pendingWorkflow: Workflow,
+      pendingUserMsg: ChatMessage,
+      existingOboTokens: Record<string, string>
+    ) => {
+      const oboNodes = findOBONodes(pendingWorkflow);
+      const missingNodes = oboNodes.filter(
+        (n) => !workflowStore.getOBOToken(workflowId, n.nodeId) && !existingOboTokens[n.nodeId]
+      );
+
+      if (missingNodes.length === 0) {
+        // All tokens available — this shouldn't normally happen, but re-run just in case
+        const allTokens: Record<string, string> = { ...existingOboTokens };
+        for (const node of oboNodes) {
+          const t = workflowStore.getOBOToken(workflowId, node.nodeId);
+          if (t) allTokens[node.nodeId] = t;
+        }
+        await doExecuteWorkflow(pendingMessage, pendingWorkflow, allTokens, pendingUserMsg);
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const initResults = await Promise.all(
+          missingNodes.map(async (node) => {
+            const res = await fetch('/api/obo/init', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(node),
+            });
+            if (!res.ok) {
+              const errData = await res.json().catch(() => ({}));
+              throw new Error(
+                (errData as { error?: string }).error ||
+                  `OBO init failed for MCP node ${node.nodeId}`
+              );
+            }
+            const resData = await res.json();
+            return {
+              nodeId: node.nodeId,
+              organizationName: node.organizationName,
+              clientId: node.clientId,
+              redirectUri: node.redirectUri,
+              scope: node.scope,
+              authUrl: resData.authUrl as string,
+              codeVerifier: resData.codeVerifier as string,
+              agentAccessToken: resData.agentAccessToken as string,
+              state: resData.state as string,
+            } satisfies OBOPendingNode;
+          })
+        );
+
+        for (const r of initResults) {
+          oboClientPatchRef.current[r.nodeId] = {
+            oboAuthUrl: r.authUrl,
+            agentToken: r.agentAccessToken,
+          };
+        }
+
+        oboConsentStateRef.current = {
+          pendingMessage,
+          pendingWorkflow,
+          pendingUserMsg,
+          pendingNodes: initResults,
+          currentNodeIndex: 0,
+        };
+        setOboConsentPending(true);
+
+        const first = initResults[0];
+        addMessage({
+          id: generateId('msg-'),
+          role: 'assistant',
+          content: buildOBOConsentMessage(first.nodeId, 1, initResults.length),
+          timestamp: Date.now(),
+          workflowId,
+          type: 'obo-consent',
+          metadata: { authUrl: first.authUrl },
+        });
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'OBO initialization failed';
+        setError(errorMsg);
+        options.onError?.(errorMsg);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [workflowId, addMessage, doExecuteWorkflow, options]
   );
 
   const processOBOCode = useCallback(
@@ -441,7 +540,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
             workflowId,
           });
 
-          // Collect all valid OBO tokens for the workflow
+          // Collect all valid OBO tokens for the workflow and re-run
           const allOBONodes = findOBONodes(state.pendingWorkflow);
           const oboTokens: Record<string, string> = {};
           for (const node of allOBONodes) {
@@ -469,12 +568,10 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
     [workflowId, addMessage, doExecuteWorkflow, options]
   );
 
-  // Keep ref current so the BroadcastChannel handler always calls the latest version
   useEffect(() => {
     processOBOCodeRef.current = processOBOCode;
   }, [processOBOCode]);
 
-  // Listen for OAuth2 callback codes posted from the redirect tab
   useEffect(() => {
     if (!oboConsentPending) return;
 
@@ -493,8 +590,6 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
 
   const executeWorkflow = useCallback(
     async (userMessage: string, workflowDefinition: Workflow) => {
-      // While OBO consent is pending the chat input is disabled in the UI;
-      // the auth code arrives via the BroadcastChannel popup callback.
       if (oboConsentStateRef.current !== null) return;
 
       const uninitializedMCPs = findUninitializedMCPNodes(workflowDefinition, workflowId);
@@ -507,95 +602,8 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
         return;
       }
 
-      // Check which OBO nodes are missing a valid stored token
+      // Collect any already-stored OBO tokens (from a prior consent in this session)
       const oboNodes = findOBONodes(workflowDefinition);
-      const missingNodes = oboNodes.filter(
-        (n) => !workflowStore.getOBOToken(workflowId, n.nodeId)
-      );
-
-      if (missingNodes.length > 0) {
-        const userMsg: ChatMessage = {
-          id: generateId('msg-'),
-          role: 'user',
-          content: userMessage,
-          timestamp: Date.now(),
-          workflowId,
-        };
-        addMessage(userMsg);
-
-        setIsLoading(true);
-        setError(null);
-
-        try {
-          // Initialize all OBO flows in parallel — get agent token + auth URL for each
-          const initResults = await Promise.all(
-            missingNodes.map(async (node) => {
-              const res = await fetch('/api/obo/init', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(node),
-              });
-              if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(
-                  (errData as { error?: string }).error ||
-                    `OBO init failed for MCP node ${node.nodeId}`
-                );
-              }
-              const data = await res.json();
-              return {
-                nodeId: node.nodeId,
-                organizationName: node.organizationName,
-                clientId: node.clientId,
-                redirectUri: node.redirectUri,
-                scope: node.scope,
-                authUrl: data.authUrl as string,
-                codeVerifier: data.codeVerifier as string,
-                agentAccessToken: data.agentAccessToken as string,
-                state: data.state as string,
-              } satisfies OBOPendingNode;
-            })
-          );
-
-          // Stash auth URL + agent token per node for later trace merging
-          for (const r of initResults) {
-            oboClientPatchRef.current[r.nodeId] = {
-              oboAuthUrl: r.authUrl,
-              agentToken: r.agentAccessToken,
-            };
-          }
-
-          oboConsentStateRef.current = {
-            pendingMessage: userMessage,
-            pendingWorkflow: workflowDefinition,
-            pendingUserMsg: userMsg,
-            pendingNodes: initResults,
-            currentNodeIndex: 0,
-          };
-          setOboConsentPending(true);
-
-          // Show consent prompt for the first node
-          const first = initResults[0];
-          addMessage({
-            id: generateId('msg-'),
-            role: 'assistant',
-            content: buildOBOConsentMessage(first.nodeId, 1, initResults.length),
-            timestamp: Date.now(),
-            workflowId,
-            type: 'obo-consent',
-            metadata: { authUrl: first.authUrl },
-          });
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : 'OBO initialization failed';
-          setError(errorMsg);
-          options.onError?.(errorMsg);
-        } finally {
-          setIsLoading(false);
-        }
-        return;
-      }
-
-      // All OBO tokens present (or no OBO nodes) — execute normally
       const oboTokens: Record<string, string> = {};
       for (const node of oboNodes) {
         const token = workflowStore.getOBOToken(workflowId, node.nodeId);
@@ -604,7 +612,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
 
       await doExecuteWorkflow(userMessage, workflowDefinition, oboTokens);
     },
-    [workflowId, addMessage, doExecuteWorkflow, processOBOCode, options]
+    [workflowId, doExecuteWorkflow, options]
   );
 
   const clearMessages = useCallback(() => {

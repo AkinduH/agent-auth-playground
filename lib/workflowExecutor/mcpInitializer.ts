@@ -1,115 +1,87 @@
-import { WorkflowNode, AIAgentNodeData, MCPClientNodeData } from '../types';
 import { MCPClientNodeRuntime } from '../mcpClientNode';
 import { authenticateAgent } from '../agentAuth';
-import { ConnectedMCPClient, CachedMCPToolsMap } from './types';
+import { MCPClientConfig, ConsentRequiredError } from './types';
 import { WorkflowTrace, MCPNodeTrace, deriveIamUrls } from '../authTrace';
 
-export async function initializeMCPClients(
-  mcpNodes: WorkflowNode[],
-  agentData?: AIAgentNodeData,
-  oboTokens: Record<string, string> = {},
-  trace?: WorkflowTrace,
-  cachedTools: CachedMCPToolsMap = {}
-): Promise<ConnectedMCPClient[]> {
-  return Promise.all(
-    mcpNodes.map(async (node) => {
-      const nodeData = node.data as MCPClientNodeData;
-      const endpoint = nodeData.mcpServerEndpoint?.trim();
+export async function connectMCPClient(
+  config: MCPClientConfig,
+  oboTokens: Record<string, string>,
+  trace?: WorkflowTrace
+): Promise<MCPClientNodeRuntime> {
+  const { nodeId, endpoint, nodeData, agentData, cachedTools } = config;
+  const runtime = new MCPClientNodeRuntime();
 
-      if (!endpoint) {
-        throw new Error(`[MCPClient:${node.id}] Missing server endpoint`);
+  const traceEntry: MCPNodeTrace = {
+    nodeId,
+    name: nodeData.name?.trim() || undefined,
+    endpoint,
+    flow: 'none',
+    agentId: agentData.agentId,
+  };
+
+  if (nodeData.useOAuth2) {
+    const flow = nodeData.oauth2Flow ?? 'agent';
+
+    if (flow === 'obo') {
+      const oboToken = oboTokens[nodeId];
+      if (!oboToken) {
+        throw new ConsentRequiredError(nodeId);
+      }
+      console.log(`[MCPClient:${nodeId}] Using OBO token`);
+      runtime.setAccessToken(oboToken);
+
+      traceEntry.flow = 'obo';
+      traceEntry.oboToken = oboToken;
+      if (nodeData.oauth2OrganizationName?.trim()) {
+        const urls = deriveIamUrls(nodeData.oauth2OrganizationName.trim());
+        traceEntry.iamBaseUrl = urls.iamBaseUrl;
+        traceEntry.authorizeUrl = urls.authorizeUrl;
+        traceEntry.tokenUrl = urls.tokenUrl;
+      }
+    } else {
+      if (!nodeData.oauth2OrganizationName?.trim()) {
+        throw new Error(`[MCPClient:${nodeId}] OAuth2 organization name is required`);
+      }
+      if (!nodeData.oauth2ClientId?.trim()) {
+        throw new Error(`[MCPClient:${nodeId}] OAuth2 client ID is required`);
+      }
+      if (!nodeData.oauth2RedirectUri?.trim()) {
+        throw new Error(`[MCPClient:${nodeId}] OAuth2 redirect URI is required`);
+      }
+      if (!agentData.agentId?.trim()) {
+        throw new Error(`[MCPClient:${nodeId}] Agent ID is required on the connected AI Agent node for OAuth2`);
+      }
+      if (!agentData.agentSecret?.trim()) {
+        throw new Error(`[MCPClient:${nodeId}] Agent Secret is required on the connected AI Agent node for OAuth2`);
       }
 
-      const runtime = new MCPClientNodeRuntime();
+      console.log(`[MCPClient:${nodeId}] Running OAuth2 agent authentication flow`);
+      const accessToken = await authenticateAgent({
+        organizationName: nodeData.oauth2OrganizationName,
+        clientId: nodeData.oauth2ClientId,
+        redirectUri: nodeData.oauth2RedirectUri,
+        agentId: agentData.agentId,
+        agentSecret: agentData.agentSecret,
+        scope: nodeData.oauth2Scope,
+      });
+      runtime.setAccessToken(accessToken);
+      console.log(`[MCPClient:${nodeId}] Access token obtained`);
 
-      const traceEntry: MCPNodeTrace = {
-        nodeId: node.id,
-        name: nodeData.name?.trim() || undefined,
-        endpoint,
-        flow: 'none',
-        agentId: agentData?.agentId,
-      };
+      const urls = deriveIamUrls(nodeData.oauth2OrganizationName.trim());
+      traceEntry.flow = 'agent';
+      traceEntry.iamBaseUrl = urls.iamBaseUrl;
+      traceEntry.authorizeUrl = urls.authorizeUrl;
+      traceEntry.authnUrl = urls.authnUrl;
+      traceEntry.tokenUrl = urls.tokenUrl;
+      traceEntry.agentToken = accessToken;
+    }
+  }
 
-      if (nodeData.useOAuth2) {
-        const flow = nodeData.oauth2Flow ?? 'agent';
+  console.log(`[MCPClient:${nodeId}] Connecting to ${endpoint} with ${cachedTools.length} cached tools`);
+  await runtime.connect(endpoint, { cachedTools });
+  console.log(`[MCPClient:${nodeId}] Connected`);
 
-        if (flow === 'obo') {
-          const oboToken = oboTokens[node.id];
-          if (!oboToken) {
-            throw new Error(
-              `[MCPClient:${node.id}] OBO token not found. User authorization is required before workflow execution.`
-            );
-          }
-          console.log(`[MCPClient:${node.id}] Using OBO token`);
-          runtime.setAccessToken(oboToken);
+  if (trace) trace.mcps.push(traceEntry);
 
-          traceEntry.flow = 'obo';
-          traceEntry.oboToken = oboToken;
-          if (nodeData.oauth2OrganizationName?.trim()) {
-            const urls = deriveIamUrls(nodeData.oauth2OrganizationName.trim());
-            traceEntry.iamBaseUrl = urls.iamBaseUrl;
-            traceEntry.authorizeUrl = urls.authorizeUrl;
-            traceEntry.tokenUrl = urls.tokenUrl;
-          }
-        } else {
-          if (!nodeData.oauth2OrganizationName?.trim()) {
-            throw new Error(`[MCPClient:${node.id}] OAuth2 organization name is required`);
-          }
-          if (!nodeData.oauth2ClientId?.trim()) {
-            throw new Error(`[MCPClient:${node.id}] OAuth2 client ID is required`);
-          }
-          if (!nodeData.oauth2RedirectUri?.trim()) {
-            throw new Error(`[MCPClient:${node.id}] OAuth2 redirect URI is required`);
-          }
-          if (!agentData?.agentId?.trim()) {
-            throw new Error(
-              `[MCPClient:${node.id}] Agent ID is required on the connected AI Agent node for OAuth2`
-            );
-          }
-          if (!agentData?.agentSecret?.trim()) {
-            throw new Error(
-              `[MCPClient:${node.id}] Agent Secret is required on the connected AI Agent node for OAuth2`
-            );
-          }
-
-          console.log(`[MCPClient:${node.id}] Running OAuth2 agent authentication flow`);
-          const accessToken = await authenticateAgent({
-            organizationName: nodeData.oauth2OrganizationName,
-            clientId: nodeData.oauth2ClientId,
-            redirectUri: nodeData.oauth2RedirectUri,
-            agentId: agentData.agentId,
-            agentSecret: agentData.agentSecret,
-            scope: nodeData.oauth2Scope,
-          });
-          runtime.setAccessToken(accessToken);
-          console.log(`[MCPClient:${node.id}] Access token obtained`);
-
-          const urls = deriveIamUrls(nodeData.oauth2OrganizationName.trim());
-          traceEntry.flow = 'agent';
-          traceEntry.iamBaseUrl = urls.iamBaseUrl;
-          traceEntry.authorizeUrl = urls.authorizeUrl;
-          traceEntry.authnUrl = urls.authnUrl;
-          traceEntry.tokenUrl = urls.tokenUrl;
-          traceEntry.agentToken = accessToken;
-        }
-      }
-
-      const cachedEntry = cachedTools[node.id];
-      if (!cachedEntry || !Array.isArray(cachedEntry.tools) || cachedEntry.tools.length === 0) {
-        throw new Error(
-          `[MCPClient:${node.id}] No cached tool schemas. Open the MCP Client node and click "Initialize & Connect" before running the workflow.`
-        );
-      }
-
-      console.log(
-        `[MCPClient:${node.id}] Connecting to ${endpoint} with ${cachedEntry.tools.length} cached tools`
-      );
-      await runtime.connect(endpoint, { cachedTools: cachedEntry.tools });
-      console.log(`[MCPClient:${node.id}] Connected`);
-
-      if (trace) trace.mcps.push(traceEntry);
-
-      return { endpoint, nodeId: node.id, runtime };
-    })
-  );
+  return runtime;
 }

@@ -8,17 +8,19 @@ import {
   AIAgentNodeData,
   ChatMessage,
   LLMNodeData,
+  MCPClientNodeData,
 } from '../types';
-import { initializeMCPClients } from './mcpInitializer';
 import { executeChatTrigger } from './chatTrigger';
 import { executeAIAgent, executeLLM } from './aiAgent';
 import { getErrorMessage } from './utils';
 import { WorkflowTrace, emptyTrace, dominantFlow } from '../authTrace';
-import { CachedMCPToolsMap } from './types';
+import { CachedMCPToolsMap, MCPClientConfig, ConsentRequiredError } from './types';
+import { MCPClientNodeRuntime } from '../mcpClientNode';
 
 export type WorkflowEvent =
   | { type: 'node-start'; nodeId: string }
-  | { type: 'node-end'; nodeId: string };
+  | { type: 'node-end'; nodeId: string }
+  | { type: 'consent-required'; nodeId: string };
 
 export type WorkflowEventHandler = (event: WorkflowEvent) => void;
 
@@ -90,8 +92,22 @@ export class WorkflowExecutor {
       return { success: true, output, executionTime, trace: this.trace };
     } catch (error) {
       const executionTime = Date.now() - startTime;
-      const errorMessage = getErrorMessage(error);
 
+      if (error instanceof ConsentRequiredError) {
+        console.log(`[Workflow] Paused — OBO consent required for node ${error.nodeId}`);
+        this.trace.finishedAt = Date.now();
+        this.trace.flow = dominantFlow(this.trace.mcps);
+        return {
+          success: false,
+          output: '',
+          requiresConsent: true,
+          error: `OBO consent required for MCP node ${error.nodeId}`,
+          executionTime,
+          trace: this.trace,
+        };
+      }
+
+      const errorMessage = getErrorMessage(error);
       console.error(`[Workflow] Failed after ${executionTime}ms: ${errorMessage}`);
 
       this.trace.finishedAt = Date.now();
@@ -141,21 +157,32 @@ export class WorkflowExecutor {
       throw new Error(`[AIAgent:${node.id}] Must connect to an AI Service node`);
     }
 
+    const agentData = node.data as AIAgentNodeData;
     const mcpNodes = this.collectMCPNodes(node.id);
-    const connectedClients = await initializeMCPClients(
-      mcpNodes,
-      node.data as AIAgentNodeData,
-      this.oboTokens,
-      this.trace,
-      this.mcpDiscoveredTools
-    );
+    const mcpConfigs: MCPClientConfig[] = mcpNodes.map((mcpNode) => {
+      const nodeData = mcpNode.data as MCPClientNodeData;
+      const endpoint = nodeData.mcpServerEndpoint?.trim() ?? '';
+      const cached = this.mcpDiscoveredTools[mcpNode.id];
+      return {
+        nodeId: mcpNode.id,
+        endpoint,
+        nodeData,
+        agentData,
+        cachedTools: cached?.tools ?? [],
+      };
+    });
+
+    const runtimeCache = new Map<string, MCPClientNodeRuntime>();
 
     this.onEvent?.({ type: 'node-start', nodeId: node.id });
     try {
       return await executeAIAgent(
         node,
         llmNode,
-        connectedClients,
+        mcpConfigs,
+        runtimeCache,
+        this.oboTokens,
+        this.mcpDiscoveredTools,
         this.context,
         this.apiKeys,
         this.baseUrl,
@@ -165,7 +192,7 @@ export class WorkflowExecutor {
     } finally {
       this.onEvent?.({ type: 'node-end', nodeId: node.id });
       await Promise.all(
-        connectedClients.map(({ runtime }) => runtime.disconnect().catch(() => undefined))
+        [...runtimeCache.values()].map((r) => r.disconnect().catch(() => undefined))
       );
     }
   }
