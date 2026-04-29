@@ -136,9 +136,14 @@ export default function WorkflowEditor({
       const targetNode = nodes.find((n) => n.id === connection.target);
       if (!sourceNode || !targetNode) return false;
 
-      // AIAgent top handle can only connect to LLM nodes
+      // AIAgent top handle can only connect to LLM nodes (1:1)
       if (sourceNode.type === 'aiAgent' && connection.sourceHandle === 'top') {
-        return targetNode.type === 'llm';
+        if (targetNode.type !== 'llm') return false;
+        // AIAgent already has an LLM connected
+        if (edges.some((e) => e.source === connection.source && e.sourceHandle === 'top')) return false;
+        // LLM already connected to an AIAgent
+        if (edges.some((e) => e.target === connection.target && nodes.find((n) => n.id === e.source)?.type === 'aiAgent')) return false;
+        return true;
       }
 
       // AIAgent right handle can only connect to MCP nodes
@@ -146,9 +151,18 @@ export default function WorkflowEditor({
         return targetNode.type === 'mcpClient';
       }
 
+      // ChatTrigger → AIAgent: 1:1 constraint
+      if (sourceNode.type === 'chatTrigger' && targetNode.type === 'aiAgent') {
+        // ChatTrigger already connects to an AIAgent
+        if (edges.some((e) => e.source === connection.source && nodes.find((n) => n.id === e.target)?.type === 'aiAgent')) return false;
+        // AIAgent already has a ChatTrigger
+        if (edges.some((e) => e.target === connection.target && nodes.find((n) => n.id === e.source)?.type === 'chatTrigger')) return false;
+        return true;
+      }
+
       return true;
     },
-    [nodes]
+    [nodes, edges]
   );
 
   // Handle connection/edge creation
