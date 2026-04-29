@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AuthFlowDiagram } from '@/components/AuthFlowDiagram';
+import { AuthFlowOverview } from '@/components/AuthFlowOverview';
 import { WorkflowTrace } from '@/lib/authTrace';
 
 const STORAGE_KEY = 'lastAuthTrace';
@@ -77,6 +78,8 @@ export default function AuthFlowPage() {
           </div>
         ) : trace ? (
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <AuthFlowOverview trace={trace} />
+            <div className="my-8 border-t border-slate-200" />
             <AuthFlowDiagram trace={trace} />
           </div>
         ) : (
