@@ -216,14 +216,14 @@ function pushToolCall(items: Item[], t: ToolCallTrace, trace: WorkflowTrace) {
   items.push({
     kind: 'message', from: 'Agent', to: laneId,
     label: token
-      ? `Tool call: ${t.publicName}  ·  Authorization: Bearer <${tokenKind} Token>`
-      : `Tool call: ${t.publicName}  ·  (no auth header)`,
+      ? `Tool call: ${stripNodeSuffix(t.publicName)}  ·  Authorization: Bearer <${tokenKind} Token>`
+      : `Tool call: ${stripNodeSuffix(t.publicName)}  ·  (no auth header)`,
     sublabel: `${serverLabel}    args: ${truncate(t.args, 80)}`,
     color: 'blue', token, tokenLabel: token ? `${tokenKind} JWT` : undefined,
   });
   items.push({
     kind: 'message', from: laneId, to: 'Agent',
-    label: t.ok ? `Result (${t.publicName})` : `Error (${t.publicName})`,
+    label: t.ok ? `Result (${stripNodeSuffix(t.publicName)})` : `Error (${stripNodeSuffix(t.publicName)})`,
     sublabel: truncate(t.result, 110),
     color: t.ok ? 'green' : 'auth', dashed: true,
   });
@@ -246,23 +246,24 @@ function buildItems(trace: WorkflowTrace): Item[] {
     label: 'Prompt + tool schemas + memory',
     sublabel: 'Builds JSON tool list, sends step prompt',
   });
-  items.push({
-    kind: 'message', from: 'LLM', to: 'Agent',
-    label: 'Tool decision (JSON)',
-    sublabel: '{ type: "tool" | "final", name, arguments }',
-    dashed: true,
-  });
 
   // Exclude internal tool_search calls — they are implementation details, not auth-relevant operations
   const realTools = trace.tools.filter((t) => t.publicName !== 'tool_search');
 
   if (realTools.length === 0) {
     items.push({
-      kind: 'message', from: 'Agent', to: 'LLM',
+      kind: 'message', from: 'LLM', to: 'Agent',
       label: 'No tool calls in this run',
       sublabel: 'Agent answered directly',
       color: 'default', dashed: true,
     });
+  } else {
+    items.push({
+      kind: 'message', from: 'LLM', to: 'Agent',
+      label: 'Tool decision (JSON)',
+      sublabel: '{ Tool call is needed. }',
+      dashed: true,
+  });
   }
 
   // Interleave auth steps and tool calls in chronological execution order.
@@ -295,6 +296,10 @@ function buildItems(trace: WorkflowTrace): Item[] {
 function truncate(s: string | undefined, n: number): string {
   if (!s) return '';
   return s.length > n ? s.slice(0, n) + '…' : s;
+}
+
+function stripNodeSuffix(name: string): string {
+  return name.replace(/_node_[^_]+_[^_]+$/, '');
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -375,7 +380,7 @@ function ToolCallList({ trace }: { trace: WorkflowTrace }) {
             <div key={i} className="border border-slate-200 rounded p-2 bg-white">
               <div className="font-mono text-[11px] text-slate-600 flex items-center gap-2">
                 <span className="font-bold text-blue-600">step {t.step}</span>
-                <span>{t.publicName}</span>
+                <span>{stripNodeSuffix(t.publicName)}</span>
                 <span className="text-slate-400">@</span>
                 <span className="text-slate-500">{t.endpoint}</span>
                 {token ? (
