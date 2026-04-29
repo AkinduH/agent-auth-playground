@@ -23,6 +23,7 @@ interface MemoryBinding {
 
 interface OBOPendingNode {
   nodeId: string;
+  name: string;
   organizationName: string;
   clientId: string;
   redirectUri: string;
@@ -82,6 +83,7 @@ function collectCachedMCPTools(
 
 function findOBONodes(workflow: Workflow): Array<{
   nodeId: string;
+  name: string;
   organizationName: string;
   clientId: string;
   redirectUri: string;
@@ -104,6 +106,7 @@ function findOBONodes(workflow: Workflow): Array<{
       const agentData = agentNode?.data as AIAgentNodeData | undefined;
       return {
         nodeId: n.id,
+        name: data.name?.trim() || n.id,
         organizationName: data.oauth2OrganizationName || '',
         clientId: data.oauth2ClientId || '',
         redirectUri: data.oauth2RedirectUri || '',
@@ -126,9 +129,9 @@ function extractAuthCode(input: string): string {
   return trimmed;
 }
 
-function buildOBOConsentMessage(nodeId: string, current: number, total: number): string {
+function buildOBOConsentMessage(name: string, current: number, total: number): string {
   const multi = total > 1 ? ` (${current} of ${total})` : '';
-  return `Authorization Required${multi}\n\nThe AI agent needs your consent to act on your behalf for MCP connection.\n\nClick the link below to log in.`;
+  return `Authorization Required${multi}\n\nThe AI agent needs your consent to act on your behalf to use the "${name}" resource.\n\nClick the link below to log in.`;
 }
 
 const CHAT_STORAGE_PREFIX = 'chatMessages:';
@@ -412,6 +415,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
             const resData = await res.json();
             return {
               nodeId: node.nodeId,
+              name: node.name,
               organizationName: node.organizationName,
               clientId: node.clientId,
               redirectUri: node.redirectUri,
@@ -444,7 +448,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
         addMessage({
           id: generateId('msg-'),
           role: 'assistant',
-          content: buildOBOConsentMessage(first.nodeId, 1, initResults.length),
+          content: buildOBOConsentMessage(first.name, 1, initResults.length),
           timestamp: Date.now(),
           workflowId,
           type: 'obo-consent',
@@ -471,14 +475,6 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
           id: generateId('msg-'),
           role: 'user',
           content: codeInput,
-          timestamp: Date.now(),
-          workflowId,
-        });
-      } else {
-        addMessage({
-          id: generateId('msg-'),
-          role: 'assistant',
-          content: 'Authorization received. Exchanging token...',
           timestamp: Date.now(),
           workflowId,
         });
@@ -522,7 +518,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
           addMessage({
             id: generateId('msg-'),
             role: 'assistant',
-            content: buildOBOConsentMessage(nextNode.nodeId, nextIndex + 1, state.pendingNodes.length),
+            content: buildOBOConsentMessage(nextNode.name, nextIndex + 1, state.pendingNodes.length),
             timestamp: Date.now(),
             workflowId,
             type: 'obo-consent',
