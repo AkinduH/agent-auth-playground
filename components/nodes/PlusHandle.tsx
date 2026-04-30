@@ -21,23 +21,23 @@ export default function PlusHandle({ type, position, id, connected = false, alwa
       position={position}
       id={id}
       style={{
-        width: 18,
-        height: 18,
+        width: 15,
+        height: 15,
         background: 'white',
-        border: '2px solid #3b82f6',
+        border: '2px solid #000',
         borderRadius: '50%',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         cursor: 'crosshair',
-        boxShadow: '0 1px 4px rgba(59,130,246,0.35)',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
       }}
     >
       <span
         style={{
           fontSize: 13,
           fontWeight: 700,
-          color: '#3b82f6',
+          color: '#000',
           lineHeight: 1,
           pointerEvents: 'none',
           userSelect: 'none',

@@ -273,7 +273,7 @@ export default function Home() {
               <DropdownMenuContent align="end" className="w-44">
                 <DropdownMenuItem onClick={handleSaveWorkflow} disabled={isSaving}>
                   <Save className="h-4 w-4" />
-                  {isSaving ? 'Saving...' : 'Save'}
+                  {isSaving ? 'Saving...' : 'Save Locally'}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleDownloadWorkflow}>
                   <Download className="h-4 w-4" />
