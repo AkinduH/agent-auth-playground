@@ -322,8 +322,10 @@ function FlowSummary({ mcp }: { mcp: MCPNodeTrace }) {
   const f = flowLabels[flow];
   return (
     <div style={{
-      padding: '10px 14px', borderRadius: 10, borderLeft: `4px solid ${f.color}`,
-      background: '#fff', marginBottom: 12, border: '1px solid #e2e8f0', borderLeftWidth: 4,
+      padding: '10px 14px', borderRadius: 10,
+      borderTop: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0',
+      borderBottom: '1px solid #e2e8f0', borderLeft: `4px solid ${f.color}`,
+      background: '#fff', marginBottom: 12,
     }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{f.title}</div>
       <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, lineHeight: 1.5 }}>{f.desc}</div>
@@ -455,7 +457,8 @@ export function AuthFlowOverview({ trace }: Props) {
               key={mcp.nodeId}
               onClick={() => setActiveMcpIdx(i)}
               style={{
-                padding: '10px 18px', cursor: 'pointer', border: 'none',
+                padding: '10px 18px', cursor: 'pointer',
+                borderTop: 'none', borderRight: 'none', borderLeft: 'none',
                 borderBottom: `3px solid ${active ? flowColor : 'transparent'}`,
                 background: active ? '#fff' : 'transparent', marginBottom: -2,
                 color: active ? '#1e293b' : '#64748b', fontSize: 13,
@@ -504,7 +507,11 @@ export function AuthFlowOverview({ trace }: Props) {
         </span>
       </div>
 
-      <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden', marginBottom: 14 }}>
+      <div style={{ marginBottom: 10 }}>
+        <StepCard step={curStep} />
+      </div>
+
+      <div style={{ maxWidth: 680, margin: '0 auto', background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden', marginBottom: 14 }}>
         <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
           {(Object.entries(boxes) as [LaneId, Box][]).map(([id, box]) => (
             <BoxEl key={id} box={box} active={activeSet.has(id)} glowColor={activeSet.has(id) ? glowClr : null} />
@@ -533,8 +540,6 @@ export function AuthFlowOverview({ trace }: Props) {
           })}
         </svg>
       </div>
-
-      <StepCard step={curStep} />
 
       <div style={{ marginTop: 16, display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 11, color: '#64748b' }}>
         {[
