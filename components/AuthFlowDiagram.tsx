@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { WorkflowTrace, MCPNodeTrace, ToolCallTrace, previewToken } from '@/lib/authTrace';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   trace: WorkflowTrace;
@@ -484,18 +485,22 @@ export function AuthFlowDiagram({ trace }: Props) {
       <div className="flex items-center gap-3 mb-3">
         <h3 className="text-base font-bold text-slate-800">Sequence Flow: {flowTitle}</h3>
         <div className="ml-auto flex items-center gap-2">
-          <button
+          <Button
             onClick={() => { setStep(0); setAutoplay(true); }}
-            className="text-xs px-3 py-1 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 text-cyan-800 rounded font-medium"
+            size="sm"
+            variant="outline"
+            className="text-xs text-cyan-800 bg-cyan-50 hover:bg-cyan-100 border-cyan-200"
           >
             ▶ Animate
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => { setAutoplay(false); setStep(layout.totalMessages); }}
-            className="text-xs px-3 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded font-medium"
+            size="sm"
+            variant="outline"
+            className="text-xs"
           >
             Show all
-          </button>
+          </Button>
         </div>
       </div>
 

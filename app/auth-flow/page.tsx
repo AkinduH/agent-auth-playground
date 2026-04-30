@@ -10,6 +10,7 @@ const STORAGE_KEY = 'lastAuthTrace';
 export default function AuthFlowPage() {
   const [trace, setTrace] = useState<WorkflowTrace | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [showSequence, setShowSequence] = useState(false);
 
   useEffect(() => {
     try {
@@ -77,11 +78,37 @@ export default function AuthFlowPage() {
             Loading trace…
           </div>
         ) : trace ? (
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <AuthFlowOverview trace={trace} />
-            <div className="my-8 border-t border-slate-200" />
-            <AuthFlowDiagram trace={trace} />
-          </div>
+          <>
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <AuthFlowOverview trace={trace} />
+            </div>
+
+            <div className="mt-4">
+              <button
+                onClick={() => setShowSequence((v) => !v)}
+                className="w-full flex items-center justify-between px-5 py-3.5 rounded-xl border border-slate-200 bg-white shadow-sm text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors group"
+              >
+                <span className="flex items-center gap-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cyan-600">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                  </svg>
+                  Detailed auth sequence flow
+                </span>
+                <svg
+                  width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                  className={`text-slate-400 transition-transform duration-200 ${showSequence ? 'rotate-180' : ''}`}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {showSequence && (
+                <div className="mt-2 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <AuthFlowDiagram trace={trace} />
+                </div>
+              )}
+            </div>
+          </>
         ) : (
           <div className="rounded-lg border border-dashed border-slate-300 bg-white p-12 text-center">
             <p className="text-sm font-semibold text-slate-700 mb-1">No execution recorded yet</p>

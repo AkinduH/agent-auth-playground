@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { MCPNodeTrace, WorkflowTrace, ToolCallTrace } from '@/lib/authTrace';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   trace: WorkflowTrace;
@@ -288,50 +289,44 @@ const STEP_STYLES: Record<StepType, { bg: string; border: string; icon: string }
 function StepCard({ step }: { step: AuthStep | null }) {
   if (!step) {
     return (
-      <div style={{
-        padding: '14px 18px', borderRadius: 12, background: '#f8fafc',
-        border: '1.5px dashed #cbd5e1', color: '#94a3b8', fontSize: 12, textAlign: 'center',
-      }}>
-        Press <strong>Play</strong> or <strong>Show All</strong> to walk through the auth flow.
+      <div className="px-[18px] py-3.5 rounded-xl bg-slate-50 border border-dashed border-slate-300 text-slate-400 text-xs text-center">
+        Press <strong className="font-semibold">Play</strong> or <strong className="font-semibold">Show All</strong> to walk through the auth flow.
       </div>
     );
   }
   const s = STEP_STYLES[step.type] || STEP_STYLES.normal;
   return (
-    <div style={{
-      padding: '14px 18px', borderRadius: 12, background: s.bg,
-      border: `1.5px solid ${s.border}`, display: 'flex', gap: 12,
-      alignItems: 'flex-start', animation: 'authFlowOverviewFadeIn 0.3s ease',
-    }}>
-      <span style={{ fontSize: 22, flexShrink: 0 }}>{s.icon}</span>
+    <div
+      className="px-[18px] py-3.5 rounded-xl flex gap-3 items-start"
+      style={{ background: s.bg, border: `1.5px solid ${s.border}`, animation: 'authFlowOverviewFadeIn 0.3s ease' }}
+    >
+      <span className="text-[22px] flex-shrink-0">{s.icon}</span>
       <div>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>Step {step.num} — {step.label}</div>
-        {step.detail && <div style={{ fontSize: 12, color: '#64748b', marginTop: 3, lineHeight: 1.6 }}>{step.detail}</div>}
+        <div className="text-sm font-bold text-slate-900">Step {step.num} — {step.label}</div>
+        {step.detail && <div className="text-xs text-slate-500 mt-0.5 leading-relaxed">{step.detail}</div>}
       </div>
     </div>
   );
 }
 
-function FlowSummary({ mcp }: { mcp: MCPNodeTrace }) {
-  const flow = perMcpFlow(mcp);
-  const flowLabels = {
-    agent: { title: 'Agent Authentication (OAuth2 + PKCE)', color: '#f59e0b', desc: 'The agent proves its own identity. The service knows which agent is calling, but not which user.' },
-    obo: { title: 'On-Behalf-Of (OBO)', color: '#22c55e', desc: 'The agent authenticates itself, then YOU give explicit consent. The service knows both the agent AND the user.' },
-    none: { title: 'No Authentication', color: '#ef4444', desc: 'No identity verification. The service has no idea who is calling — risky for private data.' },
-  };
-  const f = flowLabels[flow];
-  return (
-    <div style={{
-      padding: '10px 14px', borderRadius: 10,
-      borderTop: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0',
-      borderBottom: '1px solid #e2e8f0', borderLeft: `4px solid ${f.color}`,
-      background: '#fff', marginBottom: 12,
-    }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{f.title}</div>
-      <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, lineHeight: 1.5 }}>{f.desc}</div>
-    </div>
-  );
-}
+// function FlowSummary({ mcp }: { mcp: MCPNodeTrace }) {
+//   const flow = perMcpFlow(mcp);
+//   const flowLabels = {
+//     agent: { title: 'Agent Authentication (OAuth2 + PKCE)', color: '#f59e0b', desc: 'The agent proves its own identity. The service knows which agent is calling, but not which user.' },
+//     obo: { title: 'On-Behalf-Of (OBO)', color: '#22c55e', desc: 'The agent authenticates itself, then YOU give explicit consent. The service knows both the agent AND the user.' },
+//     none: { title: 'No Authentication', color: '#ef4444', desc: 'No identity verification. The service has no idea who is calling — risky for private data.' },
+//   };
+//   const f = flowLabels[flow];
+//   return (
+//     <div
+//       className="px-3.5 py-2.5 rounded-[10px] border border-slate-200 bg-white mb-3"
+//       style={{ borderLeft: `4px solid ${f.color}` }}
+//     >
+//       <div className="text-[13px] font-bold text-slate-900">{f.title}</div>
+//       <div className="text-xs text-slate-500 mt-0.5 leading-[1.5]">{f.desc}</div>
+//     </div>
+//   );
+// }
 
 function stepColor(type: StepType): string {
   if (type === 'auth' || type === 'token') return '#f59e0b';
@@ -413,13 +408,8 @@ export function AuthFlowOverview({ trace }: Props) {
     return (
       <>
         <style>{KEYFRAMES}</style>
-        <div style={{
-          padding: 24, borderRadius: 14, background: '#fff', border: '1px dashed #cbd5e1',
-          textAlign: 'center', color: '#64748b', fontSize: 13,
-        }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#334155', marginBottom: 4 }}>
-            No MCP servers in this run
-          </div>
+        <div className="p-6 rounded-xl bg-white border border-dashed border-slate-300 text-center text-slate-500 text-sm">
+          <div className="text-sm font-bold text-slate-700 mb-1">No MCP servers in this run</div>
           The auth flow overview appears when the workflow connects to one or more MCP servers.
         </div>
       </>
@@ -441,12 +431,12 @@ export function AuthFlowOverview({ trace }: Props) {
   return (
     <div>
       <style>{KEYFRAMES}</style>
-      <h2 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>Authentication Flow</h2>
-      <p style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>
+      <h2 className="text-lg font-bold text-slate-900 mb-1">Authentication Flow</h2>
+      <p className="text-sm text-slate-500 mb-4">
         This workflow connects to {trace.mcps.length} service{trace.mcps.length > 1 ? 's' : ''}, each with its own authentication. Select a service to see its auth flow.
       </p>
 
-      <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '2px solid #e2e8f0', flexWrap: 'wrap' }}>
+      <div className="flex mb-4 border-b-2 border-slate-200 flex-wrap">
         {trace.mcps.map((mcp, i) => {
           const active = i === activeMcpIdx;
           const flow = perMcpFlow(mcp);
@@ -456,21 +446,14 @@ export function AuthFlowOverview({ trace }: Props) {
             <button
               key={mcp.nodeId}
               onClick={() => setActiveMcpIdx(i)}
-              style={{
-                padding: '10px 18px', cursor: 'pointer',
-                borderTop: 'none', borderRight: 'none', borderLeft: 'none',
-                borderBottom: `3px solid ${active ? flowColor : 'transparent'}`,
-                background: active ? '#fff' : 'transparent', marginBottom: -2,
-                color: active ? '#1e293b' : '#64748b', fontSize: 13,
-                fontWeight: active ? 700 : 500,
-                transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 8,
-              }}
+              className={`px-[18px] py-2.5 cursor-pointer bg-transparent border-x-0 border-t-0 -mb-0.5 flex items-center gap-2 transition-all duration-150 text-[13px] ${active ? 'text-slate-900 font-bold bg-white' : 'text-slate-500 font-medium'}`}
+              style={{ borderBottom: `3px solid ${active ? flowColor : 'transparent'}` }}
             >
               <span>{mcpDisplayName(mcp)}</span>
-              <span style={{
-                fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
-                background: flowColor + '18', color: flowColor,
-              }}>
+              <span
+                className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                style={{ background: flowColor + '18', color: flowColor }}
+              >
                 {flowLabel}
               </span>
             </button>
@@ -478,41 +461,53 @@ export function AuthFlowOverview({ trace }: Props) {
         })}
       </div>
 
-      {activeMcp && <FlowSummary mcp={activeMcp} />}
+      {/* {activeMcp && <FlowSummary mcp={activeMcp} />} */}
 
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
-        <button onClick={play} disabled={steps.length === 0}
-          style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: '#6c5ce7', color: '#fff', fontSize: 12, fontWeight: 600, cursor: steps.length === 0 ? 'not-allowed' : 'pointer', opacity: steps.length === 0 ? 0.5 : 1 }}>
+      <div className="flex gap-1.5 items-center mb-2.5 flex-wrap">
+        <Button
+          onClick={play}
+          disabled={steps.length === 0}
+          size="sm"
+          className="bg-[#6c5ce7] hover:bg-[#5b4dd0] text-white text-xs font-semibold"
+        >
           ▶ Play
-        </button>
-        <button onClick={showAll} disabled={steps.length === 0}
-          style={{ padding: '7px 14px', borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#475569', fontSize: 12, fontWeight: 600, cursor: steps.length === 0 ? 'not-allowed' : 'pointer', opacity: steps.length === 0 ? 0.5 : 1 }}>
+        </Button>
+        <Button onClick={showAll} disabled={steps.length === 0} size="sm" variant="outline" className="text-xs font-semibold">
           Show All
-        </button>
-        <button onClick={() => { setCur(-1); setPlaying(false); }}
-          style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#475569', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+        </Button>
+        <Button onClick={() => { setCur(-1); setPlaying(false); }} size="sm" variant="outline" className="text-xs font-semibold">
           Reset
-        </button>
-        <div style={{ width: 1, height: 20, background: '#e2e8f0', margin: '0 2px' }} />
-        <button disabled={cur <= -1} onClick={() => setCur((s) => Math.max(-1, s - 1))}
-          style={{ padding: '7px 10px', borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#475569', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: cur <= -1 ? 0.35 : 1 }}>
+        </Button>
+        <div className="w-px h-5 bg-slate-200 mx-0.5" />
+        <Button
+          disabled={cur <= -1}
+          onClick={() => setCur((s) => Math.max(-1, s - 1))}
+          size="sm"
+          variant="outline"
+          className="text-xs px-2.5"
+        >
           ‹
-        </button>
-        <button disabled={cur >= steps.length - 1} onClick={() => { setPlaying(false); setCur((s) => Math.min(steps.length - 1, s + 1)); }}
-          style={{ padding: '7px 10px', borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#475569', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: cur >= steps.length - 1 ? 0.35 : 1 }}>
+        </Button>
+        <Button
+          disabled={cur >= steps.length - 1}
+          onClick={() => { setPlaying(false); setCur((s) => Math.min(steps.length - 1, s + 1)); }}
+          size="sm"
+          variant="outline"
+          className="text-xs px-2.5"
+        >
           ›
-        </button>
-        <span style={{ marginLeft: 'auto', fontSize: 11, color: '#94a3b8', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+        </Button>
+        <span className="ml-auto text-[11px] text-slate-400 font-mono">
           {Math.max(0, cur + 1)} / {steps.length}
         </span>
       </div>
 
-      <div style={{ marginBottom: 10 }}>
+      <div className="mb-2.5">
         <StepCard step={curStep} />
       </div>
 
-      <div style={{ maxWidth: 680, margin: '0 auto', background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden', marginBottom: 14 }}>
-        <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
+      <div className="max-w-[680px] mx-auto bg-white rounded-xl border border-slate-200 overflow-hidden mb-3.5">
+        <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="block">
           {(Object.entries(boxes) as [LaneId, Box][]).map(([id, box]) => (
             <BoxEl key={id} box={box} active={activeSet.has(id)} glowColor={activeSet.has(id) ? glowClr : null} />
           ))}
@@ -541,7 +536,7 @@ export function AuthFlowOverview({ trace }: Props) {
         </svg>
       </div>
 
-      <div style={{ marginTop: 16, display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 11, color: '#64748b' }}>
+      <div className="mt-4 flex gap-3.5 flex-wrap text-[11px] text-slate-500">
         {[
           { color: '#f59e0b', label: 'Auth exchange', dash: true },
           { color: '#7c3aed', label: 'Secured call', dash: true },
@@ -549,7 +544,7 @@ export function AuthFlowOverview({ trace }: Props) {
           { color: '#ef4444', label: 'Unsecured', dash: true },
           { color: '#3b82f6', label: 'User consent', dash: true },
         ].map((l, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <div key={i} className="flex items-center gap-1.5">
             <svg width={24} height={8}>
               <line x1={0} y1={4} x2={24} y2={4} stroke={l.color} strokeWidth={2} strokeDasharray={l.dash ? '4 3' : undefined} />
             </svg>
