@@ -40,11 +40,11 @@ export default function AuthFlowPage() {
       ? { label: 'OBO Flow', color: 'bg-purple-100 text-purple-800 border-purple-200' }
       : flow === 'agent'
       ? { label: 'Agent Flow', color: 'bg-cyan-100 text-cyan-800 border-cyan-200' }
-      : { label: 'Direct', color: 'bg-slate-100 text-slate-700 border-slate-200' };
+      : { label: 'Direct', color: 'bg-slate-100 text-slate-700 border-black' };
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b border-black bg-white/95 backdrop-blur">
         <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-sm">
@@ -74,19 +74,19 @@ export default function AuthFlowPage() {
 
       <main className="mx-auto max-w-7xl px-6 py-6">
         {!loaded ? (
-          <div className="rounded-lg border border-slate-200 bg-white p-12 text-center text-sm text-slate-500">
+          <div className="rounded-lg border border-black bg-white p-12 text-center text-sm text-slate-500">
             Loading trace…
           </div>
         ) : trace ? (
           <>
-            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="rounded-xl border border-black bg-white p-6 shadow-sm">
               <AuthFlowOverview trace={trace} />
             </div>
 
             <div className="mt-4">
               <button
                 onClick={() => setShowSequence((v) => !v)}
-                className="w-full flex items-center justify-between px-5 py-3.5 rounded-xl border border-slate-200 bg-white shadow-sm text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors group"
+                className="w-full flex items-center justify-between px-5 py-3.5 rounded-xl border border-black bg-white shadow-sm text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors group"
               >
                 <span className="flex items-center gap-2">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cyan-600">
@@ -103,14 +103,14 @@ export default function AuthFlowPage() {
               </button>
 
               {showSequence && (
-                <div className="mt-2 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="mt-2 rounded-xl border border-black bg-white p-6 shadow-sm">
                   <AuthFlowDiagram trace={trace} />
                 </div>
               )}
             </div>
           </>
         ) : (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-white p-12 text-center">
+          <div className="rounded-lg border border-dashed border-black bg-white p-12 text-center">
             <p className="text-sm font-semibold text-slate-700 mb-1">No execution recorded yet</p>
             <p className="text-xs text-slate-500">
               Run a workflow from the editor, then click "View Auth Flow" to inspect the trace.

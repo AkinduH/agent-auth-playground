@@ -18,6 +18,7 @@ interface ChatPanelProps {
   oboConsentPending?: boolean;
   hasTrace?: boolean;
   onViewAuthFlow?: () => void;
+  onHide?: () => void;
 }
 
 function MarkdownContent({ content }: { content: string }) {
@@ -78,6 +79,7 @@ export default function ChatPanel({
   oboConsentPending = false,
   hasTrace = false,
   onViewAuthFlow,
+  onHide,
 }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -117,14 +119,43 @@ export default function ChatPanel({
           <h3 className="font-semibold text-gray-900">Chat</h3>
           <p className="text-xs text-gray-500">Test your workflow</p>
         </div>
-        {hasTrace && onViewAuthFlow && (
-          <button
-            onClick={onViewAuthFlow}
-            className="px-3 py-1.5 text-xs font-medium text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 rounded-md transition-colors"
-          >
-            View Auth Flow
-          </button>
-        )}
+        <div className="flex items-center gap-1.5">
+          {onViewAuthFlow && (
+            <button
+              onClick={hasTrace ? onViewAuthFlow : undefined}
+              disabled={!hasTrace}
+              className={`px-3 py-1.5 text-xs font-medium border rounded-md transition-colors ${
+                hasTrace
+                  ? 'text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border-cyan-200 cursor-pointer'
+                  : 'text-gray-400 bg-gray-50 border-gray-200 cursor-not-allowed'
+              }`}
+            >
+              View Auth Flow
+            </button>
+          )}
+          {onHide && (
+            <button
+              onClick={onHide}
+              aria-label="Hide chat"
+              title="Hide chat"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Messages */}

@@ -20,6 +20,7 @@ import AIAgentNode from '@/components/nodes/AIAgentNode';
 import LLMNode from '@/components/nodes/LLMNode';
 import MCPClientNode from '@/components/nodes/MCPClientNode';
 import { Button } from '@/components/ui/button';
+import { Trash2 } from 'lucide-react';
 
 const nodeTypes = {
   chatTrigger: ChatTriggerNode,
@@ -245,6 +246,10 @@ export default function WorkflowEditor({
     onNodeAdd(newNode);
   };
 
+  const hasChatTrigger = nodes.some((n) => n.type === 'chatTrigger');
+  const hasAIAgent = nodes.some((n) => n.type === 'aiAgent');
+  const hasLLM = nodes.some((n) => n.type === 'llm');
+
   return (
     <div
       className="flex flex-col h-full w-full bg-white"
@@ -258,6 +263,8 @@ export default function WorkflowEditor({
           variant="outline"
           size="sm"
           className="text-xs"
+          disabled={hasChatTrigger}
+          title={hasChatTrigger ? 'Only one Chat Trigger is allowed per workflow' : undefined}
         >
           + Chat Trigger
         </Button>
@@ -266,6 +273,8 @@ export default function WorkflowEditor({
           variant="outline"
           size="sm"
           className="text-xs"
+          disabled={hasAIAgent}
+          title={hasAIAgent ? 'Only one AI Agent is allowed per workflow' : undefined}
         >
           + AI Agent
         </Button>
@@ -274,6 +283,8 @@ export default function WorkflowEditor({
           variant="outline"
           size="sm"
           className="text-xs"
+          disabled={hasLLM}
+          title={hasLLM ? 'Only one AI Service is allowed per workflow' : undefined}
         >
           + AI Service
         </Button>
@@ -285,20 +296,23 @@ export default function WorkflowEditor({
         >
           + MCP Client
         </Button>
-        <div className="flex-1" />
 
         {selectedNodeId && (
-          <Button
-            onClick={() => {
-              onNodeDelete(selectedNodeId);
-              onNodeSelect(null);
-            }}
-            variant="destructive"
-            size="sm"
-            className="text-xs"
-          >
-            Delete Node
-          </Button>
+          <>
+            <div className="w-px h-6 bg-gray-300 mx-1 self-center" />
+            <Button
+              onClick={() => {
+                onNodeDelete(selectedNodeId);
+                onNodeSelect(null);
+              }}
+              variant="outline"
+              size="sm"
+              className="text-xs gap-1.5 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete Node
+            </Button>
+          </>
         )}
       </div>
 

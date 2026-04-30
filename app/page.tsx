@@ -14,7 +14,13 @@ import {
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { X } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Download, Eye, MoreVertical, Save, Upload, X } from 'lucide-react';
 import { validateWorkflow } from '@/lib/workflowValidation';
 import { workflowStore } from '@/lib/workflowStore';
 import { useEffect, useRef, useState } from 'react';
@@ -192,64 +198,6 @@ export default function Home() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-100">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-2.5">
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
-            <div className="flex gap-2 items-center flex-wrap">
-              <Input
-                value={workflowName}
-                onChange={(e) => setWorkflowName(e.target.value)}
-                placeholder="Workflow name"
-                className="max-w-sm text-lg font-semibold"
-              />
-              <Button
-                onClick={handleSaveWorkflow}
-                size="sm"
-                variant="default"
-                disabled={isSaving}
-              >
-                {isSaving ? 'Saving...' : 'Save Workflow'}
-              </Button>
-              <Button
-                onClick={handleDownloadWorkflow}
-                size="sm"
-                variant="outline"
-              >
-                Download Workflow
-              </Button>
-              <Button
-                onClick={handleImportClick}
-                size="sm"
-                variant="outline"
-              >
-                Import Workflow
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="application/json,.json"
-                className="hidden"
-                onChange={handleImportFile}
-              />
-            </div>
-            {importError && (
-              <p className="text-xs text-red-600 mt-1">{importError}</p>
-            )}
-            <p className="text-sm text-gray-500 mt-1">
-              Created {new Date(workflow.createdAt).toLocaleDateString()}
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsChatVisible(!isChatVisible)}
-          >
-            {isChatVisible ? 'Hide Chat' : 'Show Chat'}
-          </Button>
-        </div>
-      </div>
-
       {/* OAuth callback banner */}
       {isOAuthCallback && (
         <div className="bg-green-50 border-b border-green-200 px-6 py-3 flex items-center justify-between">
@@ -267,29 +215,9 @@ export default function Home() {
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: Canvas */}
-        <div className={isChatVisible ? 'flex-1' : 'w-full'}>
-          <WorkflowEditor
-            workflow={workflow}
-            selectedNodeId={selectedNodeId}
-            activeNodeIds={activeNodeIds}
-            mcpInitVersion={mcpInitVersion}
-            onNodeSelect={setSelectedNodeId}
-            onNodeDoubleClick={(nodeId) => {
-              setSelectedNodeId(nodeId);
-              setIsNodePanelOpen(true);
-            }}
-            onNodeAdd={addNode}
-            onNodeUpdate={updateNode}
-            onNodeDelete={deleteNode}
-            onEdgeAdd={addEdge}
-            onEdgeDelete={deleteEdge}
-          />
-        </div>
-
-        {/* Right: Chat Panel */}
+        {/* Left: Chat Panel */}
         {isChatVisible && (
-          <div className="w-70 border-l border-gray-200 flex flex-col">
+          <div className="w-80 border-r border-gray-200 flex flex-col bg-white">
             <ChatPanel
               messages={messages}
               isLoading={isLoading}
@@ -309,9 +237,95 @@ export default function Home() {
                 }
                 window.open('/auth-flow', '_blank', 'noopener,noreferrer');
               }}
+              onHide={() => setIsChatVisible(false)}
             />
           </div>
         )}
+
+        {/* Center: Canvas */}
+        <div className="flex-1 min-w-0 relative">
+          {/* Top-right floating workflow controls */}
+          <div className="absolute top-3 right-3 z-10 flex items-center gap-1 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm pl-3 pr-1.5 py-1.5">
+            <Input
+              value={workflowName}
+              onChange={(e) => setWorkflowName(e.target.value)}
+              placeholder="Untitled workflow"
+              className="h-8 w-56 border-0 shadow-none focus-visible:ring-0 px-1 text-sm font-medium bg-transparent"
+            />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-gray-600 hover:text-gray-900"
+                  aria-label="Workflow actions"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem
+                  onClick={handleSaveWorkflow}
+                  disabled={isSaving}
+                >
+                  <Save className="h-4 w-4" />
+                  {isSaving ? 'Saving...' : 'Save locally'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDownloadWorkflow}>
+                  <Download className="h-4 w-4" />
+                  Download
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleImportClick}>
+                  <Upload className="h-4 w-4" />
+                  Import
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={handleImportFile}
+            />
+          </div>
+
+          {importError && (
+            <p className="absolute top-14 right-3 z-10 text-xs text-red-600 bg-white/95 border border-red-200 rounded-md px-2 py-1 shadow-sm">
+              {importError}
+            </p>
+          )}
+
+          <WorkflowEditor
+            workflow={workflow}
+            selectedNodeId={selectedNodeId}
+            activeNodeIds={activeNodeIds}
+            mcpInitVersion={mcpInitVersion}
+            onNodeSelect={setSelectedNodeId}
+            onNodeDoubleClick={(nodeId) => {
+              setSelectedNodeId(nodeId);
+              setIsNodePanelOpen(true);
+            }}
+            onNodeAdd={addNode}
+            onNodeUpdate={updateNode}
+            onNodeDelete={deleteNode}
+            onEdgeAdd={addEdge}
+            onEdgeDelete={deleteEdge}
+          />
+
+          {/* Floating Show Chat button (bottom-left) — only when chat is hidden */}
+          {!isChatVisible && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsChatVisible(true)}
+              className="absolute bottom-10 left-12 z-10 gap-2 bg-white/95 backdrop-blur-sm border border-gray-200 shadow-md hover:shadow-lg text-gray-700 hover:text-gray-900"
+            >
+              <Eye className="h-4 w-4" />
+              Show Chat
+            </Button>
+          )}
+        </div>
       </div>
 
       <Dialog open={isSavedDialogOpen} onOpenChange={setIsSavedDialogOpen}>
@@ -323,7 +337,7 @@ export default function Home() {
             Saved successfully
           </DialogTitle>
           <DialogDescription>
-            Your workflow has been saved.
+            Your agent flow has been saved.
           </DialogDescription>
           <div className="flex justify-end">
             <Button size="sm" onClick={() => setIsSavedDialogOpen(false)}>
