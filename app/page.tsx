@@ -193,7 +193,7 @@ export default function Home() {
   return (
     <div className="flex flex-col h-screen bg-gray-100">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-white border-b border-gray-200 px-4 py-2.5">
         <div className="flex items-center gap-4">
           <div className="flex-1">
             <div className="flex gap-2 items-center flex-wrap">
@@ -289,7 +289,7 @@ export default function Home() {
 
         {/* Right: Chat Panel */}
         {isChatVisible && (
-          <div className="w-96 border-l border-gray-200 flex flex-col">
+          <div className="w-70 border-l border-gray-200 flex flex-col">
             <ChatPanel
               messages={messages}
               isLoading={isLoading}

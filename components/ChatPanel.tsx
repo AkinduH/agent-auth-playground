@@ -112,7 +112,7 @@ export default function ChatPanel({
   return (
     <div className="flex flex-col h-full bg-white border-l border-gray-200">
       {/* Header */}
-      <div className="border-b border-gray-200 p-4 flex items-start justify-between gap-2">
+      <div className="border-b border-gray-200 p-3 flex items-start justify-between gap-2">
         <div>
           <h3 className="font-semibold text-gray-900">Chat</h3>
           <p className="text-xs text-gray-500">Test your workflow</p>
@@ -128,7 +128,7 @@ export default function ChatPanel({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-center text-gray-500">
             <div>
@@ -244,7 +244,7 @@ export default function ChatPanel({
       )}
 
       {/* Input */}
-      <div className="border-t border-gray-200 p-4 space-y-2">
+      <div className="border-t border-gray-200 p-3 space-y-2">
         <div className="flex gap-2">
           <Input
             value={input}
