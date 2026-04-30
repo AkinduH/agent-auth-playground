@@ -409,8 +409,8 @@ export function AuthFlowOverview({ trace }: Props) {
       <>
         <style>{KEYFRAMES}</style>
         <div className="p-6 rounded-xl bg-white border border-dashed border-slate-300 text-center text-slate-500 text-sm">
-          <div className="text-sm font-bold text-slate-700 mb-1">No MCP servers in this run</div>
-          The auth flow overview appears when the workflow connects to one or more MCP servers.
+          <div className="text-sm font-bold text-slate-700 mb-1">No Auth Flows in this run</div>
+          The auth flow overview appears when the workflow connects to one or more authentication services.
         </div>
       </>
     );

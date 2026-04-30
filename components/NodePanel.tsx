@@ -158,7 +158,7 @@ export default function NodePanel({
 
   const containerClassName =
     variant === 'modal'
-      ? 'w-full bg-white overflow-hidden flex flex-col max-h-[85vh]'
+      ? 'w-full bg-white overflow-hidden flex flex-col max-h-[80vh]'
       : 'w-80 bg-white border-l border-gray-200 p-6 overflow-y-auto';
 
   const emptyStateClassName =
@@ -186,9 +186,9 @@ export default function NodePanel({
     switch (node.type) {
       case 'chatTrigger':
         return (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div>
-              <p className="text-sm font-semibold text-gray-700 mb-2">
+              <p className="text-sm font-semibold text-gray-700 mb-1">
                 About
               </p>
               <p className="text-sm text-gray-600">
@@ -202,9 +202,9 @@ export default function NodePanel({
       case 'aiAgent':
         const agentData = node.data as AIAgentNodeData;
         return (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">
                 Agent Name
               </label>
               <Input
@@ -219,7 +219,7 @@ export default function NodePanel({
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">
                 Agent ID
               </label>
               <Input
@@ -234,7 +234,7 @@ export default function NodePanel({
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">
                 Agent Secret
               </label>
               <Input
@@ -250,7 +250,7 @@ export default function NodePanel({
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">
                 System Prompt
               </label>
               <Textarea
@@ -262,12 +262,12 @@ export default function NodePanel({
                 }
                 placeholder="Enter system prompt for the AI agent..."
                 className="text-sm"
-                rows={4}
+                rows={3}
               />
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">
                 Max Tool Steps
               </label>
               <Input
@@ -290,7 +290,7 @@ export default function NodePanel({
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">
                 Messages to Keep
               </label>
               <Input
@@ -341,9 +341,9 @@ export default function NodePanel({
       case 'mcpClient':
         const mcpData = node.data as MCPClientNodeData;
         return (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">
                 MCP Server Name
               </label>
               <Input
@@ -361,7 +361,7 @@ export default function NodePanel({
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">
                 MCP Server Endpoint
               </label>
               <Input
@@ -413,7 +413,7 @@ export default function NodePanel({
               <div className="space-y-3">
                 {/* Flow type selector */}
                 <div>
-                  <p className="text-sm font-semibold text-gray-700 mb-2">Auth Flow</p>
+                  <p className="text-sm font-semibold text-gray-700 mb-1">Auth Flow</p>
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -590,9 +590,9 @@ export default function NodePanel({
         const isGemini = llmData.provider === 'gemini';
         const isGcpAuth = isGemini && llmData.geminiAuthType === 'gcp-access-token';
         return (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">
                 Provider
               </label>
               <select
@@ -615,7 +615,7 @@ export default function NodePanel({
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">
                 Model
               </label>
               <select
@@ -638,7 +638,7 @@ export default function NodePanel({
 
             {isGemini && (
               <div>
-                <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                <label className="text-sm font-semibold text-gray-700 mb-1 block">
                   Authentication
                 </label>
                 <div className="flex gap-2">
@@ -678,7 +678,7 @@ export default function NodePanel({
 
             {!isGcpAuth && (
               <div>
-                <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                <label className="text-sm font-semibold text-gray-700 mb-1 block">
                   API Key ({llmData.provider === 'openai' ? 'OpenAI' : llmData.provider === 'anthropic' ? 'Anthropic' : 'Google'})
                 </label>
                 <Input
@@ -700,7 +700,7 @@ export default function NodePanel({
             {isGcpAuth && (
               <div className="space-y-3">
                 <div>
-                  <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
                     GCP Access Token
                   </label>
                   <Input
@@ -714,7 +714,7 @@ export default function NodePanel({
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
                     GCP Project ID
                   </label>
                   <Input
@@ -730,7 +730,7 @@ export default function NodePanel({
             )}
 
             <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">
                 Temperature
               </label>
               <div className="flex items-center gap-2">
@@ -757,7 +757,7 @@ export default function NodePanel({
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">
                 Max Tokens
               </label>
               <Input
@@ -786,15 +786,15 @@ export default function NodePanel({
   if (variant === 'modal') {
     return (
       <div className={containerClassName}>
-        <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-6 py-4 pr-14">
+        <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-2.5 pr-12">
           <div>
-            <h3 className="text-lg font-bold text-gray-900 leading-tight">
+            <h3 className="text-base font-bold text-gray-900 leading-tight">
               {node.data.label}
             </h3>
             <p className="text-xs text-gray-500 mt-0.5">Node configuration</p>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-5">
+        <div className="flex-1 overflow-y-auto px-4 py-3">
           {renderNodeConfig()}
         </div>
       </div>

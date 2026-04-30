@@ -26,12 +26,8 @@ export default function ErrorBorder({ active, rx, className, children }: ErrorBo
             fill="none"
             stroke="#ef4444"
             strokeWidth={2.5}
-            strokeLinecap="round"
-            pathLength={100}
-            strokeDasharray="22 78"
             style={{
-              filter: 'drop-shadow(0 0 6px rgba(239, 68, 68, 0.85))',
-              animation: 'node-active-dash 1.6s linear infinite',
+              filter: 'drop-shadow(0 0 6px rgba(239, 68, 68, 0.8))',
             }}
           />
         </svg>
