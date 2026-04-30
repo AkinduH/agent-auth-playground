@@ -1,9 +1,11 @@
-import { Handle, Position } from 'reactflow';
+import { Position } from 'reactflow';
 import ChatTriggerImage from '../assets/chat.png';
 import ActiveBorder from './ActiveBorder';
+import PlusHandle from './PlusHandle';
 
 export default function ChatTriggerNode({ data }: any) {
   const isActive = !!data?.isActive;
+  const connected: string[] = data?.connectedSourceHandles ?? [];
   return (
     <div className="flex flex-col items-center gap-2 text-slate-900">
       <ActiveBorder active={isActive} rx={8}>
@@ -16,7 +18,7 @@ export default function ChatTriggerNode({ data }: any) {
         </div>
       </ActiveBorder>
       <div className="text-xs font-medium text-slate-700">Chat Trigger</div>
-      <Handle type="source" position={Position.Right} />
+      <PlusHandle type="source" position={Position.Right} connected={connected.includes('__default__')} />
     </div>
   );
 }

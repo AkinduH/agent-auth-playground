@@ -13,14 +13,12 @@ import ReactFlow, {
   MiniMap,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Workflow, WorkflowNode, WorkflowEdge as WorkflowEdgeType, NodeType } from '@/lib/types';
+import { Workflow, WorkflowNode, WorkflowEdge as WorkflowEdgeType } from '@/lib/types';
 import { generateId, workflowStore } from '@/lib/workflowStore';
 import ChatTriggerNode from '@/components/nodes/ChatTriggerNode';
 import AIAgentNode from '@/components/nodes/AIAgentNode';
 import LLMNode from '@/components/nodes/LLMNode';
 import MCPClientNode from '@/components/nodes/MCPClientNode';
-import { Button } from '@/components/ui/button';
-import { Trash2 } from 'lucide-react';
 
 const nodeTypes = {
   chatTrigger: ChatTriggerNode,
@@ -36,7 +34,6 @@ interface WorkflowEditorProps {
   mcpInitVersion?: number;
   onNodeSelect: (nodeId: string | null) => void;
   onNodeDoubleClick: (nodeId: string) => void;
-  onNodeAdd: (node: WorkflowNode) => void;
   onNodeUpdate: (nodeId: string, updates: Partial<WorkflowNode>) => void;
   onNodeDelete: (nodeId: string) => void;
   onEdgeAdd: (edge: WorkflowEdgeType) => void;
@@ -50,7 +47,6 @@ export default function WorkflowEditor({
   mcpInitVersion,
   onNodeSelect,
   onNodeDoubleClick,
-  onNodeAdd,
   onNodeUpdate,
   onNodeDelete,
   onEdgeAdd,
@@ -63,9 +59,17 @@ export default function WorkflowEditor({
   useEffect(() => {
     if (!workflow) return;
 
+    // Track which source handles on each node already have an edge
+    const nodeSourceHandles: Record<string, string[]> = {};
+    for (const edge of workflow.edges) {
+      if (!nodeSourceHandles[edge.source]) nodeSourceHandles[edge.source] = [];
+      nodeSourceHandles[edge.source].push(edge.sourceHandle ?? '__default__');
+    }
+
     const rfNodes: Node[] = workflow.nodes.map((node) => {
       const extra: Record<string, unknown> = {
         isActive: activeNodeIds?.has(node.id) ?? false,
+        connectedSourceHandles: nodeSourceHandles[node.id] ?? [],
       };
       if (node.type === 'mcpClient') {
         const cached = workflowStore.getMCPTools(workflow.id, node.id);
@@ -196,126 +200,12 @@ export default function WorkflowEditor({
     [selectedNodeId, onNodeDelete, onNodeSelect]
   );
 
-  // Add node buttons
-  const addNode = (type: NodeType) => {
-    const position = {
-      x: Math.random() * 300,
-      y: Math.random() * 300,
-    };
-
-    let data: any = { label: '' };
-
-    switch (type) {
-      case 'chatTrigger':
-        data.label = 'Chat Trigger';
-        break;
-      case 'aiAgent':
-        data = {
-          label: 'AI Agent',
-          systemPrompt: 'You are a helpful assistant.',
-          temperature: 0.7,
-          maxTokens: 1000,
-          maxToolSteps: 6,
-        };
-        break;
-      case 'llm':
-        data = {
-          label: 'AI Service',
-          provider: 'gemini',
-          model: 'gemini-2.5-flash',
-          temperature: 0.7,
-          maxTokens: 1000,
-          systemPrompt: 'You are a helpful assistant.',
-        };
-        break;
-      case 'mcpClient':
-        data = {
-          label: 'MCP Client',
-          mcpServerEndpoint: '',
-        };
-        break;
-    }
-
-    const newNode: WorkflowNode = {
-      id: generateId('node-'),
-      type,
-      position,
-      data,
-    };
-
-    onNodeAdd(newNode);
-  };
-
-  const hasChatTrigger = nodes.some((n) => n.type === 'chatTrigger');
-  const hasAIAgent = nodes.some((n) => n.type === 'aiAgent');
-  const hasLLM = nodes.some((n) => n.type === 'llm');
-
   return (
     <div
       className="flex flex-col h-full w-full bg-white"
       onKeyDown={handleKeyDown}
       tabIndex={0}
     >
-      {/* Toolbar */}
-      <div className="border-b border-gray-200 p-3 flex gap-2 flex-wrap bg-gray-50">
-        <Button
-          onClick={() => addNode('chatTrigger')}
-          variant="outline"
-          size="sm"
-          className="text-xs"
-          disabled={hasChatTrigger}
-          title={hasChatTrigger ? 'Only one Chat Trigger is allowed per workflow' : undefined}
-        >
-          + Chat Trigger
-        </Button>
-        <Button
-          onClick={() => addNode('aiAgent')}
-          variant="outline"
-          size="sm"
-          className="text-xs"
-          disabled={hasAIAgent}
-          title={hasAIAgent ? 'Only one AI Agent is allowed per workflow' : undefined}
-        >
-          + AI Agent
-        </Button>
-        <Button
-          onClick={() => addNode('llm')}
-          variant="outline"
-          size="sm"
-          className="text-xs"
-          disabled={hasLLM}
-          title={hasLLM ? 'Only one AI Service is allowed per workflow' : undefined}
-        >
-          + AI Service
-        </Button>
-        <Button
-          onClick={() => addNode('mcpClient')}
-          variant="outline"
-          size="sm"
-          className="text-xs"
-        >
-          + MCP Client
-        </Button>
-
-        {selectedNodeId && (
-          <>
-            <div className="w-px h-6 bg-gray-300 mx-1 self-center" />
-            <Button
-              onClick={() => {
-                onNodeDelete(selectedNodeId);
-                onNodeSelect(null);
-              }}
-              variant="outline"
-              size="sm"
-              className="text-xs gap-1.5 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Delete Node
-            </Button>
-          </>
-        )}
-      </div>
-
       {/* Canvas */}
       <div className="flex-1">
         <ReactFlow

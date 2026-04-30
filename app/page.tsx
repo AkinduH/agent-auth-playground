@@ -20,11 +20,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Download, Eye, MoreVertical, Save, Upload, X } from 'lucide-react';
+import { Download, Eye, MoreVertical, Save, Trash2, Upload, X } from 'lucide-react';
 import { validateWorkflow } from '@/lib/workflowValidation';
-import { workflowStore } from '@/lib/workflowStore';
+import { workflowStore, generateId } from '@/lib/workflowStore';
 import { useEffect, useRef, useState } from 'react';
-import { Workflow } from '@/lib/types';
+import { Workflow, WorkflowNode, NodeType } from '@/lib/types';
 
 export default function Home() {
   const {
@@ -188,6 +188,22 @@ export default function Home() {
     }
   };
 
+  const handleAddNode = (type: NodeType) => {
+    const position = { x: Math.random() * 300, y: Math.random() * 300 };
+    let data: WorkflowNode['data'];
+    switch (type) {
+      case 'chatTrigger': data = { label: 'Chat Trigger' }; break;
+      case 'aiAgent': data = { label: 'AI Agent', systemPrompt: 'You are a helpful assistant.', temperature: 0.7, maxTokens: 1000, maxToolSteps: 6 }; break;
+      case 'llm': data = { label: 'AI Service', provider: 'gemini', model: 'gemini-2.5-flash', temperature: 0.7, maxTokens: 1000, systemPrompt: 'You are a helpful assistant.' }; break;
+      case 'mcpClient': data = { label: 'MCP Client', mcpServerEndpoint: '' }; break;
+    }
+    addNode({ id: generateId('node-'), type, position, data });
+  };
+
+  const hasChatTrigger = workflow?.nodes.some((n) => n.type === 'chatTrigger') ?? false;
+  const hasAIAgent = workflow?.nodes.some((n) => n.type === 'aiAgent') ?? false;
+  const hasLLM = workflow?.nodes.some((n) => n.type === 'llm') ?? false;
+
   if (!workflow) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -214,62 +230,50 @@ export default function Home() {
       )}
 
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left: Chat Panel */}
-        {isChatVisible && (
-          <div className="w-80 border-r border-gray-200 flex flex-col bg-white">
-            <ChatPanel
-              messages={messages}
-              isLoading={isLoading}
-              error={error || validationError}
-              onSendMessage={handleSendMessage}
-              onClear={clearMessages}
-              disabled={!workflow || workflow.nodes.length === 0}
-              oboConsentPending={oboConsentPending}
-              hasTrace={!!lastTrace}
-              onViewAuthFlow={() => {
-                if (lastTrace) {
-                  try {
-                    localStorage.setItem('lastAuthTrace', JSON.stringify(lastTrace));
-                  } catch {
-                    // storage may be full or disabled — proceed anyway
-                  }
-                }
-                window.open('/auth-flow', '_blank', 'noopener,noreferrer');
-              }}
-              onHide={() => setIsChatVisible(false)}
-            />
-          </div>
-        )}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Toolbar — sits above the canvas, never covered by the chat overlay */}
+        <div className="border-b border-gray-200 px-3 py-2 flex gap-2 flex-wrap items-center bg-gray-50 shrink-0">
+          {/* Node buttons */}
+          <Button onClick={() => handleAddNode('chatTrigger')} variant="outline" size="sm" className="text-xs" disabled={hasChatTrigger} title={hasChatTrigger ? 'Only one Chat Trigger allowed' : undefined}>+ Chat Trigger</Button>
+          <Button onClick={() => handleAddNode('aiAgent')} variant="outline" size="sm" className="text-xs" disabled={hasAIAgent} title={hasAIAgent ? 'Only one AI Agent allowed' : undefined}>+ AI Agent</Button>
+          <Button onClick={() => handleAddNode('llm')} variant="outline" size="sm" className="text-xs" disabled={hasLLM} title={hasLLM ? 'Only one AI Service allowed' : undefined}>+ AI Service</Button>
+          <Button onClick={() => handleAddNode('mcpClient')} variant="outline" size="sm" className="text-xs">+ MCP Client</Button>
+          {selectedNodeId && (
+            <>
+              <div className="w-px h-6 bg-gray-300 mx-1 self-center" />
+              <Button
+                onClick={() => { deleteNode(selectedNodeId); setSelectedNodeId(null); }}
+                variant="outline"
+                size="sm"
+                className="text-xs gap-1.5 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete Node
+              </Button>
+            </>
+          )}
 
-        {/* Center: Canvas */}
-        <div className="flex-1 min-w-0 relative">
-          {/* Top-right floating workflow controls */}
-          <div className="absolute top-3 right-3 z-10 flex items-center gap-1 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm pl-3 pr-1.5 py-1.5">
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Workflow name + actions */}
+          <div className="flex items-center gap-1 border border-gray-200 rounded-lg bg-white pl-2.5 pr-1 py-1">
             <Input
               value={workflowName}
               onChange={(e) => setWorkflowName(e.target.value)}
-              placeholder="Untitled workflow"
-              className="h-8 w-56 border-0 shadow-none focus-visible:ring-0 px-1 text-sm font-medium bg-transparent"
+              placeholder="Untitled agent flow"
+              className="h-7 w-44 border-0 shadow-none focus-visible:ring-0 px-0 text-sm font-medium bg-transparent"
             />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-gray-600 hover:text-gray-900"
-                  aria-label="Workflow actions"
-                >
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-gray-900" aria-label="Workflow actions">
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem
-                  onClick={handleSaveWorkflow}
-                  disabled={isSaving}
-                >
+                <DropdownMenuItem onClick={handleSaveWorkflow} disabled={isSaving}>
                   <Save className="h-4 w-4" />
-                  {isSaving ? 'Saving...' : 'Save locally'}
+                  {isSaving ? 'Saving...' : 'Save'}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleDownloadWorkflow}>
                   <Download className="h-4 w-4" />
@@ -281,20 +285,15 @@ export default function Home() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="application/json,.json"
-              className="hidden"
-              onChange={handleImportFile}
-            />
+            <input ref={fileInputRef} type="file" accept="application/json,.json" className="hidden" onChange={handleImportFile} />
           </div>
-
           {importError && (
-            <p className="absolute top-14 right-3 z-10 text-xs text-red-600 bg-white/95 border border-red-200 rounded-md px-2 py-1 shadow-sm">
-              {importError}
-            </p>
+            <p className="text-xs text-red-600">{importError}</p>
           )}
+        </div>
+
+        {/* Canvas + Chat overlay area */}
+        <div className="flex-1 min-w-0 relative">
 
           <WorkflowEditor
             workflow={workflow}
@@ -306,12 +305,38 @@ export default function Home() {
               setSelectedNodeId(nodeId);
               setIsNodePanelOpen(true);
             }}
-            onNodeAdd={addNode}
             onNodeUpdate={updateNode}
             onNodeDelete={deleteNode}
             onEdgeAdd={addEdge}
             onEdgeDelete={deleteEdge}
           />
+
+          {/* Chat panel — overlaid on the left, canvas never moves */}
+          {isChatVisible && (
+            <div className="absolute left-0 top-0 bottom-0 z-20 w-80 flex flex-col bg-white border-r border-gray-200 shadow-lg">
+              <ChatPanel
+                messages={messages}
+                isLoading={isLoading}
+                error={error || validationError}
+                onSendMessage={handleSendMessage}
+                onClear={clearMessages}
+                disabled={!workflow || workflow.nodes.length === 0}
+                oboConsentPending={oboConsentPending}
+                hasTrace={!!lastTrace}
+                onViewAuthFlow={() => {
+                  if (lastTrace) {
+                    try {
+                      localStorage.setItem('lastAuthTrace', JSON.stringify(lastTrace));
+                    } catch {
+                      // storage may be full or disabled — proceed anyway
+                    }
+                  }
+                  window.open('/auth-flow', '_blank', 'noopener,noreferrer');
+                }}
+                onHide={() => setIsChatVisible(false)}
+              />
+            </div>
+          )}
 
           {/* Floating Show Chat button (bottom-left) — only when chat is hidden */}
           {!isChatVisible && (
