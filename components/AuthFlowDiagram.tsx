@@ -466,8 +466,9 @@ export function AuthFlowDiagram({ trace }: Props) {
     return () => clearInterval(t);
   }, [autoplay, layout.totalMessages]);
 
+  const HEADER_H = 110; // matches startY in layout
   const width = lanes[lanes.length - 1].x + 120;
-  const height = layout.totalH;
+  const contentH = layout.totalH - HEADER_H;
   const lanesById = useMemo(() => new Map(lanes.map((l) => [l.id, l])), [lanes]);
 
   const flowTitle =
@@ -478,6 +479,12 @@ export function AuthFlowDiagram({ trace }: Props) {
       : trace.flow === 'agent'
       ? 'Agent OAuth2 — Direct Auth + PKCE'
       : 'Direct (no auth)';
+
+  const arrowMarkers = (['default', 'auth', 'blue', 'green'] as ColorKind[]).map((k) => (
+    <marker key={k} id={`arr-${k}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill={COLORS[k]} />
+    </marker>
+  ));
 
   return (
     <div className="w-full">
@@ -505,58 +512,66 @@ export function AuthFlowDiagram({ trace }: Props) {
       </div>
 
       <div className="overflow-auto bg-white rounded border border-slate-200 max-h-[68vh]">
-        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="block">
-          <defs>
-            {(['default', 'auth', 'blue', 'green'] as ColorKind[]).map((k) => (
-              <marker key={k} id={`arr-${k}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" fill={COLORS[k]} />
-              </marker>
-            ))}
-          </defs>
-
-          {/* Lane lifelines + headers */}
-          {lanes.map((lane) => {
-            const headerH = lane.sublabel ? 60 : 44;
-            const headerY = lane.sublabel ? 12 : 18;
-            return (
-              <g key={lane.id}>
-                <line x1={lane.x} y1={80} x2={lane.x} y2={height - 10} stroke="#e2e8f0" strokeWidth="2" strokeDasharray="5,5" />
-                {lane.shape === 'circle' ? (
-                  <>
-                    <circle cx={lane.x} cy={40} r={22} fill={lane.fill} stroke={lane.stroke} />
-                    <text x={lane.x} y={45} textAnchor="middle" fontSize="11" fontWeight="700" fill={lane.textColor}>
-                      {lane.label}
-                    </text>
-                  </>
-                ) : (
-                  <>
-                    <rect x={lane.x - 80} y={headerY} width={160} height={headerH} rx={6} fill={lane.fill} stroke={lane.stroke} />
-                    <foreignObject x={lane.x - 78} y={headerY + 2} width={156} height={headerH - 4}>
-                      <div
-                        // @ts-ignore
-                        xmlns="http://www.w3.org/1999/xhtml"
-                        className="h-full flex flex-col items-center justify-center text-center px-1"
-                        title={lane.sublabel ? `${lane.label}\n${lane.sublabel}` : lane.label}
-                      >
-                        <div className="text-[11px] font-bold leading-tight truncate w-full" style={{ color: lane.textColor }}>
-                          {lane.label}
-                        </div>
-                        {lane.sublabel && (
-                          <div className="text-[8.5px] font-mono leading-tight mt-0.5 break-all line-clamp-2" style={{ color: lane.textColor, opacity: 0.7 }}>
-                            {lane.sublabel}
+        {/* Sticky entity header — sticks to top of the scroll container */}
+        <div className="sticky top-0 z-10 bg-white border-b border-slate-100" style={{ width }}>
+          <svg width={width} height={HEADER_H} viewBox={`0 0 ${width} ${HEADER_H}`} className="block">
+            <defs>{arrowMarkers}</defs>
+            {lanes.map((lane) => {
+              const boxH = lane.sublabel ? 60 : 44;
+              const boxY = lane.sublabel ? 12 : 18;
+              return (
+                <g key={lane.id}>
+                  {/* Lifeline stub connecting box bottom to header edge */}
+                  <line x1={lane.x} y1={boxY + boxH} x2={lane.x} y2={HEADER_H} stroke="#e2e8f0" strokeWidth="2" strokeDasharray="5,5" />
+                  {lane.shape === 'circle' ? (
+                    <>
+                      <circle cx={lane.x} cy={40} r={22} fill={lane.fill} stroke={lane.stroke} />
+                      <text x={lane.x} y={45} textAnchor="middle" fontSize="11" fontWeight="700" fill={lane.textColor}>
+                        {lane.label}
+                      </text>
+                    </>
+                  ) : (
+                    <>
+                      <rect x={lane.x - 80} y={boxY} width={160} height={boxH} rx={6} fill={lane.fill} stroke={lane.stroke} />
+                      <foreignObject x={lane.x - 78} y={boxY + 2} width={156} height={boxH - 4}>
+                        <div
+                          // @ts-ignore
+                          xmlns="http://www.w3.org/1999/xhtml"
+                          className="h-full flex flex-col items-center justify-center text-center px-1"
+                          title={lane.sublabel ? `${lane.label}\n${lane.sublabel}` : lane.label}
+                        >
+                          <div className="text-[11px] font-bold leading-tight truncate w-full" style={{ color: lane.textColor }}>
+                            {lane.label}
                           </div>
-                        )}
-                      </div>
-                    </foreignObject>
-                  </>
-                )}
-              </g>
-            );
-          })}
+                          {lane.sublabel && (
+                            <div className="text-[8.5px] font-mono leading-tight mt-0.5 break-all line-clamp-2" style={{ color: lane.textColor, opacity: 0.7 }}>
+                              {lane.sublabel}
+                            </div>
+                          )}
+                        </div>
+                      </foreignObject>
+                    </>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+        </div>
 
-          {/* Items */}
+        {/* Scrollable content — lifelines + all message rows */}
+        <svg width={width} height={contentH} viewBox={`0 0 ${width} ${contentH}`} className="block">
+          <defs>{arrowMarkers}</defs>
+
+          {/* Full-height lifelines */}
+          {lanes.map((lane) => (
+            <line key={lane.id} x1={lane.x} y1={0} x2={lane.x} y2={contentH - 10} stroke="#e2e8f0" strokeWidth="2" strokeDasharray="5,5" />
+          ))}
+
+          {/* Items — shift each row up by HEADER_H */}
           {items.map((item, idx) => {
-            const row = layout.rows[idx];
+            const rawRow = layout.rows[idx];
+            const row = { ...rawRow, y: rawRow.y - HEADER_H };
+
             if (item.kind === 'section') {
               return (
                 <g key={idx}>

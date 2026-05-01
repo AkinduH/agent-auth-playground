@@ -22,8 +22,13 @@ export default function MCPClientNode({ data }: any) {
           </div>
         </ErrorBorder>
       </ActiveBorder>
-      <div className="text-xs font-medium text-slate-700">
-        {"MCP Client"}
+      <div className="flex flex-col items-center gap-0.5">
+        <div className="text-xs font-medium text-slate-700">MCP Client</div>
+        {data?.name && (
+          <div className="text-xs text-slate-500 max-w-[120px] truncate text-center">
+            {data.name}
+          </div>
+        )}
       </div>
     </div>
   );
