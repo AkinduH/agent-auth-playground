@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/cover-photo.png" alt="Agent-Auth-Playground" height="80" width="auto">
+  <img src="public/cover-photo.png" alt="Agent-Auth-Playground" height="100" width="auto">
   <h1 align="center">
     Agent Auth Playground
   </h1>
