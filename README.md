@@ -1,4 +1,4 @@
-![cover](public/cover.png)
+![cover-photo](public/cover-photo.png)
 
 # Agent-Auth-Playground
 
