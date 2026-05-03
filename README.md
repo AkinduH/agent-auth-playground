@@ -42,14 +42,14 @@ The fastest way to try auth-playground — no clone, no install, no config:
 npx auth-playground
 ```
 
-That's it. The local server starts on `http://127.0.0.1:4829` and your browser opens automatically.
+That's it. The local server starts on `http://localhost:4829` and your browser opens automatically.
 
 **CLI flags:**
 
 | Flag | Default | Purpose |
 |------|---------|---------|
 | `--port <n>` | `4829` | Port to listen on |
-| `--host <h>` | `127.0.0.1` | Host to bind to |
+| `--host <h>` | `localhost` | Host to bind to |
 | `--no-open` | — | Don't open the browser automatically |
 | `-h`, `--help` | — | Show help |
 | `-v`, `--version` | — | Show version |

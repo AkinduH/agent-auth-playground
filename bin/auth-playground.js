@@ -7,7 +7,7 @@ const pkg = require('../package.json');
 
 const DEFAULTS = {
   port: 4829,
-  host: '127.0.0.1',
+  host: 'localhost',
   open: true,
 };
 
