@@ -34,25 +34,6 @@ export function useWorkflow() {
     refreshWorkflows();
   }, [refreshWorkflows]);
 
-  const createWorkflow = useCallback((name: string) => {
-    const newWorkflow = createDefaultWorkflow(name);
-    workflowStore.saveWorkflow(newWorkflow);
-    setWorkflow(newWorkflow);
-    setSelectedNodeId(null);
-    refreshWorkflows();
-    return newWorkflow;
-  }, [refreshWorkflows]);
-
-  const selectWorkflow = useCallback((workflowId: string) => {
-    const stored = workflowStore.getWorkflow(workflowId);
-    if (!stored) return null;
-
-    workflowStore.setCurrentWorkflow(stored.id);
-    setWorkflow(stored);
-    setSelectedNodeId(null);
-    return stored;
-  }, []);
-
   const importWorkflow = useCallback((imported: Workflow) => {
     const replaced: Workflow = {
       ...imported,
@@ -170,19 +151,12 @@ export function useWorkflow() {
     []
   );
 
-  const getSelectedNode = useCallback(() => {
-    if (!workflow || !selectedNodeId) return null;
-    return workflow.nodes.find((n) => n.id === selectedNodeId) || null;
-  }, [workflow, selectedNodeId]);
-
   return {
     workflow,
     workflows,
     selectedNodeId,
     setSelectedNodeId,
     isSaving,
-    createWorkflow,
-    selectWorkflow,
     importWorkflow,
     updateWorkflow,
     saveWorkflow,
@@ -191,6 +165,5 @@ export function useWorkflow() {
     deleteNode,
     addEdge,
     deleteEdge,
-    getSelectedNode,
   };
 }

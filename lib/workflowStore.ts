@@ -58,17 +58,6 @@ export const workflowStore = {
     return workflows.find(w => w.id === id) || null;
   },
 
-  deleteWorkflow(id: string): void {
-    if (typeof window === 'undefined') return;
-    
-    const workflows = this.getAllWorkflows();
-    const filtered = workflows.filter(w => w.id !== id);
-    localStorage.setItem(WORKFLOWS_KEY, JSON.stringify(filtered));
-    this.clearWorkflowMemories(id);
-    this.clearAllMCPTools(id);
-    this.clearOBOTokens(id);
-  },
-
   // Current workflow
   setCurrentWorkflow(id: string): void {
     if (typeof window === 'undefined') return;
@@ -164,14 +153,6 @@ export const workflowStore = {
     
     const stored = localStorage.getItem(API_KEYS_KEY);
     return stored ? JSON.parse(stored) : {};
-  },
-
-  deleteApiKey(provider: 'gemini' | 'openai' | 'anthropic' | 'gcpAccessToken' | 'gcpProjectId'): void {
-    if (typeof window === 'undefined') return;
-
-    const keys = this.getApiKeys();
-    delete keys[provider];
-    localStorage.setItem(API_KEYS_KEY, JSON.stringify(keys));
   },
 
   // OBO token management — keyed by `${workflowId}_${nodeId}`

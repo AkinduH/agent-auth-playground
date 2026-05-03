@@ -73,6 +73,12 @@ The executor takes an optional `onEvent: WorkflowEventHandler` constructor arg; 
 
 The executor accepts an `oboTokens: Record<string, string>` map (MCPClient `nodeId` → access token). When present, the MCP call forwards the user's OBO token instead of the agent's client-credentials token. `useChat.ts` manages an in-UI consent handshake (`oboConsentPending`); when the server requests consent, the user approves and the token is patched into the next workflow request.
 
+The OBO flow uses PKCE: `lib/oboAuth.ts` provides `buildOBOAuthorizationUrl()` (generates an auth URL embedding the agent's access token as the actor) and `exchangeOBOCode()` (exchanges the auth code + code verifier for a user-scoped token). The API routes `POST /api/obo/init` and `POST /api/obo/exchange` expose this flow to the client.
+
+### Rate Limiting
+
+[proxy.ts](proxy.ts) (project root) implements sliding-window rate limiting applied to all `/api/*` routes: 20 requests per minute per IP. IPs are tracked in memory (capped at 10,000 entries). Exceeding the limit returns HTTP 429 with `Retry-After` and `X-RateLimit-*` headers. The middleware fails open when the IP map is at capacity to avoid blocking legitimate traffic.
+
 ### Key Files
 
 - [lib/workflowExecutor/](lib/workflowExecutor/) — modular executor directory:
@@ -85,6 +91,7 @@ The executor accepts an `oboTokens: Record<string, string>` map (MCPClient `node
   - `types.ts` — `ConnectedMCPClient`, `AgentToolBinding`, `AgentDecision` interfaces
 - [lib/workflowValidation.ts](lib/workflowValidation.ts) — workflow validation logic
 - [lib/agentAuth.ts](lib/agentAuth.ts) — Asgardeo OAuth2 + PKCE flow; called by `mcpInitializer.ts`
+- [lib/oboAuth.ts](lib/oboAuth.ts) — OBO PKCE helpers: `buildOBOAuthorizationUrl()`, `exchangeOBOCode()`
 - [lib/authTrace.ts](lib/authTrace.ts) — auth/tool trace types and helpers
 - [lib/llmProviders.ts](lib/llmProviders.ts) — `LLMProvider` interface; factory for OpenAI, Gemini, and Anthropic providers
 - [lib/mcpClientNode.ts](lib/mcpClientNode.ts) — MCP HTTP connection, tool discovery, tool execution, reconnection with exponential backoff (1 s → 10 s, factor 1.5, max 2 retries)
@@ -92,13 +99,21 @@ The executor accepts an `oboTokens: Record<string, string>` map (MCPClient `node
 - [lib/workflowStore.ts](lib/workflowStore.ts) — localStorage wrapper for workflows, memory, and API keys
 - [lib/useWorkflow.ts](lib/useWorkflow.ts) — React hook for CRUD on workflows and node/edge manipulation
 - [lib/useChat.ts](lib/useChat.ts) — React hook for chat message management, SSE parsing, OBO consent, `activeNodeIds`
+- [lib/utils.ts](lib/utils.ts) — `cn()` Tailwind class-merging helper
 - [components/WorkflowEditor.tsx](components/WorkflowEditor.tsx) — React Flow canvas, node/edge event handlers
 - [components/NodePanel.tsx](components/NodePanel.tsx) — configuration UI for the selected node
 - [components/ChatPanel.tsx](components/ChatPanel.tsx) — chat UI (right panel)
-- [components/AuthFlowDiagram.tsx](components/AuthFlowDiagram.tsx) — renders `WorkflowTrace` as a sequence diagram
-- [components/nodes/ActiveBorder.tsx](components/nodes/ActiveBorder.tsx) — shared glowing-border element used by every node when active
+- [components/AuthFlowDiagram.tsx](components/AuthFlowDiagram.tsx) — renders `WorkflowTrace` as a sequence diagram (post-run, inline in chat)
+- [components/AuthFlowOverview.tsx](components/AuthFlowOverview.tsx) — static sequence diagram showing auth flows between agent, MCP, IAM, and user; used on the `/auth-flow` page
+- [components/nodes/ActiveBorder.tsx](components/nodes/ActiveBorder.tsx) — glowing-border overlay used by every node when active
+- [components/nodes/ErrorBorder.tsx](components/nodes/ErrorBorder.tsx) — red error-state border overlay for workflow nodes
+- [components/nodes/PlusHandle.tsx](components/nodes/PlusHandle.tsx) — handle component for drawing new edges from a node
 - [app/api/execute-workflow/route.ts](app/api/execute-workflow/route.ts) — POST endpoint streaming SSE events from WorkflowExecutor (60 s timeout)
 - [app/api/execute-llm/route.ts](app/api/execute-llm/route.ts) — POST endpoint for single LLM calls; input: `{ provider, model, message, systemPrompt, temperature, maxTokens, apiKey }`
+- [app/api/initialize-mcp/route.ts](app/api/initialize-mcp/route.ts) — POST endpoint to initialize an MCP connection with optional OAuth2 config
+- [app/api/obo/init/route.ts](app/api/obo/init/route.ts) — POST: generates OBO auth URL, state, and code verifier
+- [app/api/obo/exchange/route.ts](app/api/obo/exchange/route.ts) — POST: exchanges OBO auth code + code verifier for a user-scoped access token
+- [proxy.ts](proxy.ts) — sliding-window rate-limiting middleware for all `/api/*` routes
 
 ### Agent Authentication (`lib/agentAuth.ts`)
 

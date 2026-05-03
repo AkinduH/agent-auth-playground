@@ -309,25 +309,6 @@ function StepCard({ step }: { step: AuthStep | null }) {
   );
 }
 
-// function FlowSummary({ mcp }: { mcp: MCPNodeTrace }) {
-//   const flow = perMcpFlow(mcp);
-//   const flowLabels = {
-//     agent: { title: 'Agent Authentication (OAuth2 + PKCE)', color: '#f59e0b', desc: 'The agent proves its own identity. The service knows which agent is calling, but not which user.' },
-//     obo: { title: 'On-Behalf-Of (OBO)', color: '#22c55e', desc: 'The agent authenticates itself, then YOU give explicit consent. The service knows both the agent AND the user.' },
-//     none: { title: 'No Authentication', color: '#ef4444', desc: 'No identity verification. The service has no idea who is calling — risky for private data.' },
-//   };
-//   const f = flowLabels[flow];
-//   return (
-//     <div
-//       className="px-3.5 py-2.5 rounded-[10px] border border-slate-200 bg-white mb-3"
-//       style={{ borderLeft: `4px solid ${f.color}` }}
-//     >
-//       <div className="text-[13px] font-bold text-slate-900">{f.title}</div>
-//       <div className="text-xs text-slate-500 mt-0.5 leading-[1.5]">{f.desc}</div>
-//     </div>
-//   );
-// }
-
 function stepColor(type: StepType): string {
   if (type === 'auth' || type === 'token') return '#f59e0b';
   if (type === 'secure') return '#7c3aed';
@@ -460,8 +441,6 @@ export function AuthFlowOverview({ trace }: Props) {
           );
         })}
       </div>
-
-      {/* {activeMcp && <FlowSummary mcp={activeMcp} />} */}
 
       <div className="flex gap-1.5 items-center mb-2.5 flex-wrap">
         <Button
