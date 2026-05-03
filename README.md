@@ -18,22 +18,6 @@ A visual, browser-based AI workflow builder for designing and testing authentica
 
 ---
 
-## Tech Stack
-
-| Layer | Libraries |
-|-------|-----------|
-| Framework | Next.js 16, React 19, TypeScript 5.7 |
-| Canvas | React Flow 11 |
-| Styling | Tailwind CSS 4, Radix UI primitives |
-| LLM | LangChain (Anthropic, OpenAI, Google GenAI) |
-| MCP | `@modelcontextprotocol/sdk` |
-| Auth | Asgardeo JS SDK, custom PKCE helpers |
-| Forms | React Hook Form + Zod |
-| UI Extras | Sonner toasts, React Resizable Panels, React Markdown + GFM |
-| Package manager | **pnpm** (do not use npm) |
-
----
-
 ## Quick Start (npx)
 
 The fastest way to try auth-playground — no clone, no install, no config:
@@ -54,7 +38,7 @@ That's it. The local server starts on `http://localhost:4829` and your browser o
 | `-h`, `--help` | — | Show help |
 | `-v`, `--version` | — | Show version |
 
-All configuration — LLM API keys (OpenAI, Gemini, Anthropic) and per-node Asgardeo OAuth2 credentials — is entered in the UI and stored in browser `localStorage`. The CLI itself takes no secrets and reads no env files.
+All configuration - LLM API keys (OpenAI, Gemini, Anthropic) and per-node Asgardeo OAuth2 credentials, is entered in the UI and stored in browser `localStorage`. The CLI itself takes no secrets and reads no env files.
 
 ---
 
@@ -68,217 +52,47 @@ All configuration — LLM API keys (OpenAI, Gemini, Anthropic) and per-node Asga
 ### Installation
 
 ```bash
-git clone <repo-url>
-cd agent-auth-playground
+git clone https://github.com/AkinduH/agent-auth-playground
 pnpm install
 ```
 
 ### Running Locally
 
 ```bash
-pnpm dev               # Next.js dev server (hot reload)
-pnpm build             # Production build (also emits .next/standalone)
-pnpm start             # Serve the production build via `next start`
-pnpm start:standalone  # Run the bundled CLI against the standalone build
-pnpm lint              # ESLint
+pnpm dev               # Next.js dev server
+pnpm build             # Production build 
+pnpm start             # Serve the production build
 ```
 
 The app runs on **port 4829** by default.
 
-### Building the npm package locally
 
-```bash
-pnpm build             # next build + postbuild (copies static + public into standalone)
-npm pack               # produces auth-playground-<version>.tgz
-npx ./auth-playground-<version>.tgz   # run the packaged binary
-```     
----
+## Resources
 
-## Architecture
+### Documentation
 
-### Node Types
+- [Getting Started](documentation/getting-started.md) — Build your first workflow in a few minutes
+- [Workflow Editor](documentation/workflow-editor.md) — Canvas controls, connections, and keyboard shortcuts
+- [Persistence](documentation/persistence.md) — What is stored in your browser and how to manage it
 
-| Node | Role | Key Fields |
-|------|------|-----------|
-| **ChatTrigger** | Entry point; receives the user's chat message | — |
-| **LLM** | Single call to an LLM provider | `provider`, `model`, `systemPrompt`, `temperature`, `maxTokens` |
-| **AIAgent** | Agentic loop with MCP tool-calling | `systemPrompt`, `temperature`, `maxTokens`, `maxToolSteps` (1–12), `maxMessages` (memory window), `agentId`, `agentSecret` |
-| **MCPClient** | Connects to an MCP server and discovers tools | `mcpServerEndpoint`, `useOAuth2`, `oauth2OrganizationName`, `oauth2ClientId`, `oauth2RedirectUri`, `oauth2Scope` |
+**Nodes**
+- [Chat Trigger](documentation/nodes/chat-trigger.md) — Entry point of every workflow
+- [AI Agent](documentation/nodes/ai-agent.md) — Reasoning engine with tool-calling loop
+- [LLM](documentation/nodes/llm.md) — Direct call to OpenAI, Gemini, or Anthropic
+- [MCP Client](documentation/nodes/mcp-client.md) — Bridge to an external MCP tool server
 
-### Connection Rules
+### Example Agent Flows
 
-React Flow enforces typed handles to prevent invalid topologies:
-
-- **ChatTrigger** → can connect to any downstream node (source on the right)
-- **AIAgent `top` handle** → connects only to `LLM` nodes
-- **AIAgent `right` handle** → connects only to `MCPClient` nodes
-- **LLM** has a single `target` handle (bottom)
-- **MCPClient** has a single `target` handle (left)
-
-### Execution Flow
-
-```
-User message
-    │
-    ▼
-POST /api/execute-workflow
-    │
-    ├─ workflowValidation.ts  ← validates topology
-    │
-    ▼
-WorkflowExecutor.execute()
-    │
-    ├─ ChatTrigger  →  AIAgent  ──(top)──▶  LLM
-    │                   │
-    │                   └──(right)─▶  MCPClient(s)
-    │
-    ▼  (SSE stream of WorkflowEvents)
-useChat.ts  →  ChatPanel + canvas node glow
-```
-
-1. The API validates the workflow (ChatTrigger must exist; all non-trigger nodes need incoming edges; AIAgent must connect to an LLM; MCPClient requires `mcpServerEndpoint`).
-2. `WorkflowExecutor` finds the `ChatTrigger` and walks connected edges via `executeNode()`.
-3. For **AIAgent** nodes the loop runs up to `maxToolSteps` iterations:
-   - Calls the LLM with the current tool list and execution history.
-   - Parses a JSON decision `{"type":"final"|"tool","name":"...","arguments":{}}`.
-   - `"tool"` → executes the named MCP tool and appends the result; `"final"` → exits the loop.
-   - If all steps are exhausted, calls the LLM one final time without tool schemas to synthesize an answer.
-4. Memory context: the last `maxMessages` saved messages from `workflowMemories` are prepended as agent context.
-
-### Streaming Protocol (SSE)
-
-`POST /api/execute-workflow` returns `Content-Type: text/event-stream`. Each `data:` frame is a JSON `WorkflowEvent`:
-
-| Event | Fields | Purpose |
-|-------|--------|---------|
-| `node-start` | `nodeId` | Node begins executing |
-| `node-end` | `nodeId` | Node finishes |
-| `result` | `success`, `output`, `error`, `executionTime`, `trace` | Terminal frame |
-
-The client enforces a 1-second minimum glow window per node so fast executions are still visible.
-
-### Authentication Flows
-
-#### Agent OAuth2 (client-credentials + PKCE)
-
-When `MCPClientNode.useOAuth2` is enabled, `lib/agentAuth.ts` runs a three-step server-side PKCE flow against Asgardeo before connecting to the MCP server:
-
-1. `POST /oauth2/authorize` → `flowId` + `authenticatorId`
-2. `POST /oauth2/authn` → submits `agentId` / `agentSecret`, receives auth code
-3. `POST /oauth2/token` → exchanges code + `code_verifier` for access token
-
-#### OBO (On-Behalf-Of) Tokens
-
-The executor accepts an `oboTokens` map (`MCPClient nodeId → access token`). When present, MCP calls forward the **user's** OBO token instead of the agent's token. The UI manages a consent handshake (`oboConsentPending`): the user approves, then the token is patched into the next request.
-
-`lib/oboAuth.ts` provides:
-- `buildOBOAuthorizationUrl()` — embeds the agent's access token as the actor
-- `exchangeOBOCode()` — exchanges the auth code + code verifier for a user-scoped token
-
-API routes: `POST /api/obo/init` (generate auth URL) and `POST /api/obo/exchange` (token exchange).
-
-### Auth Flow Inspector
-
-Every execution populates a `WorkflowTrace` (defined in `lib/authTrace.ts`) returned in the terminal SSE frame. `components/AuthFlowDiagram.tsx` renders it as an inline sequence diagram. The `/auth-flow` page renders `AuthFlowOverview` — an interactive version with Play / Step / Show-All controls that visualises Agent, OBO, or passthrough flows.
-
-### Rate Limiting
-
-`proxy.ts` (project root) wraps the Next.js server with sliding-window rate limiting:
-
-- **Limit:** 20 requests per minute per IP
-- **Headers returned on 429:** `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
-- **Fail-open:** when the in-memory IP map reaches 10,000 entries, requests are passed through to avoid blocking legitimate traffic.
-
-### localStorage Schema
-
-| Key | Contents |
-|-----|---------|
-| `workflows` | `Workflow[]` — all saved workflows |
-| `currentWorkflow` | Active workflow ID |
-| `workflowMemories` | `{ workflowId → { memoryNodeId → Message[] } }` |
-| `apiKeys` | OpenAI, Gemini, and Anthropic API keys |
-| `oboTokens` | `{ nodeId → accessToken }` |
-| `mcpTools` | `{ nodeId → ToolDefinition[] }` — cached MCP tool discovery results |
+- [Travel Agent](Example%20AgentFlows/travel-agent.json) — An travel agent that uses MCP tools to plan travel
 
 ---
 
-## Project Structure
+## Contributing
 
-```
-auth-playground/
-├── app/
-│   ├── page.tsx                    # Home — workflow builder
-│   ├── auth-flow/page.tsx          # Auth flow visualiser
-│   ├── layout.tsx
-│   └── api/
-│       ├── execute-workflow/       # POST — SSE execution stream
-│       ├── execute-llm/            # POST — single LLM call
-│       ├── initialize-mcp/         # POST — MCP initialisation
-│       └── obo/
-│           ├── init/               # POST — generate OBO auth URL
-│           └── exchange/           # POST — exchange OBO auth code
-├── components/
-│   ├── WorkflowEditor.tsx          # React Flow canvas
-│   ├── NodePanel.tsx               # Node configuration panel
-│   ├── ChatPanel.tsx               # Chat UI
-│   ├── AuthFlowDiagram.tsx         # Inline trace sequence diagram
-│   ├── AuthFlowOverview.tsx        # Interactive /auth-flow page diagram
-│   ├── nodes/
-│   │   ├── ChatTriggerNode.tsx
-│   │   ├── AIAgentNode.tsx
-│   │   ├── LLMNode.tsx
-│   │   ├── MCPClientNode.tsx
-│   │   ├── ActiveBorder.tsx        # Glowing border while node is active
-│   │   ├── ErrorBorder.tsx         # Red border on node error
-│   │   └── PlusHandle.tsx          # Edge-creation handle
-│   └── ui/                         # Minimal Radix UI primitives
-├── lib/
-│   ├── types.ts                    # Core type definitions
-│   ├── useWorkflow.ts              # Workflow CRUD React hook
-│   ├── useChat.ts                  # Chat + SSE + OBO consent hook
-│   ├── workflowStore.ts            # localStorage helpers
-│   ├── workflowValidation.ts       # Topology validation
-│   ├── llmProviders.ts             # LLM provider factory
-│   ├── agentAuth.ts                # Asgardeo OAuth2 + PKCE
-│   ├── oboAuth.ts                  # OBO PKCE helpers
-│   ├── authTrace.ts                # Trace types and helpers
-│   ├── mcpClientNode.ts            # MCP HTTP client with retry
-│   └── workflowExecutor/
-│       ├── index.ts                # WorkflowExecutor class + event types
-│       ├── aiAgent.ts              # AIAgent loop
-│       ├── chatTrigger.ts
-│       ├── mcpClient.ts            # MCP tool binding / execution
-│       ├── mcpInitializer.ts       # MCP connection + OAuth2 trigger
-│       ├── utils.ts                # Tool name normalisation, JSON helpers
-│       └── types.ts                # Internal interfaces
-├── proxy.ts                        # Rate-limiting middleware
-├── next.config.mjs
-├── tsconfig.json
-└── package.json
-```
+Contributions are welcome. Please open an issue to discuss what you'd like to change before submitting a pull request. For bugs, include steps to reproduce and the browser console output if relevant.
 
 ---
 
-## Tool Name Normalisation
+## License
 
-MCP tool names are normalised before being exposed to the LLM agent: lowercased, non-alphanumeric characters (except `_`) stripped, consecutive underscores collapsed, `tool_` prepended if the name starts with a digit, truncated to 64 characters. Collisions across multiple MCP clients are resolved by appending `_2`, `_3`, etc. The original name is preserved internally for actual MCP calls.
-
----
-
-## MCP Connection Retry
-
-`lib/mcpClientNode.ts` reconnects with exponential backoff on failure:
-
-- Initial delay: **1 s**
-- Backoff factor: **1.5×**
-- Maximum delay: **10 s**
-- Maximum retries: **2**
-
----
-
-## Known Limitations
-
-- No test framework is configured.
-- TypeScript build errors are suppressed via `ignoreBuildErrors: true` in `next.config.mjs`.
-- All state is client-side; refreshing does not lose workflows, but clearing `localStorage` does.
-- The `components/ui/` directory contains only 6 minimal primitives — the broader shadcn/ui set has been removed.
+[Apache 2.0](LICENSE)
