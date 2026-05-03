@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Download, Eye, MoreVertical, Save, Trash2, Upload, X } from 'lucide-react';
+import Image from 'next/image';
 import { validateWorkflow } from '@/lib/workflowValidation';
 import { workflowStore, generateId } from '@/lib/workflowStore';
 import { useEffect, useRef, useState } from 'react';
@@ -233,6 +234,17 @@ export default function Home() {
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Toolbar — sits above the canvas, never covered by the chat overlay */}
         <div className="border-b border-gray-200 px-3 py-2 flex gap-2 flex-wrap items-center bg-gray-50 shrink-0">
+          {/* Brand */}
+          <div className="flex items-center gap-2 pr-2 mr-1 border-r border-gray-200">
+            <Image
+              src="/icon-light-32x32.png"
+              alt="Agent Auth Playground"
+              width={24}
+              height={24}
+              priority
+            />
+            <span className="text-sm font-semibold text-black">Agent Auth Playground</span>
+          </div>
           {/* Node buttons */}
           <Button onClick={() => handleAddNode('chatTrigger')} variant="outline" size="sm" className="text-xs" disabled={hasChatTrigger} title={hasChatTrigger ? 'Only one Chat Trigger allowed' : undefined}>+ Chat Trigger</Button>
           <Button onClick={() => handleAddNode('aiAgent')} variant="outline" size="sm" className="text-xs" disabled={hasAIAgent} title={hasAIAgent ? 'Only one AI Agent allowed' : undefined}>+ AI Agent</Button>

@@ -96,7 +96,7 @@ The OBO flow uses PKCE: `lib/oboAuth.ts` provides `buildOBOAuthorizationUrl()` (
 - [lib/llmProviders.ts](lib/llmProviders.ts) — `LLMProvider` interface; factory for OpenAI, Gemini, and Anthropic providers
 - [lib/mcpClientNode.ts](lib/mcpClientNode.ts) — MCP HTTP connection, tool discovery, tool execution, reconnection with exponential backoff (1 s → 10 s, factor 1.5, max 2 retries)
 - [lib/types.ts](lib/types.ts) — `Workflow`, `WorkflowNode`, `NodeData` union types, `ExecutionContext`
-- [lib/workflowStore.ts](lib/workflowStore.ts) — localStorage wrapper for workflows, memory, and API keys
+- [lib/workflowStore.ts](lib/workflowStore.ts) — localStorage wrapper for workflows, memory, API keys, OBO tokens (`getOBOToken`, `setOBOToken`, `clearOBOTokens`), and MCP tools cache (`getMCPTools`, `setMCPTools`, `clearMCPTools`)
 - [lib/useWorkflow.ts](lib/useWorkflow.ts) — React hook for CRUD on workflows and node/edge manipulation
 - [lib/useChat.ts](lib/useChat.ts) — React hook for chat message management, SSE parsing, OBO consent, `activeNodeIds`
 - [lib/utils.ts](lib/utils.ts) — `cn()` Tailwind class-merging helper
@@ -104,16 +104,20 @@ The OBO flow uses PKCE: `lib/oboAuth.ts` provides `buildOBOAuthorizationUrl()` (
 - [components/NodePanel.tsx](components/NodePanel.tsx) — configuration UI for the selected node
 - [components/ChatPanel.tsx](components/ChatPanel.tsx) — chat UI (right panel)
 - [components/AuthFlowDiagram.tsx](components/AuthFlowDiagram.tsx) — renders `WorkflowTrace` as a sequence diagram (post-run, inline in chat)
-- [components/AuthFlowOverview.tsx](components/AuthFlowOverview.tsx) — static sequence diagram showing auth flows between agent, MCP, IAM, and user; used on the `/auth-flow` page
+- [components/AuthFlowOverview.tsx](components/AuthFlowOverview.tsx) — interactive sequence diagram for the `/auth-flow` page; supports Agent, OBO, and None flow types with Play/Step/Show All controls
 - [components/nodes/ActiveBorder.tsx](components/nodes/ActiveBorder.tsx) — glowing-border overlay used by every node when active
 - [components/nodes/ErrorBorder.tsx](components/nodes/ErrorBorder.tsx) — red error-state border overlay for workflow nodes
 - [components/nodes/PlusHandle.tsx](components/nodes/PlusHandle.tsx) — handle component for drawing new edges from a node
+- [app/page.tsx](app/page.tsx) — home page (workflow builder)
+- [app/auth-flow/page.tsx](app/auth-flow/page.tsx) — static page rendering `AuthFlowOverview`
 - [app/api/execute-workflow/route.ts](app/api/execute-workflow/route.ts) — POST endpoint streaming SSE events from WorkflowExecutor (60 s timeout)
 - [app/api/execute-llm/route.ts](app/api/execute-llm/route.ts) — POST endpoint for single LLM calls; input: `{ provider, model, message, systemPrompt, temperature, maxTokens, apiKey }`
 - [app/api/initialize-mcp/route.ts](app/api/initialize-mcp/route.ts) — POST endpoint to initialize an MCP connection with optional OAuth2 config
 - [app/api/obo/init/route.ts](app/api/obo/init/route.ts) — POST: generates OBO auth URL, state, and code verifier
 - [app/api/obo/exchange/route.ts](app/api/obo/exchange/route.ts) — POST: exchanges OBO auth code + code verifier for a user-scoped access token
 - [proxy.ts](proxy.ts) — sliding-window rate-limiting middleware for all `/api/*` routes
+
+`components/ui/` contains only 6 minimal primitives (button, dialog, dropdown-menu, input, spinner, textarea) — the broader shadcn/ui component set has been removed. There is no `hooks/` directory; `useWorkflow.ts` and `useChat.ts` live in `lib/`.
 
 ### Agent Authentication (`lib/agentAuth.ts`)
 
@@ -137,6 +141,8 @@ OAuth2 credentials (`ORGANIZATION_NAME`, `CLIENT_ID`, `REDIRECT_URI`, `SCOPE`) a
 | `currentWorkflow` | Active workflow ID |
 | `workflowMemories` | `{ workflowId → { memoryNodeId → Message[] } }` |
 | `apiKeys` | OpenAI, Gemini, and Anthropic API keys |
+| `oboTokens` | `{ nodeId → accessToken }` — per-MCPClient OBO access tokens |
+| `mcpTools` | `{ nodeId → ToolDefinition[] }` — cached MCP tool discovery results |
 
 ### Path Alias
 
