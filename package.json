@@ -1,6 +1,6 @@
 {
   "name": "auth-playground",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "description": "Visual AI workflow builder with MCP and OAuth2 — runs locally in your browser via npx.",
   "keywords": [
     "ai",
