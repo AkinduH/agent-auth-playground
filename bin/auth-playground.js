@@ -111,7 +111,7 @@ process.env.PORT = String(args.port);
 process.env.HOSTNAME = args.host;
 process.env.NEXT_PUBLIC_APP_URL = url;
 
-process.chdir(standaloneDir);
+// server.js calls process.chdir(__dirname) itself — no need to do it here.
 
 process.stdout.write(
   `\n  auth-playground v${pkg.version}\n` +

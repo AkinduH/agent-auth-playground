@@ -91,8 +91,7 @@ The app runs on **port 4829** by default.
 pnpm build             # next build + postbuild (copies static + public into standalone)
 npm pack               # produces auth-playground-<version>.tgz
 npx ./auth-playground-<version>.tgz   # run the packaged binary
-```
-
+```     
 ---
 
 ## Architecture

@@ -53,7 +53,6 @@ async function invokeVertexAI(
   }
 
   const data = await response.json();
-  console.log(`Vertex AI response: ${JSON.stringify(data?.candidates?.[0]?.content?.parts?.[0]?.text)}`);
   return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 }
 
@@ -69,7 +68,6 @@ export async function invokeLLM(
   gcpProjectId?: string
 ): Promise<string> {
 
-  console.log(`message: ${message}`);
   if (provider === 'gemini' && gcpAccessToken && gcpProjectId) {
     return invokeVertexAI(gcpAccessToken, gcpProjectId, model, message, systemPrompt, temperature, maxTokens);
   }
@@ -88,7 +86,6 @@ export async function invokeLLM(
 
   const response = await llm.invoke(messages);
   const content = response.content;
-  console.log(`LLM response: ${content}`);
   return typeof content === 'string' ? content : JSON.stringify(content);
 }
 
