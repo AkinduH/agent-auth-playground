@@ -82,7 +82,7 @@ export default function NodePanel({
     if (mcpData.useOAuth2) {
       const organizationName = mcpData.oauth2OrganizationName?.trim();
       const clientId = mcpData.oauth2ClientId?.trim();
-      const redirectUri = mcpData.oauth2RedirectUri?.trim();
+      const redirectUri = window.location.origin;
       if (!organizationName || !clientId || !redirectUri) {
         setMcpInitError(
           'OAuth2 is enabled but Organization Name, Client ID, or Redirect URI is missing.'
@@ -499,13 +499,9 @@ export default function NodePanel({
                     Redirect URI
                   </label>
                   <Input
-                    value={mcpData.oauth2RedirectUri || ''}
-                    onChange={(e) =>
-                      onUpdate(node.id, {
-                        data: { ...mcpData, oauth2RedirectUri: e.target.value },
-                      })
-                    }
-                    placeholder="https://example.com/callback"
+                    value={window.location.origin}
+                    readOnly
+                    className="bg-gray-50 text-gray-500 cursor-not-allowed"
                   />
                 </div>
 
