@@ -1,3 +1,5 @@
+![cover](public/cover.png)
+
 # Agent-Auth-Playground
 
 A visual, browser-based AI workflow builder for designing and testing authentication-aware agentic pipelines. Connect LLM nodes, AI agents, and MCP (Model Context Protocol) tool servers on a drag-and-drop canvas, then test them interactively in a built-in chat panel.
