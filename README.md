@@ -9,7 +9,7 @@
 </p>
 
 <div align="center">
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="License"></a>
+  <a href="./LICENSE.txt"><img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="License"></a>
   <a href="https://www.npmjs.com/package/auth-playground"><img src="https://img.shields.io/npm/v/auth-playground.svg" alt="npm version"></a>
   <br>
   <br>
@@ -110,4 +110,4 @@ Contributions are welcome. Please open an issue to discuss what you'd like to ch
 
 ## License
 
-[Apache 2.0](LICENSE)
+[Apache 2.0](LICENSE.txt)
