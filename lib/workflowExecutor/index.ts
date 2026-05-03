@@ -47,7 +47,7 @@ export class WorkflowExecutor {
   ) {
     this.workflow = workflow;
     this.apiKeys = apiKeys;
-    this.baseUrl = baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    this.baseUrl = baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:4829';
     this.oboTokens = oboTokens;
     this.mcpDiscoveredTools = mcpDiscoveredTools;
     this.onEvent = onEvent;

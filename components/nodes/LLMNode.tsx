@@ -2,6 +2,7 @@ import { Handle, Position } from 'reactflow';
 import GoogleImage from '../assets/google-logo.png';
 import OpenaiImage from '../assets/openai-logo.png';
 import AnthropicImage from '../assets/anthropic-logo.png';
+import LLMImage from '../assets/llm.png';
 import ActiveBorder from './ActiveBorder';
 
 const PROVIDER_META: Record<string, { label: string; logoSrc?: string }> = {
@@ -10,8 +11,11 @@ const PROVIDER_META: Record<string, { label: string; logoSrc?: string }> = {
   anthropic: { label: 'Anthropic', logoSrc: AnthropicImage.src },
 };
 
+const PLACEHOLDER_META = { label: 'Select a model', logoSrc: LLMImage.src };
+
 export default function LLMNode({ data }: any) {
-  const { label, logoSrc } = PROVIDER_META[data.provider] ?? { label: data.provider ?? 'AI Service' };
+  const providerMeta = data?.provider ? PROVIDER_META[data.provider] : undefined;
+  const { label, logoSrc } = providerMeta ?? PLACEHOLDER_META;
   const isActive = !!data?.isActive;
 
   return (

@@ -195,7 +195,7 @@ export default function Home() {
     switch (type) {
       case 'chatTrigger': data = { label: 'Chat Trigger' }; break;
       case 'aiAgent': data = { label: 'AI Agent', systemPrompt: 'You are a helpful assistant.', temperature: 0.7, maxTokens: 1000, maxToolSteps: 6 }; break;
-      case 'llm': data = { label: 'AI Service', provider: 'gemini', model: 'gemini-2.5-flash', temperature: 0.7, maxTokens: 1000, systemPrompt: 'You are a helpful assistant.' }; break;
+      case 'llm': data = { label: 'AI Service', provider: '' as any, model: '', temperature: 0.7, maxTokens: 1000, systemPrompt: 'You are a helpful assistant.' }; break;
       case 'mcpClient': data = { label: 'MCP Client', mcpServerEndpoint: '' }; break;
     }
     addNode({ id: generateId('node-'), type, position, data });

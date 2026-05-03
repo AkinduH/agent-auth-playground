@@ -596,18 +596,20 @@ export default function NodePanel({
                 Provider
               </label>
               <select
-                value={llmData.provider || 'gemini'}
+                value={llmData.provider || ''}
                 onChange={(e) =>
                   onUpdate(node.id, {
                     data: {
                       ...llmData,
                       provider: e.target.value as 'gemini' | 'openai' | 'anthropic',
+                      model: '',
                       geminiAuthType: undefined,
                     },
                   })
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
               >
+                <option value="" disabled>Select a provider</option>
                 <option value="gemini">Google Gemini</option>
                 <option value="openai">OpenAI</option>
                 <option value="anthropic">Anthropic</option>

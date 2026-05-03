@@ -34,13 +34,36 @@ A visual, browser-based AI workflow builder for designing and testing authentica
 
 ---
 
-## Getting Started
+## Quick Start (npx)
+
+The fastest way to try auth-playground — no clone, no install, no config:
+
+```bash
+npx auth-playground
+```
+
+That's it. The local server starts on `http://127.0.0.1:4829` and your browser opens automatically.
+
+**CLI flags:**
+
+| Flag | Default | Purpose |
+|------|---------|---------|
+| `--port <n>` | `4829` | Port to listen on |
+| `--host <h>` | `127.0.0.1` | Host to bind to |
+| `--no-open` | — | Don't open the browser automatically |
+| `-h`, `--help` | — | Show help |
+| `-v`, `--version` | — | Show version |
+
+All configuration — LLM API keys (OpenAI, Gemini, Anthropic) and per-node Asgardeo OAuth2 credentials — is entered in the UI and stored in browser `localStorage`. The CLI itself takes no secrets and reads no env files.
+
+---
+
+## Getting Started (from source)
 
 ### Prerequisites
 
-- Node.js ≥ 18
+- Node.js ≥ 18.18
 - pnpm (`npm install -g pnpm`)
-- An [Asgardeo](https://wso2.com/asgardeo/) organisation (for OAuth2 flows — optional for basic LLM usage)
 
 ### Installation
 
@@ -50,43 +73,25 @@ cd agent-auth-playground
 pnpm install
 ```
 
-### Environment Variables
-
-Copy the template below to `.env` in the project root and fill in your values:
-
-```env
-# Asgardeo organisation name (the subdomain at api.asgardeo.io/t/<name>)
-ORGANIZATION_NAME=your-org
-
-# OAuth2 application client ID registered in Asgardeo
-CLIENT_ID=your-client-id
-
-# Agent identity credentials (username / password in Asgardeo)
-AGENT_ID=your-agent-id
-AGENT_SECRET=your-agent-secret
-
-# Redirect URI registered in the Asgardeo application
-REDIRECT_URI=http://localhost:4829
-
-# OAuth2 scopes to request (space-separated)
-SCOPE=openid sub
-
-# Port for the custom rate-limiting proxy (optional, defaults to 4829)
-PORT=4829
-```
-
-> **LLM API keys** (OpenAI, Gemini, Anthropic) are entered directly in the chat panel at runtime and stored in `localStorage` — they are never sent to the server unrelated to a workflow execution.
-
 ### Running Locally
 
 ```bash
-pnpm dev      # Start the Next.js dev server
-pnpm build    # Production build
-pnpm start    # Serve the production build
-pnpm lint     # ESLint
+pnpm dev               # Next.js dev server (hot reload)
+pnpm build             # Production build (also emits .next/standalone)
+pnpm start             # Serve the production build via `next start`
+pnpm start:standalone  # Run the bundled CLI against the standalone build
+pnpm lint              # ESLint
 ```
 
-The app runs on **port 4829** by default (configured in `proxy.ts`).
+The app runs on **port 4829** by default.
+
+### Building the npm package locally
+
+```bash
+pnpm build             # next build + postbuild (copies static + public into standalone)
+npm pack               # produces auth-playground-<version>.tgz
+npx ./auth-playground-<version>.tgz   # run the packaged binary
+```
 
 ---
 
