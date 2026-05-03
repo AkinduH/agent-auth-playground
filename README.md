@@ -1,8 +1,21 @@
-![cover-photo](public/cover-photo.png)
+<p align="center">
+  <img src="public/cover-photo.png" alt="Agent-Auth-Playground" height="80" width="auto">
+  <h1 align="center">
+    Agent Auth Playground
+  </h1>
+</p>
+<p align="center" style="font-size: 1.2rem;">
+  A visual, browser-based AI workflow builder for designing and testing authentication-aware agentic pipelines. Connect LLM nodes, AI agents, and MCP (Model Context Protocol) tool servers on a drag-and-drop canvas, then test them interactively in a built-in chat panel.
+</p>
 
-# Agent-Auth-Playground
+<div align="center">
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="License"></a>
+  <a href="https://www.npmjs.com/package/auth-playground"><img src="https://img.shields.io/npm/v/auth-playground.svg" alt="npm version"></a>
+  <br>
+  <br>
+</div>
 
-A visual, browser-based AI workflow builder for designing and testing authentication-aware agentic pipelines. Connect LLM nodes, AI agents, and MCP (Model Context Protocol) tool servers on a drag-and-drop canvas, then test them interactively in a built-in chat panel.
+<br>
 
 ![Canvas](public/canvas.png)
 
