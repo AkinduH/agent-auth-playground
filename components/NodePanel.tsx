@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   WorkflowNode,
   AIAgentNodeData,
@@ -51,6 +51,9 @@ export default function NodePanel({
   } | null>(null);
   const [mcpInitLoading, setMcpInitLoading] = useState(false);
   const [mcpInitError, setMcpInitError] = useState<string | null>(null);
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const [modelInputValue, setModelInputValue] = useState('');
+  const modelComboboxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (workflowId && node?.type === 'aiAgent') {
@@ -642,22 +645,52 @@ export default function NodePanel({
                 <label className="text-sm font-semibold text-gray-700 mb-1 block">
                   Model
                 </label>
-                <select
-                  value={llmData.model || ''}
-                  onChange={(e) =>
-                    onUpdate(node.id, {
-                      data: { ...llmData, model: e.target.value },
-                    })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                >
-                  <option value="">Select a model</option>
-                  {(providerModels[llmData.provider] ?? []).map((model: string) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative" ref={modelComboboxRef}>
+                  <input
+                    type="text"
+                    value={modelInputValue !== '' ? modelInputValue : (llmData.model || '')}
+                    placeholder="Type or select a model…"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    onFocus={() => {
+                      setModelInputValue(llmData.model || '');
+                      setModelDropdownOpen(true);
+                    }}
+                    onChange={(e) => {
+                      setModelInputValue(e.target.value);
+                      setModelDropdownOpen(true);
+                      onUpdate(node.id, { data: { ...llmData, model: e.target.value } });
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        setModelDropdownOpen(false);
+                        setModelInputValue('');
+                      }, 150);
+                    }}
+                  />
+                  {modelDropdownOpen && (() => {
+                    const query = modelInputValue.toLowerCase();
+                    const suggestions = (providerModels[llmData.provider] ?? []).filter(
+                      (m) => !query || m.toLowerCase().includes(query)
+                    );
+                    return suggestions.length > 0 ? (
+                      <ul className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto text-sm">
+                        {suggestions.map((model) => (
+                          <li
+                            key={model}
+                            className="px-3 py-2 cursor-pointer hover:bg-gray-100"
+                            onMouseDown={() => {
+                              onUpdate(node.id, { data: { ...llmData, model } });
+                              setModelInputValue('');
+                              setModelDropdownOpen(false);
+                            }}
+                          >
+                            {model}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null;
+                  })()}
+                </div>
               </div>
             )}
 
