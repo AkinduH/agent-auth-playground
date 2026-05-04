@@ -21,6 +21,7 @@
 
 ---
 
+## Features
 
 - **Visual Workflow Editor** - drag-and-drop canvas powered by React Flow; connect nodes with typed handles that enforce valid topologies
 - **Four Node Types** - ChatTrigger, LLM (OpenAI / Gemini / Anthropic), AIAgent (agentic loop with tool-calling), MCPClient (MCP server bridge)
