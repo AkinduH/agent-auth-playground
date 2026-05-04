@@ -836,32 +836,34 @@ export default function NodePanel({
               </div>
             )}
 
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-1 block">
-                Temperature
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="range"
-                  min="0"
-                  max="2"
-                  step="0.1"
-                  value={llmData.temperature || 0.7}
-                  onChange={(e) =>
-                    onUpdate(node.id, {
-                      data: {
-                        ...llmData,
-                        temperature: parseFloat(e.target.value),
-                      },
-                    })
-                  }
-                  className="flex-1"
-                />
-                <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
-                  {(llmData.temperature || 0.7).toFixed(1)}
-                </span>
+            {llmData.provider !== 'azure-openai' && (
+              <div>
+                <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                  Temperature
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min="0"
+                    max="2"
+                    step="0.1"
+                    value={llmData.temperature || 0.7}
+                    onChange={(e) =>
+                      onUpdate(node.id, {
+                        data: {
+                          ...llmData,
+                          temperature: parseFloat(e.target.value),
+                        },
+                      })
+                    }
+                    className="flex-1"
+                  />
+                  <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                    {(llmData.temperature || 0.7).toFixed(1)}
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
 
             <div>
               <label className="text-sm font-semibold text-gray-700 mb-1 block">

@@ -64,7 +64,6 @@ async function invokeAzureOpenAI(
   apiKey: string,
   message: string,
   systemPrompt: string,
-  temperature: number,
   maxTokens: number
 ): Promise<string> {
   const url = `https://${resourceName}.openai.azure.com/openai/deployments/${deploymentName}/chat/completions?api-version=${apiVersion}`;
@@ -81,7 +80,7 @@ async function invokeAzureOpenAI(
       'Content-Type': 'application/json',
       'api-key': apiKey,
     },
-    body: JSON.stringify({ messages, temperature, max_tokens: maxTokens }),
+    body: JSON.stringify({ messages, max_completion_tokens: maxTokens }),
   });
 
   if (!response.ok) {
@@ -112,7 +111,7 @@ export async function invokeLLM(
     if (!azureResourceName || !azureDeploymentName || !azureApiVersion) {
       throw new Error('Azure OpenAI requires Resource Name, Deployment Name, and API Version.');
     }
-    return invokeAzureOpenAI(azureResourceName, azureDeploymentName, azureApiVersion, apiKey, message, systemPrompt, temperature, maxTokens);
+    return invokeAzureOpenAI(azureResourceName, azureDeploymentName, azureApiVersion, apiKey, message, systemPrompt, maxTokens);
   }
 
   if (provider === 'gemini' && gcpAccessToken && gcpProjectId) {
