@@ -2,6 +2,7 @@ import { Handle, Position } from 'reactflow';
 import GoogleImage from '../assets/google-logo.png';
 import OpenaiImage from '../assets/openai-logo.png';
 import AnthropicImage from '../assets/anthropic-logo.png';
+import AzureOpenAIImage from '../assets/azure-openai-logo.png';
 import LLMImage from '../assets/llm.png';
 import ActiveBorder from './ActiveBorder';
 
@@ -9,6 +10,7 @@ const PROVIDER_META: Record<string, { label: string; logoSrc?: string }> = {
   gemini: { label: 'Google Gemini', logoSrc: GoogleImage.src },
   openai: { label: 'OpenAI', logoSrc: OpenaiImage.src },
   anthropic: { label: 'Anthropic', logoSrc: AnthropicImage.src },
+  'azure-openai': { label: 'Azure OpenAI', logoSrc: AzureOpenAIImage.src },
 };
 
 const PLACEHOLDER_META = { label: 'Select a model', logoSrc: LLMImage.src };

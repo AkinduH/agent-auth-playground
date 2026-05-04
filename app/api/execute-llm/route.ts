@@ -6,16 +6,35 @@ export const maxDuration = 60;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { provider, model, message, systemPrompt, temperature, maxTokens, apiKey, gcpAccessToken, gcpProjectId } = body;
+    const {
+      provider, model, message, systemPrompt, temperature, maxTokens,
+      apiKey, gcpAccessToken, gcpProjectId,
+      azureResourceName, azureDeploymentName, azureApiVersion,
+    } = body;
 
-    if (!provider || !model || !message) {
+    const isAzure = provider === 'azure-openai';
+    const isGcpAuth = provider === 'gemini' && gcpAccessToken && gcpProjectId;
+
+    if (!provider || !message) {
       return NextResponse.json(
         { success: false, error: 'Missing required parameters' },
         { status: 400 }
       );
     }
 
-    const isGcpAuth = provider === 'gemini' && gcpAccessToken && gcpProjectId;
+    if (!isAzure && !model) {
+      return NextResponse.json(
+        { success: false, error: 'Missing required parameter: model' },
+        { status: 400 }
+      );
+    }
+
+    if (isAzure && (!azureResourceName || !azureDeploymentName || !azureApiVersion)) {
+      return NextResponse.json(
+        { success: false, error: 'Azure OpenAI requires azureResourceName, azureDeploymentName, and azureApiVersion.' },
+        { status: 400 }
+      );
+    }
 
     if (!isGcpAuth && !apiKey) {
       return NextResponse.json(
@@ -23,17 +42,20 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
-    
+
     const output = await invokeLLM(
       provider as ProviderName,
       apiKey ?? '',
-      model,
+      model ?? '',
       message,
       systemPrompt ?? '',
       temperature ?? 0.7,
       maxTokens ?? 1000,
       gcpAccessToken,
-      gcpProjectId
+      gcpProjectId,
+      azureResourceName,
+      azureDeploymentName,
+      azureApiVersion
     );
 
     return NextResponse.json({ success: true, output });

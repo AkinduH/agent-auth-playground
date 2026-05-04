@@ -34,12 +34,15 @@ export interface AIAgentNodeData extends BaseNodeData {
 // LLM node data
 export interface LLMNodeData extends BaseNodeData {
   label: 'AI Service';
-  provider: 'gemini' | 'openai' | 'anthropic';
+  provider: 'gemini' | 'openai' | 'anthropic' | 'azure-openai';
   model: string;
   temperature: number;
   maxTokens: number;
   systemPrompt: string;
   geminiAuthType?: 'api-key' | 'gcp-access-token';
+  azureResourceName?: string;
+  azureDeploymentName?: string;
+  azureApiVersion?: string;
 }
 
 // MCP Client node data
@@ -110,7 +113,7 @@ export interface ExecutionContext {
   currentInput: string;
 }
 
-export type ProviderName = 'gemini' | 'openai' | 'anthropic';
+export type ProviderName = 'gemini' | 'openai' | 'anthropic' | 'azure-openai';
 
 // Workflow execution result
 export interface ExecutionResult {

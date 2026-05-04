@@ -3,7 +3,7 @@ import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 
-export type ProviderName = 'gemini' | 'openai' | 'anthropic';
+export type ProviderName = 'gemini' | 'openai' | 'anthropic' | 'azure-openai';
 
 export const PROVIDER_MODELS: Record<ProviderName, string[]> = {
   gemini: [
@@ -16,6 +16,7 @@ export const PROVIDER_MODELS: Record<ProviderName, string[]> = {
   ],
   openai: ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
   anthropic: ['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
+  'azure-openai': [],
 };
 
 async function invokeVertexAI(
@@ -56,6 +57,42 @@ async function invokeVertexAI(
   return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 }
 
+async function invokeAzureOpenAI(
+  resourceName: string,
+  deploymentName: string,
+  apiVersion: string,
+  apiKey: string,
+  message: string,
+  systemPrompt: string,
+  temperature: number,
+  maxTokens: number
+): Promise<string> {
+  const url = `https://${resourceName}.openai.azure.com/openai/deployments/${deploymentName}/chat/completions?api-version=${apiVersion}`;
+
+  const messages: Array<{ role: string; content: string }> = [];
+  if (systemPrompt) {
+    messages.push({ role: 'system', content: systemPrompt });
+  }
+  messages.push({ role: 'user', content: message });
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'api-key': apiKey,
+    },
+    body: JSON.stringify({ messages, temperature, max_tokens: maxTokens }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Azure OpenAI error ${response.status}: ${err}`);
+  }
+
+  const data = await response.json();
+  return data?.choices?.[0]?.message?.content ?? '';
+}
+
 export async function invokeLLM(
   provider: ProviderName,
   apiKey: string,
@@ -65,8 +102,18 @@ export async function invokeLLM(
   temperature: number,
   maxTokens: number,
   gcpAccessToken?: string,
-  gcpProjectId?: string
+  gcpProjectId?: string,
+  azureResourceName?: string,
+  azureDeploymentName?: string,
+  azureApiVersion?: string
 ): Promise<string> {
+
+  if (provider === 'azure-openai') {
+    if (!azureResourceName || !azureDeploymentName || !azureApiVersion) {
+      throw new Error('Azure OpenAI requires Resource Name, Deployment Name, and API Version.');
+    }
+    return invokeAzureOpenAI(azureResourceName, azureDeploymentName, azureApiVersion, apiKey, message, systemPrompt, temperature, maxTokens);
+  }
 
   if (provider === 'gemini' && gcpAccessToken && gcpProjectId) {
     return invokeVertexAI(gcpAccessToken, gcpProjectId, model, message, systemPrompt, temperature, maxTokens);

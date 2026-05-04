@@ -59,6 +59,7 @@ async function invokeLLM(
   apiKeys: Record<string, string>,
   baseUrl: string
 ): Promise<string> {
+  const isAzure = data.provider === 'azure-openai';
   const isGcpAuth = data.provider === 'gemini' && data.geminiAuthType === 'gcp-access-token';
   const gcpAccessToken = isGcpAuth ? apiKeys['gcpAccessToken'] : undefined;
   const gcpProjectId = isGcpAuth ? apiKeys['gcpProjectId'] : undefined;
@@ -68,11 +69,26 @@ async function invokeLLM(
     throw new Error('GCP Access Token and Project ID are required for Vertex AI. Please configure them in the LLM node.');
   }
 
-  if (!isGcpAuth && !apiKey) {
+  if (isAzure) {
+    if (!data.azureResourceName || !data.azureDeploymentName || !data.azureApiVersion) {
+      throw new Error('Azure OpenAI requires Resource Name, Deployment Name, and API Version in the LLM node.');
+    }
+    if (!apiKey) {
+      throw new Error('No API key configured for Azure OpenAI. Please set up your credentials.');
+    }
+  } else if (!isGcpAuth && !apiKey) {
     throw new Error(
       `No API key configured for ${data.provider}. Please set up your credentials.`
     );
   }
+
+  const azureFields = isAzure
+    ? {
+        azureResourceName: data.azureResourceName,
+        azureDeploymentName: data.azureDeploymentName,
+        azureApiVersion: data.azureApiVersion,
+      }
+    : {};
 
   try {
     const response = await fetch(new URL('/api/execute-llm', baseUrl), {
@@ -86,6 +102,7 @@ async function invokeLLM(
         temperature: data.temperature,
         maxTokens: data.maxTokens,
         ...(isGcpAuth ? { gcpAccessToken, gcpProjectId } : { apiKey }),
+        ...azureFields,
       }),
     });
 

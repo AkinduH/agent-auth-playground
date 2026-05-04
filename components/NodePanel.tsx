@@ -161,6 +161,7 @@ export default function NodePanel({
     ],
     openai: ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
     anthropic: ['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
+    'azure-openai': [],
   };
 
   useEffect(() => {
@@ -188,7 +189,7 @@ export default function NodePanel({
     );
   }
 
-  const handleApiKeyChange = (provider: 'gemini' | 'openai' | 'anthropic' | 'gcpAccessToken' | 'gcpProjectId', key: string) => {
+  const handleApiKeyChange = (provider: 'gemini' | 'openai' | 'anthropic' | 'azure-openai' | 'gcpAccessToken' | 'gcpProjectId', key: string) => {
     workflowStore.setApiKey(provider, key);
     setApiKeys((prev) => ({ ...prev, [provider]: key }));
   };
@@ -595,7 +596,16 @@ export default function NodePanel({
       case 'llm':
         const llmData = node.data as LLMNodeData;
         const isGemini = llmData.provider === 'gemini';
+        const isAzure = llmData.provider === 'azure-openai';
         const isGcpAuth = isGemini && llmData.geminiAuthType === 'gcp-access-token';
+
+        const azureResourceName = llmData.azureResourceName || '';
+        const azureDeploymentName = llmData.azureDeploymentName || '';
+        const azureApiVersion = llmData.azureApiVersion || '';
+        const azureEndpointPreview = isAzure
+          ? `https://${azureResourceName || 'resource-name'}.openai.azure.com/openai/deployments/${azureDeploymentName || 'deployment-name'}/chat/completions?api-version=${azureApiVersion || 'api-version'}`
+          : '';
+
         return (
           <div className="space-y-3">
             <div>
@@ -608,9 +618,12 @@ export default function NodePanel({
                   onUpdate(node.id, {
                     data: {
                       ...llmData,
-                      provider: e.target.value as 'gemini' | 'openai' | 'anthropic',
+                      provider: e.target.value as 'gemini' | 'openai' | 'anthropic' | 'azure-openai',
                       model: '',
                       geminiAuthType: undefined,
+                      azureResourceName: undefined,
+                      azureDeploymentName: undefined,
+                      azureApiVersion: undefined,
                     },
                   })
                 }
@@ -618,32 +631,35 @@ export default function NodePanel({
               >
                 <option value="" disabled>Select a provider</option>
                 <option value="gemini">Google Gemini</option>
-                <option value="openai">OpenAI</option>
                 <option value="anthropic">Anthropic</option>
+                <option value="openai">OpenAI</option>
+                <option value="azure-openai">Azure OpenAI</option>
               </select>
             </div>
 
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-1 block">
-                Model
-              </label>
-              <select
-                value={llmData.model || ''}
-                onChange={(e) =>
-                  onUpdate(node.id, {
-                    data: { ...llmData, model: e.target.value },
-                  })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-              >
-                <option value="">Select a model</option>
-                {(providerModels[llmData.provider] ?? []).map((model: string) => (
-                  <option key={model} value={model}>
-                    {model}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {!isAzure && (
+              <div>
+                <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                  Model
+                </label>
+                <select
+                  value={llmData.model || ''}
+                  onChange={(e) =>
+                    onUpdate(node.id, {
+                      data: { ...llmData, model: e.target.value },
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                >
+                  <option value="">Select a model</option>
+                  {(providerModels[llmData.provider] ?? []).map((model: string) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {isGemini && (
               <div>
@@ -685,7 +701,89 @@ export default function NodePanel({
               </div>
             )}
 
-            {!isGcpAuth && (
+            {isAzure && (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                    Resource Name
+                  </label>
+                  <Input
+                    value={azureResourceName}
+                    onChange={(e) =>
+                      onUpdate(node.id, {
+                        data: { ...llmData, azureResourceName: e.target.value },
+                      })
+                    }
+                    placeholder="resource-name"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    The Azure OpenAI resource name from your Azure portal
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                    Deployment Name
+                  </label>
+                  <Input
+                    value={azureDeploymentName}
+                    onChange={(e) =>
+                      onUpdate(node.id, {
+                        data: { ...llmData, azureDeploymentName: e.target.value },
+                      })
+                    }
+                    placeholder="deployment-name"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    The name of your deployed model in Azure AI Foundry
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                    API Version
+                  </label>
+                  <Input
+                    value={azureApiVersion}
+                    onChange={(e) =>
+                      onUpdate(node.id, {
+                        data: { ...llmData, azureApiVersion: e.target.value },
+                      })
+                    }
+                    placeholder="2024-02-01"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    e.g. <code>2024-02-01</code> — see Azure OpenAI API reference
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                    Endpoint
+                  </label>
+                  <div className="w-full px-3 py-2 border border-gray-200 rounded-md text-xs font-mono bg-gray-50 text-gray-600 break-all select-all">
+                    {azureEndpointPreview}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                    API Key
+                  </label>
+                  <Input
+                    type="password"
+                    value={apiKeys['azure-openai'] || ''}
+                    onChange={(e) => handleApiKeyChange('azure-openai', e.target.value)}
+                    placeholder="Enter your Azure OpenAI API key"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Stored securely in your browser
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {!isGcpAuth && !isAzure && (
               <div>
                 <label className="text-sm font-semibold text-gray-700 mb-1 block">
                   API Key ({llmData.provider === 'openai' ? 'OpenAI' : llmData.provider === 'anthropic' ? 'Anthropic' : 'Google'})
