@@ -55,8 +55,8 @@ The agent authenticates with its own service-account credentials before connecti
 **When to use:** The MCP server is a protected API and the agent acts autonomously (no user identity needs to be forwarded).
 
 **What you need:**
-- `Use MCP OAuth2` → on, `Auth Flow` → Agent
-- Organization Name, Client ID, Redirect URI, Scope filled in
+- Toggle on `Use MCP OAuth2` and select `Agent Flow`
+- Organization Name, Client ID, Scope filled in after registering an mcp client application in Asgardeo
 - **Agent ID** and **Agent Secret** on the connected AI Agent node
 
 When the workflow runs, the agent authenticates with Asgardeo silently and obtains an access token. All tool calls include that token as an authorization header.
@@ -68,10 +68,9 @@ The agent acts on behalf of you (the logged-in user). You must grant consent bef
 **When to use:** The MCP server enforces per-user authorization. The request must carry the user's identity.
 
 **What you need:**
-- `Use MCP OAuth2` → on, `Auth Flow` → OBO
-- Organization Name, Client ID, Redirect URI, Scope filled in
+- Toggle on `Use MCP OAuth2` and select `OBO Flow`
+- Organization Name, Client ID, Scope filled in after registering an mcp client application in Asgardeo
 - **Agent ID** and **Agent Secret** on the connected AI Agent node
-- A Redirect URI accessible in your browser (for the consent popup)
 
 When you send your first message, the chat panel shows an **Authorize** button. Clicking it opens a login popup where you authenticate with Asgardeo and grant consent. The resulting token is saved in your browser and reused for subsequent messages until it expires.
 
@@ -80,5 +79,4 @@ When you send your first message, the chat panel shows an **Authorize** button. 
 ## Multiple MCP Clients
 
 You can connect multiple MCP Client nodes to a single AI Agent. The agent sees all tools from all servers as one combined list.
-
----
+Each MCP Client node maintains its own auth state, so you can mix and match authentication methods as needed.

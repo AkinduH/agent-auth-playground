@@ -93,12 +93,12 @@ The app runs on **port 4829** by default.
 **Nodes**
 - [Chat Trigger](documentation/nodes/chat-trigger.md) - Entry point of every workflow
 - [AI Agent](documentation/nodes/ai-agent.md) - Reasoning engine with tool-calling loop
-- [LLM](documentation/nodes/llm.md) - Direct call to OpenAI, Gemini, or Anthropic
+- [AI Service](documentation/nodes/llm.md) - Direct call to OpenAI, Gemini, or Anthropic
 - [MCP Client](documentation/nodes/mcp-client.md) - Bridge to an external MCP tool server
 
 ### Example Agent Flows
 
-- [Travel Agent](Example%20AgentFlows/travel-agent.json) - An travel agent that uses MCP tools to plan travel
+- [Travel Agent](example-agentflows/travel-agent.json) - An travel agent that uses MCP tools to plan travel
 
 ---
 

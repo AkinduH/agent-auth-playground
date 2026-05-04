@@ -6,10 +6,9 @@ Auth Playground stores everything in your **browser's local storage**. There is 
 
 ## What This Means for You
 
-- **Private by default** — your workflows and API keys are visible only to you, in this browser.
-- **No sync** — data is not shared between different browsers or devices.
-- **Incognito windows** — have their own separate storage; nothing carries over.
-- **Clearing browser data resets everything** — use the in-app controls if you only want to clear specific things.
+- **Private by default** - your workflows and API keys are visible only to you, in this browser.
+- **No sync** - data is not shared between different browsers or devices.
+- **Clearing browser data resets everything** - use the in-app controls if you only want to clear specific things.
 
 ---
 
@@ -27,8 +26,7 @@ Auth Playground stores everything in your **browser's local storage**. There is 
 
 ## API Keys
 
-API keys are global — entering a key for Gemini in one workflow makes it available in all your workflows. The key is stored in your browser and is only sent to that provider's API when a workflow runs.
-
+API keys are global - entering a key for Gemini in one workflow makes it available in all your workflows in that browser.
 To remove an API key, clear the API Key field in any AI Service node and the change is saved immediately.
 
 ---
@@ -53,18 +51,9 @@ Tokens are cleared automatically when the associated workflow is deleted.
 
 ---
 
-## Chat History
-
-Each workflow has its own independent chat history. To clear the chat:
-- Click the clear button in the chat panel header.
-
-This removes the messages from your browser and also resets any in-progress authorization state.
-
----
-
 ## Storage Limits
 
-Browser local storage is limited to approximately **5 MB** per site. Workflow definitions and settings take very little space. Long conversations with many messages can grow over time — if you notice things slowing down, use the chat clear button periodically.
+Browser local storage is limited to approximately **5 MB** per site. Workflow definitions and settings take very little space. Long conversations with many messages can grow over time - if you notice things slowing down, use the chat clear button periodically.
 
 ---
 

@@ -4,27 +4,6 @@ The Workflow Editor is the main canvas where you design workflows by placing and
 
 ---
 
-## Layout
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  [Logo] + Chat Trigger  + AI Agent  + AI Service            │
-│         + MCP Client    Delete Node        [Name ▾]         │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌──────────────┐                                           │
-│  │  Chat Panel  │         Canvas                            │
-│  │  (overlay)   │                                           │
-│  │              │   [ ] ──▶ [ ] ──▶ [ ]                    │
-│  │              │                                           │
-│  └──────────────┘   Mini-map    Zoom controls               │
-└─────────────────────────────────────────────────────────────┘
-```
-
-Node configuration opens in a **modal dialog** when you double-click a node.
-
----
-
 ## Toolbar
 
 | Button | What it does |
@@ -37,15 +16,7 @@ Node configuration opens in a **modal dialog** when you double-click a node.
 
 New nodes are placed at a random position on the canvas. Drag them to rearrange.
 
-### Workflow Name and Actions
-
-The right end of the toolbar contains a workflow name field and a **⋮** dropdown menu:
-
-| Action | What it does |
-|--------|--------------|
-| **Save Locally** | Saves the workflow to browser localStorage with the current name |
-| **Download** | Downloads the workflow as a `.json` file (agent secrets are stripped) |
-| **Import** | Loads a workflow from a `.json` file, replacing the current one |
+Node configuration opens in a **modal dialog** when you double-click a node.
 
 ---
 
@@ -97,7 +68,7 @@ Use **Save Locally** in the ⋮ dropdown to explicitly save the workflow with th
 
 ### Download and Import
 
-- **Download** — exports the current workflow as a `.json` file. Agent secrets are removed from the export.
+- **Download** — exports the current workflow as a `.json` file.
 - **Import** — loads a workflow from a `.json` file, replacing the current canvas.
 
 ### Naming a Workflow

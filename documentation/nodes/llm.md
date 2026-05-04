@@ -28,7 +28,7 @@ Click the AI Service node to configure it in the right panel.
 
 ### API Keys
 
-Your API key is saved globally — entering it once makes it available to all workflows. It is stored in your browser and never sent anywhere except to the AI provider's own API.
+Your API key is saved globally - entering it once makes it available to all workflows. It is stored in your browser and never sent anywhere except to the AI provider's own API.
 
 ---
 
