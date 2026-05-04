@@ -506,12 +506,8 @@ function TraceMeta({ trace }: { trace: WorkflowTrace }) {
     <div className="space-y-2 mb-3">
       <div className="grid grid-cols-2 gap-2 text-[11px] font-mono bg-slate-50 p-3 rounded border border-slate-200">
         <div>
-          <span className="text-slate-500">Flow:</span>{' '}
-          <span className="text-slate-800 font-bold">{trace.flow.toUpperCase()}</span>
-        </div>
-        <div>
           <span className="text-slate-500">LLM:</span>{' '}
-          {trace.llm ? `${trace.llm.provider}/${trace.llm.model}` : '—'}
+          {trace.llm ? `${trace.llm.provider}${trace.llm.model ? `/${trace.llm.model}` : ''}` : '—'}
         </div>
         <div className="col-span-2">
           <span className="text-slate-500">MCP servers:</span> {trace.mcps.length},{' '}
@@ -798,15 +794,6 @@ export function AuthFlowDiagram({ trace }: Props) {
   const contentH = layout.totalH - HEADER_H;
   const lanesById = useMemo(() => new Map(lanes.map((l) => [l.id, l])), [lanes]);
 
-  const flowTitle =
-    trace.flow === 'mixed'
-      ? 'Mixed — Agent OAuth2 + On-Behalf-Of (OBO)'
-      : trace.flow === 'obo'
-      ? 'On-Behalf-Of (OBO) — Agent acts on behalf of user'
-      : trace.flow === 'agent'
-      ? 'Agent OAuth2 — Direct Auth + PKCE'
-      : 'Direct (no auth)';
-
   const arrowMarkers = (['default', 'auth', 'blue', 'green'] as ColorKind[]).map((k) => (
     <marker key={k} id={`arr-${k}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
       <polygon points="0 0, 10 3.5, 0 7" fill={COLORS[k]} />
@@ -817,7 +804,7 @@ export function AuthFlowDiagram({ trace }: Props) {
     <div className="w-full">
       <TraceMeta trace={trace} />
       <div className="flex items-center gap-3 mb-3">
-        <h3 className="text-base font-bold text-slate-800">Sequence Flow: {flowTitle}</h3>
+        <h3 className="text-base font-bold text-slate-800">Sequence Flow</h3>
         <div className="ml-auto flex items-center gap-2">
           <Button
             onClick={() => { setStep(0); setAutoplay(true); }}
