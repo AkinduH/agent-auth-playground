@@ -70,6 +70,17 @@ export default function NodePanel({
     }
   }, [workflowId, node?.id, node?.type]);
 
+  useEffect(() => {
+    if (node?.type !== 'mcpClient') return;
+    const mcpData = node.data as MCPClientNodeData;
+    if (mcpData.useOAuth2 && (mcpData.oauth2Flow ?? 'agent') === 'agent') {
+      const origin = window.location.origin;
+      if (mcpData.oauth2RedirectUri !== origin) {
+        onUpdate(node.id, { data: { ...mcpData, oauth2RedirectUri: origin } });
+      }
+    }
+  }, [node, onUpdate]);
+
   const runMCPInit = async (mcpData: MCPClientNodeData, nodeId: string) => {
     if (!workflowId) return;
     const endpoint = mcpData.mcpServerEndpoint?.trim();
