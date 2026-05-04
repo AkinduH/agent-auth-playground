@@ -109,7 +109,7 @@ function findOBONodes(workflow: Workflow): Array<{
         name: data.name?.trim() || n.id,
         organizationName: data.oauth2OrganizationName || '',
         clientId: data.oauth2ClientId || '',
-        redirectUri: data.oauth2RedirectUri || '',
+        redirectUri: typeof window !== 'undefined' ? window.location.origin : '',
         scope: data.oauth2Scope,
         agentId: agentData?.agentId || '',
         agentSecret: agentData?.agentSecret || '',
