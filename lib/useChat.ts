@@ -613,6 +613,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
 
   const clearMessages = useCallback(() => {
     setMessages([]);
+    setError(null);
     oboConsentStateRef.current = null;
     setOboConsentPending(false);
     setLastTrace(null);
