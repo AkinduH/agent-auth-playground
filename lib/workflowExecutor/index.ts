@@ -14,6 +14,7 @@ import { executeChatTrigger } from './chatTrigger';
 import { executeAIAgent, executeLLM } from './aiAgent';
 import { getErrorMessage } from './utils';
 import { WorkflowTrace, emptyTrace, dominantFlow } from '../authTrace';
+import { AuthFlowError } from '../agentAuth';
 import { CachedMCPToolsMap, MCPClientConfig, ConsentRequiredError } from './types';
 import { MCPClientNodeRuntime } from '../mcpClientNode';
 
@@ -112,6 +113,29 @@ export class WorkflowExecutor {
 
       this.trace.finishedAt = Date.now();
       this.trace.flow = dominantFlow(this.trace.mcps);
+
+      // Surface a workflow-level failure summary so the diagram can show a
+      // top-level banner explaining what went wrong.
+      const mcpWithError = this.trace.mcps.find((m) => m.authError);
+      if (error instanceof AuthFlowError) {
+        this.trace.failure = {
+          stage: error.stage,
+          nodeId: mcpWithError?.nodeId,
+          message:
+            error.errorDescription || error.errorCode || error.message || errorMessage,
+        };
+      } else if (mcpWithError?.authError) {
+        this.trace.failure = {
+          stage: mcpWithError.authError.stage,
+          nodeId: mcpWithError.nodeId,
+          message:
+            mcpWithError.authError.errorDescription ||
+            mcpWithError.authError.errorCode ||
+            mcpWithError.authError.message,
+        };
+      } else {
+        this.trace.failure = { stage: 'workflow', message: errorMessage };
+      }
 
       return { success: false, output: '', error: errorMessage, executionTime, trace: this.trace };
     }

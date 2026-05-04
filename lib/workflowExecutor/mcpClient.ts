@@ -7,6 +7,17 @@ import {
   stringifyToolResult,
 } from './utils';
 
+// Thrown when an MCP tool call returns isError=true (protocol-level failure).
+// This is how MCP servers signal "scope insufficient", "unauthorized", etc.
+// when the HTTP request itself succeeded.
+export class MCPToolCallError extends Error {
+  isMcpToolError = true as const;
+  constructor(message: string) {
+    super(message);
+    this.name = 'MCPToolCallError';
+  }
+}
+
 export async function executeMCPClient(
   runtime: MCPClientNodeRuntime,
   tool: Pick<AgentToolBinding, 'publicName' | 'sourceToolName'>,
@@ -15,7 +26,11 @@ export async function executeMCPClient(
   console.log(`[MCPClient] Calling tool "${tool.publicName}" with args: ${JSON.stringify(args)}`);
   const result = await runtime.callTool(tool.sourceToolName, args);
   console.log(`[MCPClient] Tool "${tool.publicName}" returned result: ${JSON.stringify(result)}`);
-  return stringifyToolResult(result);
+  const text = stringifyToolResult(result);
+  if (result.isError) {
+    throw new MCPToolCallError(text || 'MCP tool reported an error');
+  }
+  return text;
 }
 
 export function buildToolBindingsFromCache(

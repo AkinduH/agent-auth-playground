@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { WorkflowTrace, MCPNodeTrace, ToolCallTrace, previewToken } from '@/lib/authTrace';
+import { WorkflowTrace, MCPNodeTrace, ToolCallTrace, AuthErrorTrace, previewToken } from '@/lib/authTrace';
 import { Button } from '@/components/ui/button';
 
 interface Props {
@@ -19,10 +19,10 @@ interface Lane {
   textColor: string;
 }
 
-type ColorKind = 'default' | 'auth' | 'blue' | 'green';
+type ColorKind = 'default' | 'auth' | 'blue' | 'green' | 'red';
 
 type Item =
-  | { kind: 'section'; label: string }
+  | { kind: 'section'; label: string; failed?: boolean }
   | {
       kind: 'message';
       from: string;
@@ -33,6 +33,8 @@ type Item =
       dashed?: boolean;
       token?: string;
       tokenLabel?: string;
+      error?: { statusCode?: number; errorCode?: string; errorDescription?: string };
+      skipped?: boolean;
     };
 
 const COLORS: Record<ColorKind, string> = {
@@ -40,7 +42,70 @@ const COLORS: Record<ColorKind, string> = {
   auth: '#d97706',
   blue: '#2563eb',
   green: '#059669',
+  red: '#dc2626',
 };
+
+const STAGE_LABELS: Record<AuthErrorTrace['stage'], string> = {
+  config: 'Configuration',
+  authorize: 'Authorize',
+  authn: 'Authenticate (credentials are invalid)',
+  token: 'Token Exchange',
+  'obo-consent': 'OBO User Consent',
+  'obo-token': 'OBO Token Exchange',
+  connect: 'MCP Connect',
+  'tool-call': 'Tool Call',
+};
+
+function failureSummaryLine(err: AuthErrorTrace): string {
+  const status = err.statusCode ? `HTTP ${err.statusCode}` : '';
+  const code = err.errorCode ? err.errorCode : '';
+  const desc = err.errorDescription || err.message || '';
+  return [status, code, desc].filter(Boolean).join('  ·  ');
+}
+
+function buildFailureResponse(
+  from: string,
+  to: string,
+  err: AuthErrorTrace,
+  defaultLabel: string
+): Item {
+  const codeBits = [
+    err.statusCode ? `HTTP ${err.statusCode}` : null,
+    err.errorCode || null,
+  ].filter(Boolean);
+  const headline =
+    codeBits.length > 0
+      ? `❌  ${codeBits.join('  ·  ')}  —  ${defaultLabel} failed`
+      : `❌  ${defaultLabel} failed`;
+  return {
+    kind: 'message',
+    from,
+    to,
+    label: headline,
+    sublabel: err.errorDescription || err.message,
+    color: 'red',
+    dashed: true,
+    error: {
+      statusCode: err.statusCode,
+      errorCode: err.errorCode,
+      errorDescription: err.errorDescription,
+    },
+  };
+}
+
+function pushSkippedNotice(items: Item[], mcpLabel: string, err: AuthErrorTrace) {
+  const stage = STAGE_LABELS[err.stage] || err.stage;
+  items.push({
+    kind: 'message',
+    from: 'Agent',
+    to: 'Agent',
+    label: `⏭  Subsequent steps skipped — flow halted at ${stage}`,
+    sublabel: `Remaining auth + tool steps for ${mcpLabel} were never attempted`,
+    color: 'red',
+    dashed: true,
+    skipped: true,
+  });
+}
 
 // ── Builders ───────────────────────────────────────────────────────────────────
 
@@ -105,38 +170,77 @@ function pushAgentAuthSteps(items: Item[], mcp: MCPNodeTrace) {
   const authnUrl = mcp.authnUrl ?? `${base}/oauth2/authn`;
   const tokenUrl = mcp.tokenUrl ?? `${base}/oauth2/token`;
   const mcpLabel = mcpDisplayName(mcp);
+  const err = mcp.authError;
 
-  items.push({ kind: 'section', label: `AGENT AUTHENTICATION  ·  ${mcpLabel}  (PKCE  ·  Asgardeo Direct Auth)` });
+  const sectionLabel = `AGENT AUTHENTICATION  ·  ${mcpLabel}  (PKCE  ·  Asgardeo Direct Auth)`;
+  items.push({
+    kind: 'section',
+    label: err && (err.stage === 'authorize' || err.stage === 'authn' || err.stage === 'token' || err.stage === 'config')
+      ? `${sectionLabel}  ·  FAILED`
+      : sectionLabel,
+    failed: !!err && (err.stage === 'authorize' || err.stage === 'authn' || err.stage === 'token' || err.stage === 'config'),
+  });
+
+  // Pre-flight config error — never reached the IAM at all.
+  if (err && err.stage === 'config') {
+    items.push({
+      kind: 'message', from: 'Agent', to: 'Agent',
+      label: `❌  Configuration error  —  ${err.errorCode || 'invalid config'}`,
+      sublabel: err.errorDescription || err.message,
+      color: 'red', dashed: true,
+      error: { errorCode: err.errorCode, errorDescription: err.errorDescription },
+    });
+    pushSkippedNotice(items, mcpLabel, err);
+    return;
+  }
+
   items.push({
     kind: 'message', from: 'Agent', to: 'IAM',
     label: `POST ${authorizeUrl}`,
     sublabel: 'client_id, redirect_uri, response_type=code, response_mode=direct, scope, code_challenge (S256)',
     color: 'auth',
   });
+  if (err?.stage === 'authorize') {
+    items.push(buildFailureResponse('IAM', 'Agent', err, 'Authorize'));
+    pushSkippedNotice(items, mcpLabel, err);
+    return;
+  }
   items.push({
     kind: 'message', from: 'IAM', to: 'Agent',
     label: 'flowId  +  authenticatorId',
     sublabel: 'response_mode=direct returns flow handle (no browser redirect)',
     color: 'auth', dashed: true,
   });
+
   items.push({
     kind: 'message', from: 'Agent', to: 'IAM',
     label: `POST ${authnUrl}`,
     sublabel: `flowId, selectedAuthenticator { authenticatorId, params: { username: agentId="${mcp.agentId || '—'}", password: agentSecret } }`,
     color: 'auth',
   });
+  if (err?.stage === 'authn') {
+    items.push(buildFailureResponse('IAM', 'Agent', err, 'Credential authentication'));
+    pushSkippedNotice(items, mcpLabel, err);
+    return;
+  }
   items.push({
     kind: 'message', from: 'IAM', to: 'Agent',
     label: 'Authorization code',
     sublabel: 'authData.code (one-time use)',
     color: 'auth', dashed: true,
   });
+
   items.push({
     kind: 'message', from: 'Agent', to: 'IAM',
     label: `POST ${tokenUrl}`,
     sublabel: 'grant_type=authorization_code, client_id, code, code_verifier, redirect_uri',
     color: 'auth',
   });
+  if (err?.stage === 'token') {
+    items.push(buildFailureResponse('IAM', 'Agent', err, 'Token exchange'));
+    pushSkippedNotice(items, mcpLabel, err);
+    return;
+  }
   items.push({
     kind: 'message', from: 'IAM', to: 'Agent',
     label: 'Agent access_token',
@@ -152,11 +256,23 @@ function pushOBOConsentSteps(items: Item[], mcp: MCPNodeTrace) {
   const authorizeUrl = mcp.authorizeUrl ?? `${base}/oauth2/authorize`;
   const tokenUrl = mcp.tokenUrl ?? `${base}/oauth2/token`;
   const mcpLabel = mcpDisplayName(mcp);
+  const err = mcp.authError;
 
-  // OBO always starts with the agent authenticating first
+  // OBO always starts with the agent authenticating first. If agent-auth
+  // fails, that section already terminates with a failure marker — abort.
   pushAgentAuthSteps(items, mcp);
+  if (err && (err.stage === 'authorize' || err.stage === 'authn' || err.stage === 'token' || err.stage === 'config')) {
+    return;
+  }
 
-  items.push({ kind: 'section', label: `USER AUTHORIZATION  ·  ${mcpLabel}  (OBO Consent)` });
+  const consentFailed = err?.stage === 'obo-consent';
+  items.push({
+    kind: 'section',
+    label: consentFailed
+      ? `USER AUTHORIZATION  ·  ${mcpLabel}  (OBO Consent)  ·  FAILED`
+      : `USER AUTHORIZATION  ·  ${mcpLabel}  (OBO Consent)`,
+    failed: consentFailed,
+  });
   items.push({
     kind: 'message', from: 'Agent', to: 'App',
     label: 'Build /oauth2/authorize URL',
@@ -173,6 +289,11 @@ function pushOBOConsentSteps(items: Item[], mcp: MCPNodeTrace) {
     sublabel: 'User opens auth URL in browser, IAM presents login + consent screen',
     color: 'auth',
   });
+  if (consentFailed) {
+    items.push(buildFailureResponse('IAM', 'User', err!, 'Login / consent'));
+    pushSkippedNotice(items, mcpLabel, err!);
+    return;
+  }
   items.push({
     kind: 'message', from: 'IAM', to: 'User',
     label: 'User authenticates & grants consent',
@@ -191,13 +312,25 @@ function pushOBOConsentSteps(items: Item[], mcp: MCPNodeTrace) {
     sublabel: 'Page posts {code,state} on BroadcastChannel("obo-callback")',
   });
 
-  items.push({ kind: 'section', label: `OBO TOKEN EXCHANGE  ·  ${mcpLabel}` });
+  const oboTokenFailed = err?.stage === 'obo-token';
+  items.push({
+    kind: 'section',
+    label: oboTokenFailed
+      ? `OBO TOKEN EXCHANGE  ·  ${mcpLabel}  ·  FAILED`
+      : `OBO TOKEN EXCHANGE  ·  ${mcpLabel}`,
+    failed: oboTokenFailed,
+  });
   items.push({
     kind: 'message', from: 'Agent', to: 'IAM',
     label: `POST ${tokenUrl}`,
     sublabel: 'grant_type=authorization_code, client_id, code, code_verifier, redirect_uri,  actor_token = Agent Token',
     color: 'auth',
   });
+  if (oboTokenFailed) {
+    items.push(buildFailureResponse('IAM', 'Agent', err!, 'OBO token exchange'));
+    pushSkippedNotice(items, mcpLabel, err!);
+    return;
+  }
   items.push({
     kind: 'message', from: 'IAM', to: 'Agent',
     label: 'OBO access_token',
@@ -222,12 +355,36 @@ function pushToolCall(items: Item[], t: ToolCallTrace, trace: WorkflowTrace) {
     sublabel: `${serverLabel}    args: ${truncate(t.args, 80)}`,
     color: 'blue', token, tokenLabel: token ? `${tokenKind} JWT` : undefined,
   });
-  items.push({
-    kind: 'message', from: laneId, to: 'Agent',
-    label: t.ok ? `Result (${stripNodeSuffix(t.publicName)})` : `Error (${stripNodeSuffix(t.publicName)})`,
-    sublabel: truncate(t.result, 110),
-    color: t.ok ? 'green' : 'auth', dashed: true,
-  });
+
+  if (t.ok) {
+    items.push({
+      kind: 'message', from: laneId, to: 'Agent',
+      label: `✓ Result (${stripNodeSuffix(t.publicName)})`,
+      sublabel: truncate(t.result, 110),
+      color: 'green', dashed: true,
+    });
+  } else {
+    const codeBits = [
+      t.statusCode ? `HTTP ${t.statusCode}` : null,
+      t.errorCode || null,
+    ].filter(Boolean);
+    const headline = codeBits.length > 0
+      ? `❌  ${codeBits.join('  ·  ')}  —  ${stripNodeSuffix(t.publicName)} failed`
+      : `❌  Error (${stripNodeSuffix(t.publicName)})`;
+    items.push({
+      kind: 'message', from: laneId, to: 'Agent',
+      label: headline,
+      sublabel: t.errorDescription
+        ? `${t.errorDescription}  ·  ${truncate(t.result, 90)}`
+        : truncate(t.result, 110),
+      color: 'red', dashed: true,
+      error: {
+        statusCode: t.statusCode,
+        errorCode: t.errorCode,
+        errorDescription: t.errorDescription,
+      },
+    });
+  }
 }
 
 function buildItems(trace: WorkflowTrace): Item[] {
@@ -283,13 +440,48 @@ function buildItems(trace: WorkflowTrace): Item[] {
     pushToolCall(items, t, trace);
   }
 
-  items.push({ kind: 'section', label: 'RESPONSE' });
-  items.push({
-    kind: 'message', from: 'Agent', to: 'App',
-    label: 'Final answer',
-    sublabel: trace.finalAnswer ? `"${truncate(trace.finalAnswer, 90)}"` : undefined,
-  });
-  items.push({ kind: 'message', from: 'App', to: 'User', label: 'Display response', dashed: true });
+  // Render auth sections for MCPs that failed before any tool call was made.
+  // Without this, an early auth failure (e.g. wrong agent secret on connect)
+  // would never show its sequence in the diagram.
+  for (const mcp of trace.mcps) {
+    if (shownMCPAuth.has(mcp.nodeId)) continue;
+    if (mcp.flow === 'none' && !mcp.authError) continue;
+    if (mcp.flow === 'obo') {
+      pushOBOConsentSteps(items, mcp);
+    } else {
+      pushAgentAuthSteps(items, mcp);
+    }
+    shownMCPAuth.add(mcp.nodeId);
+  }
+
+  // Final response — or workflow-level failure if execution was halted before
+  // a final answer could be produced.
+  if (trace.failure) {
+    items.push({ kind: 'section', label: 'WORKFLOW HALTED', failed: true });
+    const stage = trace.failure.stage === 'workflow'
+      ? 'Workflow'
+      : STAGE_LABELS[trace.failure.stage as AuthErrorTrace['stage']] || trace.failure.stage;
+    items.push({
+      kind: 'message', from: 'Agent', to: 'App',
+      label: `❌  Execution failed at: ${stage}`,
+      sublabel: truncate(trace.failure.message, 140),
+      color: 'red', dashed: true,
+    });
+    items.push({
+      kind: 'message', from: 'App', to: 'User',
+      label: 'Display error to user',
+      sublabel: 'Workflow could not complete because of the failure above',
+      color: 'red', dashed: true,
+    });
+  } else {
+    items.push({ kind: 'section', label: 'RESPONSE' });
+    items.push({
+      kind: 'message', from: 'Agent', to: 'App',
+      label: 'Final answer',
+      sublabel: trace.finalAnswer ? `"${truncate(trace.finalAnswer, 90)}"` : undefined,
+    });
+    items.push({ kind: 'message', from: 'App', to: 'User', label: 'Display response', dashed: true });
+  }
 
   return items;
 }
@@ -306,20 +498,115 @@ function stripNodeSuffix(name: string): string {
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function TraceMeta({ trace }: { trace: WorkflowTrace }) {
+  const failedTools = trace.tools.filter((t) => t.publicName !== 'tool_search' && !t.ok);
+  const failedMcps = trace.mcps.filter((m) => m.authError);
+  const hasFailure = !!trace.failure || failedTools.length > 0 || failedMcps.length > 0;
+
   return (
-    <div className="grid grid-cols-2 gap-2 text-[11px] mb-3 font-mono bg-slate-50 p-3 rounded border border-slate-200">
-      <div>
-        <span className="text-slate-500">Flow:</span>{' '}
-        <span className="text-slate-800 font-bold">{trace.flow.toUpperCase()}</span>
+    <div className="space-y-2 mb-3">
+      <div className="grid grid-cols-2 gap-2 text-[11px] font-mono bg-slate-50 p-3 rounded border border-slate-200">
+        <div>
+          <span className="text-slate-500">Flow:</span>{' '}
+          <span className="text-slate-800 font-bold">{trace.flow.toUpperCase()}</span>
+        </div>
+        <div>
+          <span className="text-slate-500">LLM:</span>{' '}
+          {trace.llm ? `${trace.llm.provider}/${trace.llm.model}` : '—'}
+        </div>
+        <div className="col-span-2">
+          <span className="text-slate-500">MCP servers:</span> {trace.mcps.length},{' '}
+          <span className="text-slate-500">tool calls:</span> {trace.tools.filter((t) => t.publicName !== 'tool_search').length},{' '}
+          <span className="text-slate-500">status:</span>{' '}
+          {hasFailure ? (
+            <span className="text-red-700 font-bold">FAILED</span>
+          ) : (
+            <span className="text-emerald-700 font-bold">OK</span>
+          )}
+        </div>
       </div>
-      <div>
-        <span className="text-slate-500">LLM:</span>{' '}
-        {trace.llm ? `${trace.llm.provider}/${trace.llm.model}` : '—'}
+
+      {hasFailure && (
+        <FailureBanner trace={trace} failedTools={failedTools} failedMcps={failedMcps} />
+      )}
+    </div>
+  );
+}
+
+function FailureBanner({
+  trace,
+  failedTools,
+  failedMcps,
+}: {
+  trace: WorkflowTrace;
+  failedTools: ToolCallTrace[];
+  failedMcps: MCPNodeTrace[];
+}) {
+  return (
+    <div className="text-[11px] font-mono bg-red-50 p-3 rounded border border-red-300">
+      <div className="font-bold text-red-800 mb-1 text-[12px]">
+        ⛔  Authentication / execution failure detected
       </div>
-      <div className="col-span-2">
-        <span className="text-slate-500">MCP servers:</span> {trace.mcps.length},{' '}
-        <span className="text-slate-500">tool calls:</span> {trace.tools.filter((t) => t.publicName !== 'tool_search').length}
-      </div>
+
+      {trace.failure && (
+        <div className="mb-2 text-red-900">
+          <span className="text-red-600">workflow:</span>{' '}
+          <span className="font-semibold">
+            {trace.failure.stage === 'workflow'
+              ? 'Workflow'
+              : STAGE_LABELS[trace.failure.stage as AuthErrorTrace['stage']] || trace.failure.stage}
+          </span>{' '}
+          — {trace.failure.message}
+        </div>
+      )}
+
+      {failedMcps.map((m) => {
+        const err = m.authError!;
+        return (
+          <div key={`mcp-err-${m.nodeId}`} className="mb-1 text-red-900">
+            <span className="text-red-600">{mcpDisplayName(m)}:</span>{' '}
+            <span className="font-semibold">{STAGE_LABELS[err.stage] || err.stage}</span>
+            {err.statusCode && (
+              <span className="ml-1 px-1 py-0.5 bg-red-200 text-red-900 rounded text-[10px]">
+                HTTP {err.statusCode}
+              </span>
+            )}
+            {err.errorCode && (
+              <span className="ml-1 px-1 py-0.5 bg-red-200 text-red-900 rounded text-[10px]">
+                {err.errorCode}
+              </span>
+            )}
+            <div className="text-[10px] text-red-800 mt-0.5 break-words">
+              {err.errorDescription || err.message}
+            </div>
+            {err.url && (
+              <div className="text-[10px] text-red-700/80 mt-0.5 truncate" title={err.url}>
+                @ {err.url}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {failedTools
+        .filter((t) => !failedMcps.some((m) => m.nodeId === t.nodeId && m.authError?.stage === 'tool-call'))
+        .map((t, i) => (
+          <div key={`tool-err-${i}`} className="mb-1 text-red-900">
+            <span className="text-red-600">tool {stripNodeSuffix(t.publicName)}:</span>{' '}
+            {t.statusCode && (
+              <span className="px-1 py-0.5 bg-red-200 text-red-900 rounded text-[10px]">
+                HTTP {t.statusCode}
+              </span>
+            )}
+            {t.errorCode && (
+              <span className="ml-1 px-1 py-0.5 bg-red-200 text-red-900 rounded text-[10px]">
+                {t.errorCode}
+              </span>
+            )}
+            <div className="text-[10px] text-red-800 mt-0.5 break-words">
+              {t.errorDescription || truncate(t.result, 200)}
+            </div>
+          </div>
+        ))}
     </div>
   );
 }
@@ -351,8 +638,33 @@ function MCPList({ trace }: { trace: WorkflowTrace }) {
                   <JwtLink token={m.oboToken} label="Decode" />
                 </div>
               )}
-              {!token && m.flow !== 'none' && (
+              {!token && m.flow !== 'none' && !m.authError && (
                 <div className="font-mono text-[10px] text-slate-500 mt-1">No token captured</div>
+              )}
+              {m.authError && (
+                <div className="font-mono text-[10px] mt-1 p-1.5 bg-red-50 border border-red-200 rounded">
+                  <div className="text-red-800 font-bold flex flex-wrap items-center gap-1">
+                    <span>⛔ {STAGE_LABELS[m.authError.stage] || m.authError.stage}</span>
+                    {m.authError.statusCode && (
+                      <span className="px-1 py-0.5 bg-red-200 text-red-900 rounded text-[9px]">
+                        HTTP {m.authError.statusCode}
+                      </span>
+                    )}
+                    {m.authError.errorCode && (
+                      <span className="px-1 py-0.5 bg-red-200 text-red-900 rounded text-[9px]">
+                        {m.authError.errorCode}
+                      </span>
+                    )}
+                  </div>
+                  {m.authError.errorDescription && (
+                    <div className="text-red-800 mt-0.5 break-words">{m.authError.errorDescription}</div>
+                  )}
+                  {m.authError.url && (
+                    <div className="text-red-700/80 mt-0.5 truncate" title={m.authError.url}>
+                      @ {m.authError.url}
+                    </div>
+                  )}
+                </div>
               )}
               {m.oboAuthUrl && (
                 <div className="font-mono text-[10px] text-slate-500 mt-1 truncate" title={m.oboAuthUrl}>
@@ -394,6 +706,21 @@ function ToolCallList({ trace }: { trace: WorkflowTrace }) {
                 )}
               </div>
               <div className="font-mono text-[10px] text-slate-500 mt-1">args: {t.args}</div>
+              {!t.ok && (t.statusCode || t.errorCode) && (
+                <div className="font-mono text-[10px] mt-1 flex flex-wrap items-center gap-1">
+                  {t.statusCode && (
+                    <span className="px-1 py-0.5 bg-red-200 text-red-900 rounded text-[9px] font-bold">
+                      HTTP {t.statusCode}
+                    </span>
+                  )}
+                  {t.errorCode && (
+                    <span className="px-1 py-0.5 bg-red-200 text-red-900 rounded text-[9px] font-bold">
+                      {t.errorCode}
+                    </span>
+                  )}
+                  {t.errorDescription && <span className="text-red-700">{t.errorDescription}</span>}
+                </div>
+              )}
               <div className={`font-mono text-[10px] mt-1 ${t.ok ? 'text-emerald-700' : 'text-red-600'}`}>
                 {t.ok ? 'result' : 'error'}: {t.result}
               </div>
@@ -573,10 +900,13 @@ export function AuthFlowDiagram({ trace }: Props) {
             const row = { ...rawRow, y: rawRow.y - HEADER_H };
 
             if (item.kind === 'section') {
+              const sectionFill = item.failed ? '#fef2f2' : '#ecfeff';
+              const sectionStroke = item.failed ? '#fca5a5' : '#67e8f9';
+              const sectionTextColor = item.failed ? '#b91c1c' : '#0e7490';
               return (
                 <g key={idx}>
-                  <rect x={20} y={row.y + 6} width={width - 40} height={row.height - 12} fill="#ecfeff" stroke="#67e8f9" strokeOpacity={0.6} rx={4} />
-                  <text x={width / 2} y={row.y + row.height / 2 + 4} textAnchor="middle" fontSize="12" fontWeight="700" fill="#0e7490" letterSpacing="1.5">
+                  <rect x={20} y={row.y + 6} width={width - 40} height={row.height - 12} fill={sectionFill} stroke={sectionStroke} strokeOpacity={0.7} rx={4} />
+                  <text x={width / 2} y={row.y + row.height / 2 + 4} textAnchor="middle" fontSize="12" fontWeight="700" fill={sectionTextColor} letterSpacing="1.5">
                     — {item.label} —
                   </text>
                 </g>

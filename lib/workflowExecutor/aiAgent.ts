@@ -1,7 +1,8 @@
 import { WorkflowNode, AIAgentNodeData, LLMNodeData, ExecutionContext } from '../types';
 import { MCPClientNodeRuntime } from '../mcpClientNode';
 import { MCPClientConfig, AgentToolBinding, ConsentRequiredError } from './types';
-import { WorkflowTrace } from '../authTrace';
+import { WorkflowTrace, extractErrorInfoFromMessage } from '../authTrace';
+import { AuthFlowError } from '../agentAuth';
 import { connectMCPClient } from './mcpInitializer';
 import { executeMCPClient, buildToolBindingsFromCache } from './mcpClient';
 import { CachedMCPToolsMap } from './types';
@@ -387,12 +388,51 @@ export async function executeAIAgent(
         onEvent?.({ type: 'consent-required', nodeId: error.nodeId });
         throw error;
       }
+      const errorMessage = getErrorMessage(error);
       console.error(
-        `[AIAgent:${node.id}] Step ${step}: tool "${selectedTool.publicName}" failed: ${getErrorMessage(error)}`
+        `[AIAgent:${node.id}] Step ${step}: tool "${selectedTool.publicName}" failed: ${errorMessage}`
       );
       toolExecutionLog.push(
-        `Step ${step} tool call failed for ${selectedTool.publicName}: ${getErrorMessage(error)}`
+        `Step ${step} tool call failed for ${selectedTool.publicName}: ${errorMessage}`
       );
+
+      // Determine HTTP status / OAuth error info. Auth-flow failures from
+      // initial connect already record onto the MCP entry — only the in-flight
+      // tool-call failures (401/403 on a previously-connected runtime) need to
+      // be surfaced as a tool-level auth error.
+      let statusCode: number | undefined;
+      let errorCode: string | undefined;
+      let errorDescription: string | undefined;
+      if (error instanceof AuthFlowError) {
+        statusCode = error.statusCode;
+        errorCode = error.errorCode;
+        errorDescription = error.errorDescription;
+      } else {
+        const extracted = extractErrorInfoFromMessage(errorMessage);
+        statusCode = extracted.statusCode;
+        errorCode = extracted.errorCode;
+        errorDescription = extracted.errorDescription;
+      }
+
+      // Stamp an authError on the MCP entry when the tool call failed because
+      // of an auth issue (401/403, or recognised OAuth error code) and the MCP
+      // hasn't already recorded a more specific failure.
+      const mcpEntry = trace?.mcps.find((m) => m.nodeId === toolNodeId);
+      const looksAuthRelated =
+        statusCode === 401 ||
+        statusCode === 403 ||
+        (errorCode && /^(invalid_token|insufficient_scope|invalid_client|invalid_grant|access_denied|unauthorized|forbidden)$/i.test(errorCode));
+      if (mcpEntry && !mcpEntry.authError && looksAuthRelated) {
+        mcpEntry.authError = {
+          stage: 'tool-call',
+          statusCode,
+          errorCode,
+          errorDescription,
+          message: errorMessage,
+          url: selectedTool.endpoint,
+        };
+      }
+
       trace?.tools.push({
         step,
         publicName: selectedTool.publicName,
@@ -400,8 +440,11 @@ export async function executeAIAgent(
         endpoint: selectedTool.endpoint,
         nodeId: toolNodeId,
         args: JSON.stringify(decision.arguments),
-        result: getErrorMessage(error),
+        result: errorMessage,
         ok: false,
+        statusCode,
+        errorCode,
+        errorDescription,
       });
     } finally {
       if (toolNodeId) onEvent?.({ type: 'node-end', nodeId: toolNodeId });

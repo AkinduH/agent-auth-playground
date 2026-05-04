@@ -1,6 +1,8 @@
 import 'server-only';
 
 import { randomBytes, createHash } from 'crypto';
+import { AuthFlowError } from './agentAuth';
+import { parseOAuthErrorBody } from './authTrace';
 
 interface OBOAuthUrlConfig {
   organizationName: string;
@@ -69,21 +71,40 @@ export async function exchangeOBOCode(
     actor_token: agentAccessToken,
   });
 
-  const res = await fetch(`${baseUrl}/oauth2/token`, {
+  const url = `${baseUrl}/oauth2/token`;
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`OBO token exchange failed: ${res.status} ${text}`);
+    const text = await res.text().catch(() => '');
+    const parsed = parseOAuthErrorBody(text);
+    throw new AuthFlowError({
+      stage: 'obo-token',
+      statusCode: res.status,
+      url,
+      body: text,
+      errorCode: parsed.errorCode,
+      errorDescription: parsed.errorDescription,
+      message:
+        parsed.errorDescription ||
+        parsed.errorCode ||
+        `OBO token exchange failed (${res.status})`,
+    });
   }
 
   const data = await res.json();
 
   if (!data.access_token) {
-    throw new Error('No access_token in OBO token response');
+    throw new AuthFlowError({
+      stage: 'obo-token',
+      url,
+      errorCode: 'no_access_token',
+      errorDescription: 'OBO token endpoint returned 200 but no access_token field',
+      body: JSON.stringify(data),
+    });
   }
 
   return {

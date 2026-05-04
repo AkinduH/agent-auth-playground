@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { randomBytes, createHash } from 'crypto';
+import { AuthErrorStage, parseOAuthErrorBody } from './authTrace';
 
 export interface AgentAuthConfig {
   organizationName: string;
@@ -31,6 +32,10 @@ interface AuthorizeResponse {
 interface AuthnResponse {
   authData?: { code?: string };
   code?: string;
+  flowStatus?: string;
+  failureReason?: string;
+  error?: string;
+  error_description?: string;
 }
 
 interface TokenResponse {
@@ -41,10 +46,53 @@ interface TokenResponse {
   [key: string]: unknown;
 }
 
+export interface AuthFlowErrorInit {
+  stage: AuthErrorStage;
+  statusCode?: number;
+  errorCode?: string;
+  errorDescription?: string;
+  url?: string;
+  body?: string;
+  message?: string;
+}
+
+export class AuthFlowError extends Error {
+  stage: AuthErrorStage;
+  statusCode?: number;
+  errorCode?: string;
+  errorDescription?: string;
+  url?: string;
+  body?: string;
+
+  constructor(init: AuthFlowErrorInit) {
+    const headline =
+      init.message ||
+      init.errorDescription ||
+      init.errorCode ||
+      `${init.stage} failed${init.statusCode ? ` (HTTP ${init.statusCode})` : ''}`;
+    super(headline);
+    this.name = 'AuthFlowError';
+    this.stage = init.stage;
+    this.statusCode = init.statusCode;
+    this.errorCode = init.errorCode;
+    this.errorDescription = init.errorDescription;
+    this.url = init.url;
+    this.body = init.body;
+  }
+}
+
 function generatePKCE(): PKCEPair {
   const codeVerifier = randomBytes(48).toString('base64url');
   const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url');
   return { codeVerifier, codeChallenge };
+}
+
+async function readErrorBody(res: Response): Promise<string> {
+  try {
+    return await res.text();
+  } catch {
+    return '';
+  }
 }
 
 async function initiateAuthorize(
@@ -54,6 +102,7 @@ async function initiateAuthorize(
   scope: string,
   codeChallenge: string
 ): Promise<AuthorizeResult> {
+  const url = `${baseUrl}/oauth2/authorize`;
   const body = new URLSearchParams({
     client_id: clientId,
     response_type: 'code',
@@ -64,7 +113,7 @@ async function initiateAuthorize(
     code_challenge_method: 'S256',
   });
 
-  const res = await fetch(`${baseUrl}/oauth2/authorize`, {
+  const res = await fetch(url, {
     method: 'POST',
     headers: {
       Accept: 'application/json',
@@ -74,18 +123,42 @@ async function initiateAuthorize(
   });
 
   if (!res.ok) {
-    throw new Error(`Authorize failed: ${res.status} ${await res.text()}`);
+    const text = await readErrorBody(res);
+    const parsed = parseOAuthErrorBody(text);
+    throw new AuthFlowError({
+      stage: 'authorize',
+      statusCode: res.status,
+      url,
+      body: text,
+      errorCode: parsed.errorCode,
+      errorDescription: parsed.errorDescription,
+      message: parsed.errorDescription || parsed.errorCode || `Authorize failed (${res.status})`,
+    });
   }
 
-  const data = await res.json() as AuthorizeResponse;
+  const data = (await res.json()) as AuthorizeResponse;
 
   if (!data.flowId) {
-    throw new Error(`No flowId in authorize response: ${JSON.stringify(data)}`);
+    throw new AuthFlowError({
+      stage: 'authorize',
+      statusCode: res.status,
+      url,
+      errorCode: 'missing_flow_id',
+      errorDescription: 'Authorize response did not contain a flowId',
+      body: JSON.stringify(data),
+    });
   }
 
   const authenticatorId = data.nextStep?.authenticators?.[0]?.authenticatorId;
   if (!authenticatorId) {
-    throw new Error('No authenticator found in authorize response');
+    throw new AuthFlowError({
+      stage: 'authorize',
+      statusCode: res.status,
+      url,
+      errorCode: 'no_authenticator',
+      errorDescription: 'Authorize response did not contain an authenticator',
+      body: JSON.stringify(data),
+    });
   }
 
   return { flowId: data.flowId, authenticatorId };
@@ -98,6 +171,7 @@ async function submitCredentials(
   agentId: string,
   agentSecret: string
 ): Promise<string> {
+  const url = `${baseUrl}/oauth2/authn`;
   const payload = {
     flowId,
     selectedAuthenticator: {
@@ -109,21 +183,54 @@ async function submitCredentials(
     },
   };
 
-  const res = await fetch(`${baseUrl}/oauth2/authn`, {
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
-    throw new Error(`Authn failed: ${res.status} ${await res.text()}`);
+    const text = await readErrorBody(res);
+    const parsed = parseOAuthErrorBody(text);
+    throw new AuthFlowError({
+      stage: 'authn',
+      statusCode: res.status,
+      url,
+      body: text,
+      errorCode: parsed.errorCode || (res.status === 401 ? 'invalid_credentials' : undefined),
+      errorDescription:
+        parsed.errorDescription ||
+        (res.status === 401 ? 'Agent ID or secret was rejected by the IAM' : undefined),
+      message: parsed.errorDescription || parsed.errorCode || `Authn failed (${res.status})`,
+    });
   }
 
-  const data = await res.json() as AuthnResponse;
+  const data = (await res.json()) as AuthnResponse;
+
+  // Asgardeo can return 200 OK with a FAIL_INCOMPLETE / INCOMPLETE flow status
+  // when credentials don't pass. Detect those cases too.
+  if (data.flowStatus && data.flowStatus !== 'SUCCESS_COMPLETED') {
+    throw new AuthFlowError({
+      stage: 'authn',
+      statusCode: res.status,
+      url,
+      body: JSON.stringify(data),
+      errorCode: data.error || data.flowStatus,
+      errorDescription:
+        data.error_description || data.failureReason || `Authn rejected: ${data.flowStatus}`,
+    });
+  }
 
   const code = data.authData?.code ?? data.code;
   if (!code) {
-    throw new Error(`No code in authn response: ${JSON.stringify(data)}`);
+    throw new AuthFlowError({
+      stage: 'authn',
+      statusCode: res.status,
+      url,
+      body: JSON.stringify(data),
+      errorCode: 'no_authorization_code',
+      errorDescription: 'Authn succeeded but no authorization code was returned',
+    });
   }
 
   return code;
@@ -136,6 +243,7 @@ async function exchangeCodeForToken(
   code: string,
   codeVerifier: string
 ): Promise<TokenResponse> {
+  const url = `${baseUrl}/oauth2/token`;
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     client_id: clientId,
@@ -144,14 +252,24 @@ async function exchangeCodeForToken(
     redirect_uri: redirectUri,
   });
 
-  const res = await fetch(`${baseUrl}/oauth2/token`, {
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
   });
 
   if (!res.ok) {
-    throw new Error(`Token exchange failed: ${res.status} ${await res.text()}`);
+    const text = await readErrorBody(res);
+    const parsed = parseOAuthErrorBody(text);
+    throw new AuthFlowError({
+      stage: 'token',
+      statusCode: res.status,
+      url,
+      body: text,
+      errorCode: parsed.errorCode,
+      errorDescription: parsed.errorDescription,
+      message: parsed.errorDescription || parsed.errorCode || `Token exchange failed (${res.status})`,
+    });
   }
 
   return res.json() as Promise<TokenResponse>;
@@ -173,7 +291,13 @@ export async function authenticateAgent(config: AgentAuthConfig): Promise<string
   const tokenResponse = await exchangeCodeForToken(baseUrl, config.clientId, config.redirectUri, code, codeVerifier);
 
   if (!tokenResponse.access_token) {
-    throw new Error(`No access_token in token response: ${JSON.stringify(tokenResponse)}`);
+    throw new AuthFlowError({
+      stage: 'token',
+      url: `${baseUrl}/oauth2/token`,
+      errorCode: 'no_access_token',
+      errorDescription: 'Token endpoint returned 200 but no access_token field',
+      body: JSON.stringify(tokenResponse),
+    });
   }
 
   return tokenResponse.access_token;
