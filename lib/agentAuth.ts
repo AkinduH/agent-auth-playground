@@ -4,7 +4,7 @@ import { randomBytes, createHash } from 'crypto';
 import { AuthErrorStage, parseOAuthErrorBody } from './authTrace';
 
 export interface AgentAuthConfig {
-  organizationName: string;
+  baseUrl: string;
   clientId: string;
   redirectUri: string;
   agentId: string;
@@ -276,7 +276,7 @@ async function exchangeCodeForToken(
 }
 
 export async function authenticateAgent(config: AgentAuthConfig): Promise<string> {
-  const baseUrl = `https://api.asgardeo.io/t/${config.organizationName}`;
+  const baseUrl = config.baseUrl.replace(/\/+$/, '');
   const scope = config.scope?.trim() || 'openid';
 
   const { codeVerifier, codeChallenge } = generatePKCE();

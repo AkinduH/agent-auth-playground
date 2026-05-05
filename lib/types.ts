@@ -52,7 +52,7 @@ export interface MCPClientNodeData extends BaseNodeData {
   mcpServerEndpoint: string;
   useOAuth2?: boolean;
   oauth2Flow?: 'agent' | 'obo';
-  oauth2OrganizationName?: string;
+  oauth2BaseUrl?: string;
   oauth2ClientId?: string;
   oauth2RedirectUri?: string;
   oauth2Scope?: string;

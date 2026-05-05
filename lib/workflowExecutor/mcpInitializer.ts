@@ -64,8 +64,8 @@ export async function connectMCPClient(
 
       if (flow === 'obo') {
         traceEntry.flow = 'obo';
-        if (nodeData.oauth2OrganizationName?.trim()) {
-          const urls = deriveIamUrls(nodeData.oauth2OrganizationName.trim());
+        if (nodeData.oauth2BaseUrl?.trim()) {
+          const urls = deriveIamUrls(nodeData.oauth2BaseUrl.trim());
           traceEntry.iamBaseUrl = urls.iamBaseUrl;
           traceEntry.authorizeUrl = urls.authorizeUrl;
           traceEntry.tokenUrl = urls.tokenUrl;
@@ -80,11 +80,11 @@ export async function connectMCPClient(
         traceEntry.oboToken = oboToken;
       } else {
         traceEntry.flow = 'agent';
-        if (!nodeData.oauth2OrganizationName?.trim()) {
+        if (!nodeData.oauth2BaseUrl?.trim()) {
           throw new AuthFlowError({
             stage: 'config',
-            errorCode: 'missing_organization_name',
-            errorDescription: 'OAuth2 organization name is required',
+            errorCode: 'missing_base_url',
+            errorDescription: 'OAuth2 base URL is required',
           });
         }
         if (!nodeData.oauth2ClientId?.trim()) {
@@ -116,7 +116,7 @@ export async function connectMCPClient(
           });
         }
 
-        const urls = deriveIamUrls(nodeData.oauth2OrganizationName.trim());
+        const urls = deriveIamUrls(nodeData.oauth2BaseUrl.trim());
         traceEntry.iamBaseUrl = urls.iamBaseUrl;
         traceEntry.authorizeUrl = urls.authorizeUrl;
         traceEntry.authnUrl = urls.authnUrl;
@@ -124,7 +124,7 @@ export async function connectMCPClient(
 
         console.log(`[MCPClient:${nodeId}] Running OAuth2 agent authentication flow`);
         const accessToken = await authenticateAgent({
-          organizationName: nodeData.oauth2OrganizationName,
+          baseUrl: nodeData.oauth2BaseUrl,
           clientId: nodeData.oauth2ClientId,
           redirectUri: nodeData.oauth2RedirectUri,
           agentId: agentData.agentId,

@@ -24,7 +24,7 @@ interface MemoryBinding {
 interface OBOPendingNode {
   nodeId: string;
   name: string;
-  organizationName: string;
+  baseUrl: string;
   clientId: string;
   redirectUri: string;
   scope?: string;
@@ -84,7 +84,7 @@ function collectCachedMCPTools(
 function findOBONodes(workflow: Workflow): Array<{
   nodeId: string;
   name: string;
-  organizationName: string;
+  baseUrl: string;
   clientId: string;
   redirectUri: string;
   scope?: string;
@@ -107,7 +107,7 @@ function findOBONodes(workflow: Workflow): Array<{
       return {
         nodeId: n.id,
         name: data.name?.trim() || n.id,
-        organizationName: data.oauth2OrganizationName || '',
+        baseUrl: data.oauth2BaseUrl || '',
         clientId: data.oauth2ClientId || '',
         redirectUri: typeof window !== 'undefined' ? window.location.origin : '',
         scope: data.oauth2Scope,
@@ -416,7 +416,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
             return {
               nodeId: node.nodeId,
               name: node.name,
-              organizationName: node.organizationName,
+              baseUrl: node.baseUrl,
               clientId: node.clientId,
               redirectUri: node.redirectUri,
               scope: node.scope,
@@ -494,7 +494,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
             authCode: code,
             agentAccessToken: currentNode.agentAccessToken,
             codeVerifier: currentNode.codeVerifier,
-            organizationName: currentNode.organizationName,
+            baseUrl: currentNode.baseUrl,
             clientId: currentNode.clientId,
             redirectUri: currentNode.redirectUri,
           }),

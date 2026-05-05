@@ -5,18 +5,18 @@ import { buildOBOAuthorizationUrl } from '@/lib/oboAuth';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { organizationName, clientId, redirectUri, scope, agentId, agentSecret } = body;
+    const { baseUrl, clientId, redirectUri, scope, agentId, agentSecret } = body;
 
-    if (!organizationName || !clientId || !redirectUri || !agentId || !agentSecret) {
+    if (!baseUrl || !clientId || !redirectUri || !agentId || !agentSecret) {
       return NextResponse.json(
-        { error: 'Missing required fields: organizationName, clientId, redirectUri, agentId, agentSecret' },
+        { error: 'Missing required fields: baseUrl, clientId, redirectUri, agentId, agentSecret' },
         { status: 400 }
       );
     }
 
     // Get agent's own access token first (needed as actor_token in OBO exchange)
     const agentAccessToken = await authenticateAgent({
-      organizationName,
+      baseUrl,
       clientId,
       redirectUri,
       agentId,
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     // Build authorization URL with PKCE and requested_actor = agentId
     const { authUrl, state, codeVerifier } = buildOBOAuthorizationUrl({
-      organizationName,
+      baseUrl,
       clientId,
       redirectUri,
       scope,

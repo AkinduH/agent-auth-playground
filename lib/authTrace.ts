@@ -75,13 +75,13 @@ export function previewToken(token?: string, headLen = 10, tailLen = 4): string 
   return `${token.slice(0, headLen)}…${token.slice(-tailLen)}`;
 }
 
-export function deriveIamUrls(organizationName: string): {
+export function deriveIamUrls(baseUrl: string): {
   iamBaseUrl: string;
   authorizeUrl: string;
   authnUrl: string;
   tokenUrl: string;
 } {
-  const iamBaseUrl = `https://api.asgardeo.io/t/${organizationName}`;
+  const iamBaseUrl = baseUrl.replace(/\/+$/, '');
   return {
     iamBaseUrl,
     authorizeUrl: `${iamBaseUrl}/oauth2/authorize`,

@@ -8,7 +8,7 @@ interface InitializeMCPBody {
   endpoint?: string;
   oauth2?: {
     flow?: 'agent' | 'obo';
-    organizationName?: string;
+    baseUrl?: string;
     clientId?: string;
     redirectUri?: string;
     scope?: string;
@@ -33,20 +33,20 @@ export async function POST(request: NextRequest) {
     runtime = new MCPClientNodeRuntime();
 
     if (body.oauth2) {
-      const { organizationName, clientId, redirectUri, scope, agentId, agentSecret } = body.oauth2;
-      if (!organizationName || !clientId || !redirectUri || !agentId || !agentSecret) {
+      const { baseUrl, clientId, redirectUri, scope, agentId, agentSecret } = body.oauth2;
+      if (!baseUrl || !clientId || !redirectUri || !agentId || !agentSecret) {
         return NextResponse.json(
           {
             success: false,
             error:
-              'OAuth2 configuration is incomplete. Provide organizationName, clientId, redirectUri, agentId, and agentSecret.',
+              'OAuth2 configuration is incomplete. Provide baseUrl, clientId, redirectUri, agentId, and agentSecret.',
           },
           { status: 400 }
         );
       }
 
       const token = await authenticateAgent({
-        organizationName,
+        baseUrl,
         clientId,
         redirectUri,
         scope,

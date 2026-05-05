@@ -5,7 +5,7 @@ import { AuthFlowError } from './agentAuth';
 import { parseOAuthErrorBody } from './authTrace';
 
 interface OBOAuthUrlConfig {
-  organizationName: string;
+  baseUrl: string;
   clientId: string;
   redirectUri: string;
   scope?: string;
@@ -29,7 +29,7 @@ function generateState(): string {
 }
 
 export function buildOBOAuthorizationUrl(config: OBOAuthUrlConfig): OBOInitResult {
-  const baseUrl = `https://api.asgardeo.io/t/${config.organizationName}`;
+  const baseUrl = config.baseUrl.replace(/\/+$/, '');
   const { codeVerifier, codeChallenge } = generatePKCE();
   const state = generateState();
   const scope = config.scope?.trim() || 'openid';
@@ -53,14 +53,14 @@ export function buildOBOAuthorizationUrl(config: OBOAuthUrlConfig): OBOInitResul
 }
 
 export async function exchangeOBOCode(
-  organizationName: string,
+  baseUrl: string,
   clientId: string,
   redirectUri: string,
   authCode: string,
   agentAccessToken: string,
   codeVerifier: string
 ): Promise<{ accessToken: string; expiresIn: number }> {
-  const baseUrl = `https://api.asgardeo.io/t/${organizationName}`;
+  baseUrl = baseUrl.replace(/\/+$/, '');
 
   const body = new URLSearchParams({
     grant_type: 'authorization_code',

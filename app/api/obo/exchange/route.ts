@@ -4,17 +4,17 @@ import { exchangeOBOCode } from '@/lib/oboAuth';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { authCode, agentAccessToken, codeVerifier, organizationName, clientId, redirectUri } = body;
+    const { authCode, agentAccessToken, codeVerifier, baseUrl, clientId, redirectUri } = body;
 
-    if (!authCode || !agentAccessToken || !codeVerifier || !organizationName || !clientId || !redirectUri) {
+    if (!authCode || !agentAccessToken || !codeVerifier || !baseUrl || !clientId || !redirectUri) {
       return NextResponse.json(
-        { error: 'Missing required fields: authCode, agentAccessToken, codeVerifier, organizationName, clientId, redirectUri' },
+        { error: 'Missing required fields: authCode, agentAccessToken, codeVerifier, baseUrl, clientId, redirectUri' },
         { status: 400 }
       );
     }
 
     const { accessToken, expiresIn } = await exchangeOBOCode(
-      organizationName,
+      baseUrl,
       clientId,
       redirectUri,
       authCode,

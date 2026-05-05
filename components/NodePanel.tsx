@@ -94,12 +94,12 @@ export default function NodePanel({
 
     let oauth2Body: Record<string, string> | undefined;
     if (mcpData.useOAuth2) {
-      const organizationName = mcpData.oauth2OrganizationName?.trim();
+      const baseUrl = mcpData.oauth2BaseUrl?.trim();
       const clientId = mcpData.oauth2ClientId?.trim();
       const redirectUri = window.location.origin;
-      if (!organizationName || !clientId || !redirectUri) {
+      if (!baseUrl || !clientId || !redirectUri) {
         setMcpInitError(
-          'OAuth2 is enabled but Organization Name, Client ID, or Redirect URI is missing.'
+          'OAuth2 is enabled but Base URL, Client ID, or Redirect URI is missing.'
         );
         return;
       }
@@ -112,7 +112,7 @@ export default function NodePanel({
       }
       oauth2Body = {
         flow: mcpData.oauth2Flow ?? 'agent',
-        organizationName,
+        baseUrl,
         clientId,
         redirectUri,
         scope: mcpData.oauth2Scope ?? '',
@@ -478,20 +478,17 @@ export default function NodePanel({
 
                 <div>
                   <label className="text-sm font-semibold text-gray-700 mb-1 block">
-                    Organization Name
+                    Base URL
                   </label>
                   <Input
-                    value={mcpData.oauth2OrganizationName || ''}
+                    value={mcpData.oauth2BaseUrl || ''}
                     onChange={(e) =>
                       onUpdate(node.id, {
-                        data: { ...mcpData, oauth2OrganizationName: e.target.value },
+                        data: { ...mcpData, oauth2BaseUrl: e.target.value },
                       })
                     }
-                    placeholder="your-org"
+                    placeholder="https://api.asgardeo.io/t/your-org"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Asgardeo tenant name (used in api.asgardeo.io/t/&#123;org&#125;)
-                  </p>
                 </div>
 
                 <div>
