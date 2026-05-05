@@ -1,4 +1,4 @@
-# MCP Servers
+# Travel MCP Servers
 
 A collection of Model Context Protocol (MCP) servers for a travel-booking demo. Three servers run without auth; two are protected with Asgardeo / WSO2 Identity Server OAuth2.
 
@@ -39,6 +39,3 @@ Start all five servers in one terminal:
 ```
 npm start
 ```
-
-## Test
-- [queries.md](queries.md) — example prompts for testing the servers via an MCP client.
