@@ -25,6 +25,8 @@ export interface AIAgentNodeData extends BaseNodeData {
   agentName?: string;
   agentId?: string;
   agentSecret?: string;
+  agentBaseUrl?: string;
+  agentAppClientId?: string;
   temperature: number;
   maxTokens: number;
   maxToolSteps?: number;

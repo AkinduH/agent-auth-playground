@@ -54,6 +54,11 @@ export default function NodePanel({
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [modelInputValue, setModelInputValue] = useState('');
   const modelComboboxRef = useRef<HTMLDivElement>(null);
+  const [agentTokenModalOpen, setAgentTokenModalOpen] = useState(false);
+  const [agentToken, setAgentToken] = useState<string | null>(null);
+  const [agentTokenLoading, setAgentTokenLoading] = useState(false);
+  const [agentTokenError, setAgentTokenError] = useState<string | null>(null);
+  const [agentTokenCopied, setAgentTokenCopied] = useState(false);
 
   useEffect(() => {
     if (workflowId && node?.type === 'aiAgent') {
@@ -151,6 +156,35 @@ export default function NodePanel({
     setMcpInitInfo(null);
     setMcpInitError(null);
     onMCPInitChange?.();
+  };
+
+  const checkAgentToken = async (data: AIAgentNodeData) => {
+    setAgentTokenLoading(true);
+    setAgentTokenError(null);
+    try {
+      const res = await fetch('/api/check-agent-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          baseUrl: data.agentBaseUrl,
+          clientId: data.agentAppClientId,
+          agentId: data.agentId,
+          agentSecret: data.agentSecret,
+          redirectUri: window.location.origin,
+          scope: 'openid',
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.token) {
+        throw new Error(json.error || 'Failed to fetch agent token');
+      }
+      setAgentToken(json.token);
+      setAgentTokenModalOpen(true);
+    } catch (err) {
+      setAgentTokenError(err instanceof Error ? err.message : 'Failed to fetch agent token');
+    } finally {
+      setAgentTokenLoading(false);
+    }
   };
 
   const providerModels: Record<string, string[]> = {
@@ -262,6 +296,71 @@ export default function NodePanel({
                 }
                 placeholder="Enter agent secret"
               />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                Base URL
+              </label>
+              <Input
+                value={agentData.agentBaseUrl || ''}
+                onChange={(e) =>
+                  onUpdate(node.id, {
+                    data: { ...agentData, agentBaseUrl: e.target.value },
+                  })
+                }
+                placeholder="https://api.asgardeo.io/t/your-org"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                Agent Application Client ID
+              </label>
+              <Input
+                value={agentData.agentAppClientId || ''}
+                onChange={(e) =>
+                  onUpdate(node.id, {
+                    data: { ...agentData, agentAppClientId: e.target.value },
+                  })
+                }
+                placeholder="Enter client ID"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Make sure you enable PKCE and public client in the application.
+              </p>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                Redirect URI
+              </label>
+              <Input
+                value={window.location.origin}
+                readOnly
+                className="bg-gray-50 text-gray-500 cursor-not-allowed"
+              />
+            </div>
+
+            <div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={
+                  agentTokenLoading ||
+                  !agentData.agentBaseUrl?.trim() ||
+                  !agentData.agentAppClientId?.trim() ||
+                  !agentData.agentId?.trim() ||
+                  !agentData.agentSecret?.trim()
+                }
+                onClick={() => checkAgentToken(agentData)}
+              >
+                {agentTokenLoading ? 'Checking...' : 'Fetch Agent Token'}
+              </Button>
+              {agentTokenError && (
+                <p className="text-xs text-red-600 mt-1">{agentTokenError}</p>
+              )}
             </div>
 
             <div>
@@ -924,31 +1023,143 @@ export default function NodePanel({
 
   if (variant === 'modal') {
     return (
-      <div className={containerClassName}>
-        <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-2.5 pr-12">
-          <div>
-            <h3 className="text-base font-bold text-gray-900 leading-tight">
-              {node.data.label}
-            </h3>
-            <p className="text-xs text-gray-500 mt-0.5">Node configuration</p>
+      <>
+        <div className={containerClassName}>
+          <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-2.5 pr-12">
+            <div>
+              <h3 className="text-base font-bold text-gray-900 leading-tight">
+                {node.data.label}
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5">Node configuration</p>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 py-3">
+            {renderNodeConfig()}
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto px-4 py-3">
-          {renderNodeConfig()}
-        </div>
-      </div>
+
+        {agentTokenModalOpen && agentToken && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white rounded-lg shadow-xl p-6 max-w-lg w-full mx-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-bold text-gray-900">Agent Token</h3>
+                <button
+                  type="button"
+                  onClick={() => setAgentTokenModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="bg-gray-50 rounded-md p-3 mb-4 max-h-40 overflow-auto border border-gray-200">
+                <code className="text-xs text-gray-800 break-all select-all whitespace-pre-wrap">
+                  {agentToken}
+                </code>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(agentToken);
+                    setAgentTokenCopied(true);
+                    setTimeout(() => setAgentTokenCopied(false), 2000);
+                  }}
+                >
+                  {agentTokenCopied ? 'Copied!' : 'Copy'}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    window.open(`https://jwt.io/#id_token=${encodeURIComponent(agentToken)}`, '_blank')
+                  }
+                >
+                  Decode
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setAgentTokenModalOpen(false)}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 
   return (
-    <div className={containerClassName}>
-      <div className="mb-6">
-        <h3 className="text-lg font-bold text-gray-900 mb-2">
-          {node.data.label}
-        </h3>
+    <>
+      <div className={containerClassName}>
+        <div className="mb-6">
+          <h3 className="text-lg font-bold text-gray-900 mb-2">
+            {node.data.label}
+          </h3>
+        </div>
+
+        {renderNodeConfig()}
       </div>
 
-      {renderNodeConfig()}
-    </div>
+      {agentTokenModalOpen && agentToken && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-lg w-full mx-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-bold text-gray-900">Agent Token</h3>
+              <button
+                type="button"
+                onClick={() => setAgentTokenModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="bg-gray-50 rounded-md p-3 mb-4 max-h-40 overflow-auto border border-gray-200">
+              <code className="text-xs text-gray-800 break-all select-all whitespace-pre-wrap">
+                {agentToken}
+              </code>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  navigator.clipboard.writeText(agentToken);
+                  setAgentTokenCopied(true);
+                  setTimeout(() => setAgentTokenCopied(false), 2000);
+                }}
+              >
+                {agentTokenCopied ? 'Copied!' : 'Copy'}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  window.open(`https://jwt.io/#id_token=${encodeURIComponent(agentToken)}`, '_blank')
+                }
+              >
+                Decode
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setAgentTokenModalOpen(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

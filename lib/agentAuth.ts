@@ -1,7 +1,62 @@
 import 'server-only';
 
 import { randomBytes, createHash } from 'crypto';
+import https from 'node:https';
+import http from 'node:http';
 import { AuthErrorStage, parseOAuthErrorBody } from './authTrace';
+
+function isLocalHost(urlStr: string): boolean {
+  try {
+    const { hostname } = new URL(urlStr);
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+  } catch {
+    return false;
+  }
+}
+
+// Bypasses TLS certificate verification for local IS instances (self-signed certs).
+function insecureFetch(url: string, init?: RequestInit): Promise<Response> {
+  return new Promise<Response>((resolve, reject) => {
+    const parsed = new URL(url);
+    const useHttps = parsed.protocol === 'https:';
+    const transport = useHttps ? https : http;
+
+    const reqOptions: https.RequestOptions = {
+      hostname: parsed.hostname,
+      port: Number(parsed.port) || (useHttps ? 443 : 80),
+      path: parsed.pathname + parsed.search,
+      method: (init?.method ?? 'GET').toUpperCase(),
+      headers: init?.headers as Record<string, string> | undefined,
+      rejectUnauthorized: false,
+    };
+
+    const req = transport.request(reqOptions, (res) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (c: Buffer) => chunks.push(c));
+      res.on('end', () => {
+        const headers: Record<string, string> = {};
+        const raw = res.rawHeaders ?? [];
+        for (let i = 0; i + 1 < raw.length; i += 2) {
+          headers[raw[i].toLowerCase()] = raw[i + 1];
+        }
+        resolve(new Response(Buffer.concat(chunks), { status: res.statusCode ?? 200, headers }));
+      });
+      res.on('error', reject);
+    });
+
+    req.on('error', reject);
+
+    const body = init?.body;
+    if (body != null) {
+      req.write(body instanceof URLSearchParams ? body.toString() : body as string);
+    }
+    req.end();
+  });
+}
+
+function localAwareFetch(url: string, init?: RequestInit): Promise<Response> {
+  return isLocalHost(url) ? insecureFetch(url, init) : fetch(url, init);
+}
 
 export interface AgentAuthConfig {
   baseUrl: string;
@@ -113,7 +168,7 @@ async function initiateAuthorize(
     code_challenge_method: 'S256',
   });
 
-  const res = await fetch(url, {
+  const res = await localAwareFetch(url, {
     method: 'POST',
     headers: {
       Accept: 'application/json',
@@ -183,7 +238,7 @@ async function submitCredentials(
     },
   };
 
-  const res = await fetch(url, {
+  const res = await localAwareFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -252,7 +307,7 @@ async function exchangeCodeForToken(
     redirect_uri: redirectUri,
   });
 
-  const res = await fetch(url, {
+  const res = await localAwareFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
