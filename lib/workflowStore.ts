@@ -1,4 +1,4 @@
-import { Workflow, ChatMessage } from './types';
+import { Workflow, ChatMessage, AgentCredential, LLMCredential } from './types';
 
 const WORKFLOWS_KEY = 'workflows';
 const CURRENT_WORKFLOW_KEY = 'currentWorkflow';
@@ -6,6 +6,8 @@ const WORKFLOW_MEMORY_KEY = 'workflowMemories';
 const API_KEYS_KEY = 'apiKeys';
 const OBO_TOKENS_KEY = 'oboTokens';
 const MCP_TOOLS_KEY = 'mcpDiscoveredTools';
+const AGENT_CREDENTIALS_KEY = 'agentCredentials';
+const LLM_CREDENTIALS_KEY = 'llmCredentials';
 
 type OBOTokenEntry = { accessToken: string; expiresAt: number };
 type OBOTokenStore = Record<string, OBOTokenEntry>;
@@ -230,6 +232,56 @@ export const workflowStore = {
     if (!store[workflowId]) return;
     delete store[workflowId];
     localStorage.setItem(MCP_TOOLS_KEY, JSON.stringify(store));
+  },
+
+  // Agent credential management — stored globally, not per-workflow
+  getAgentCredentials(): AgentCredential[] {
+    if (typeof window === 'undefined') return [];
+    const stored = localStorage.getItem(AGENT_CREDENTIALS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  },
+
+  saveAgentCredential(cred: AgentCredential): void {
+    if (typeof window === 'undefined') return;
+    const creds = this.getAgentCredentials();
+    const idx = creds.findIndex((c) => c.id === cred.id);
+    if (idx >= 0) {
+      creds[idx] = cred;
+    } else {
+      creds.push(cred);
+    }
+    localStorage.setItem(AGENT_CREDENTIALS_KEY, JSON.stringify(creds));
+  },
+
+  deleteAgentCredential(id: string): void {
+    if (typeof window === 'undefined') return;
+    const creds = this.getAgentCredentials().filter((c) => c.id !== id);
+    localStorage.setItem(AGENT_CREDENTIALS_KEY, JSON.stringify(creds));
+  },
+
+  // LLM credential management — stored globally, not per-workflow
+  getLLMCredentials(): LLMCredential[] {
+    if (typeof window === 'undefined') return [];
+    const stored = localStorage.getItem(LLM_CREDENTIALS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  },
+
+  saveLLMCredential(cred: LLMCredential): void {
+    if (typeof window === 'undefined') return;
+    const creds = this.getLLMCredentials();
+    const idx = creds.findIndex((c) => c.id === cred.id);
+    if (idx >= 0) {
+      creds[idx] = cred;
+    } else {
+      creds.push(cred);
+    }
+    localStorage.setItem(LLM_CREDENTIALS_KEY, JSON.stringify(creds));
+  },
+
+  deleteLLMCredential(id: string): void {
+    if (typeof window === 'undefined') return;
+    const creds = this.getLLMCredentials().filter((c) => c.id !== id);
+    localStorage.setItem(LLM_CREDENTIALS_KEY, JSON.stringify(creds));
   },
 };
 

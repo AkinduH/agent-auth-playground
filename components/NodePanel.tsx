@@ -7,6 +7,9 @@ import {
   LLMNodeData,
   MCPClientNodeData,
   Workflow,
+  AgentCredential,
+  LLMCredential,
+  LLMCredentialProvider,
 } from '@/lib/types';
 import { workflowStore } from '@/lib/workflowStore';
 import { Button } from '@/components/ui/button';
@@ -24,7 +27,8 @@ interface NodePanelProps {
 
 function findConnectedAgentCreds(
   workflow: Workflow | null | undefined,
-  mcpNodeId: string
+  mcpNodeId: string,
+  credentials: AgentCredential[]
 ): { agentId?: string; agentSecret?: string } | null {
   if (!workflow) return null;
   const edge = workflow.edges.find((e) => e.target === mcpNodeId);
@@ -32,7 +36,13 @@ function findConnectedAgentCreds(
   const agent = workflow.nodes.find((n) => n.id === edge.source && n.type === 'aiAgent');
   if (!agent) return null;
   const data = agent.data as AIAgentNodeData;
-  return { agentId: data.agentId, agentSecret: data.agentSecret };
+  if (data.agentCredentialId) {
+    const cred = credentials.find((c) => c.id === data.agentCredentialId);
+    if (cred) return { agentId: cred.agentId, agentSecret: cred.agentSecret };
+  }
+  // Fallback for data saved before credential sets were introduced
+  const legacy = agent.data as Record<string, unknown>;
+  return { agentId: legacy.agentId as string | undefined, agentSecret: legacy.agentSecret as string | undefined };
 }
 
 export default function NodePanel({
@@ -59,6 +69,18 @@ export default function NodePanel({
   const [agentTokenLoading, setAgentTokenLoading] = useState(false);
   const [agentTokenError, setAgentTokenError] = useState<string | null>(null);
   const [agentTokenCopied, setAgentTokenCopied] = useState(false);
+
+  const [credentials, setCredentials] = useState<AgentCredential[]>([]);
+  const [credFormOpen, setCredFormOpen] = useState(false);
+  const [credEditingId, setCredEditingId] = useState<string | null>(null);
+  const [credForm, setCredForm] = useState({ name: '', agentId: '', agentSecret: '', agentBaseUrl: '', agentAppClientId: '' });
+  const [credFormError, setCredFormError] = useState<string | null>(null);
+
+  const [llmCredentials, setLLMCredentials] = useState<LLMCredential[]>([]);
+  const [llmCredFormOpen, setLLMCredFormOpen] = useState(false);
+  const [llmCredEditingId, setLLMCredEditingId] = useState<string | null>(null);
+  const [llmCredForm, setLLMCredForm] = useState({ name: '', apiKey: '', gcpAccessToken: '', gcpProjectId: '', azureResourceName: '', azureDeploymentName: '', azureApiVersion: '' });
+  const [llmCredFormError, setLLMCredFormError] = useState<string | null>(null);
 
   useEffect(() => {
     if (workflowId && node?.type === 'aiAgent') {
@@ -108,7 +130,7 @@ export default function NodePanel({
         );
         return;
       }
-      const agentCreds = findConnectedAgentCreds(workflow, nodeId);
+      const agentCreds = findConnectedAgentCreds(workflow, nodeId, credentials);
       if (!agentCreds || !agentCreds.agentId?.trim() || !agentCreds.agentSecret?.trim()) {
         setMcpInitError(
           'Agent ID and Secret are required on the connected AI Agent node for OAuth2 init.'
@@ -158,7 +180,7 @@ export default function NodePanel({
     onMCPInitChange?.();
   };
 
-  const checkAgentToken = async (data: AIAgentNodeData) => {
+  const checkAgentToken = async (cred: AgentCredential) => {
     setAgentTokenLoading(true);
     setAgentTokenError(null);
     try {
@@ -166,10 +188,10 @@ export default function NodePanel({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          baseUrl: data.agentBaseUrl,
-          clientId: data.agentAppClientId,
-          agentId: data.agentId,
-          agentSecret: data.agentSecret,
+          baseUrl: cred.agentBaseUrl,
+          clientId: cred.agentAppClientId,
+          agentId: cred.agentId,
+          agentSecret: cred.agentSecret,
           redirectUri: window.location.origin,
           scope: 'openid',
         }),
@@ -184,6 +206,134 @@ export default function NodePanel({
       setAgentTokenError(err instanceof Error ? err.message : 'Failed to fetch agent token');
     } finally {
       setAgentTokenLoading(false);
+    }
+  };
+
+  const openAddCredModal = () => {
+    setCredForm({ name: '', agentId: '', agentSecret: '', agentBaseUrl: '', agentAppClientId: '' });
+    setCredEditingId(null);
+    setCredFormError(null);
+    setCredFormOpen(true);
+  };
+
+  const openEditCredModal = (cred: AgentCredential) => {
+    setCredForm({ name: cred.name, agentId: cred.agentId, agentSecret: cred.agentSecret, agentBaseUrl: cred.agentBaseUrl, agentAppClientId: cred.agentAppClientId });
+    setCredEditingId(cred.id);
+    setCredFormError(null);
+    setCredFormOpen(true);
+  };
+
+  const saveCredential = () => {
+    if (!credForm.name.trim() || !credForm.agentId.trim() || !credForm.agentSecret.trim() || !credForm.agentBaseUrl.trim() || !credForm.agentAppClientId.trim()) {
+      setCredFormError('All fields are required.');
+      return;
+    }
+    const cred: AgentCredential = {
+      id: credEditingId ?? `cred-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name: credForm.name.trim(),
+      agentId: credForm.agentId.trim(),
+      agentSecret: credForm.agentSecret,
+      agentBaseUrl: credForm.agentBaseUrl.trim(),
+      agentAppClientId: credForm.agentAppClientId.trim(),
+    };
+    workflowStore.saveAgentCredential(cred);
+    const updated = workflowStore.getAgentCredentials();
+    setCredentials(updated);
+    setCredFormOpen(false);
+  };
+
+  const deleteCredential = (id: string) => {
+    workflowStore.deleteAgentCredential(id);
+    setCredentials(workflowStore.getAgentCredentials());
+    setCredFormOpen(false);
+    // Clear the selection on any node currently using this credential
+    if (node?.type === 'aiAgent') {
+      const agentData = node.data as AIAgentNodeData;
+      if (agentData.agentCredentialId === id) {
+        onUpdate(node.id, { data: { ...agentData, agentCredentialId: undefined } });
+      }
+    }
+  };
+
+  // Derive which LLM credential bucket to use based on provider + auth type
+  function llmCredProvider(provider: string, geminiAuthType?: string): LLMCredentialProvider {
+    if (provider === 'gemini') return geminiAuthType === 'gcp-access-token' ? 'gcp' : 'gemini';
+    return provider as LLMCredentialProvider;
+  }
+
+  const openAddLLMCredForm = () => {
+    setLLMCredForm({ name: '', apiKey: '', gcpAccessToken: '', gcpProjectId: '', azureResourceName: '', azureDeploymentName: '', azureApiVersion: '' });
+    setLLMCredEditingId(null);
+    setLLMCredFormError(null);
+    setLLMCredFormOpen(true);
+  };
+
+  const openEditLLMCredForm = (cred: LLMCredential) => {
+    setLLMCredForm({ name: cred.name, apiKey: cred.apiKey ?? '', gcpAccessToken: cred.gcpAccessToken ?? '', gcpProjectId: cred.gcpProjectId ?? '', azureResourceName: cred.azureResourceName ?? '', azureDeploymentName: cred.azureDeploymentName ?? '', azureApiVersion: cred.azureApiVersion ?? '' });
+    setLLMCredEditingId(cred.id);
+    setLLMCredFormError(null);
+    setLLMCredFormOpen(true);
+  };
+
+  const applyLLMCredential = (cred: LLMCredential, llmData: LLMNodeData) => {
+    // Write into the existing global API key store so the executor needs no changes
+    if (cred.provider === 'gemini') {
+      workflowStore.setApiKey('gemini', cred.apiKey ?? '');
+      setApiKeys((p) => ({ ...p, gemini: cred.apiKey ?? '' }));
+    } else if (cred.provider === 'gcp') {
+      workflowStore.setApiKey('gcpAccessToken', cred.gcpAccessToken ?? '');
+      workflowStore.setApiKey('gcpProjectId', cred.gcpProjectId ?? '');
+      setApiKeys((p) => ({ ...p, gcpAccessToken: cred.gcpAccessToken ?? '', gcpProjectId: cred.gcpProjectId ?? '' }));
+    } else if (cred.provider === 'anthropic') {
+      workflowStore.setApiKey('anthropic', cred.apiKey ?? '');
+      setApiKeys((p) => ({ ...p, anthropic: cred.apiKey ?? '' }));
+    } else if (cred.provider === 'openai') {
+      workflowStore.setApiKey('openai', cred.apiKey ?? '');
+      setApiKeys((p) => ({ ...p, openai: cred.apiKey ?? '' }));
+    } else if (cred.provider === 'azure-openai') {
+      workflowStore.setApiKey('azure-openai', cred.apiKey ?? '');
+      setApiKeys((p) => ({ ...p, 'azure-openai': cred.apiKey ?? '' }));
+    }
+    // Write Azure config fields into node data (executor reads from there)
+    const nodeUpdates: Partial<LLMNodeData> = { llmCredentialId: cred.id };
+    if (cred.provider === 'azure-openai') {
+      nodeUpdates.azureResourceName = cred.azureResourceName;
+      nodeUpdates.azureDeploymentName = cred.azureDeploymentName;
+      nodeUpdates.azureApiVersion = cred.azureApiVersion;
+    }
+    if (node) onUpdate(node.id, { data: { ...llmData, ...nodeUpdates } });
+  };
+
+  const saveLLMCredential = (credType: LLMCredentialProvider, llmData: LLMNodeData) => {
+    const f = llmCredForm;
+    const isGCP = credType === 'gcp';
+    const isAzure = credType === 'azure-openai';
+    if (!f.name.trim()) { setLLMCredFormError('Name is required.'); return; }
+    if (isGCP && (!f.gcpAccessToken.trim() || !f.gcpProjectId.trim())) { setLLMCredFormError('Access token and project ID are required.'); return; }
+    if (isAzure && (!f.azureResourceName.trim() || !f.azureDeploymentName.trim() || !f.azureApiVersion.trim() || !f.apiKey.trim())) { setLLMCredFormError('All Azure fields are required.'); return; }
+    if (!isGCP && !isAzure && !f.apiKey.trim()) { setLLMCredFormError('API key is required.'); return; }
+
+    const cred: LLMCredential = {
+      id: llmCredEditingId ?? `llmcred-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name: f.name.trim(),
+      provider: credType,
+      ...(isGCP ? { gcpAccessToken: f.gcpAccessToken, gcpProjectId: f.gcpProjectId } : {}),
+      ...(isAzure ? { azureResourceName: f.azureResourceName.trim(), azureDeploymentName: f.azureDeploymentName.trim(), azureApiVersion: f.azureApiVersion.trim(), apiKey: f.apiKey } : {}),
+      ...(!isGCP && !isAzure ? { apiKey: f.apiKey } : {}),
+    };
+    workflowStore.saveLLMCredential(cred);
+    const updated = workflowStore.getLLMCredentials();
+    setLLMCredentials(updated);
+    setLLMCredFormOpen(false);
+    applyLLMCredential(cred, llmData);
+  };
+
+  const deleteLLMCredential = (id: string, llmData: LLMNodeData) => {
+    workflowStore.deleteLLMCredential(id);
+    setLLMCredentials(workflowStore.getLLMCredentials());
+    setLLMCredFormOpen(false);
+    if (llmData.llmCredentialId === id && node) {
+      onUpdate(node.id, { data: { ...llmData, llmCredentialId: undefined } });
     }
   };
 
@@ -203,6 +353,8 @@ export default function NodePanel({
 
   useEffect(() => {
     setApiKeys(workflowStore.getApiKeys());
+    setCredentials(workflowStore.getAgentCredentials());
+    setLLMCredentials(workflowStore.getLLMCredentials());
   }, []);
 
   const containerClassName =
@@ -267,101 +419,173 @@ export default function NodePanel({
               />
             </div>
 
+            {/* Credential selector row */}
             <div>
               <label className="text-sm font-semibold text-gray-700 mb-1 block">
-                Agent ID
+                Agent Credentials
               </label>
-              <Input
-                value={agentData.agentId || ''}
-                onChange={(e) =>
-                  onUpdate(node.id, {
-                    data: { ...agentData, agentId: e.target.value },
-                  })
-                }
-                placeholder="Enter agent ID"
-              />
+              {(() => {
+                const selectedCred = credentials.find((c) => c.id === agentData.agentCredentialId);
+                return (
+                  <>
+                    <div className="flex gap-2">
+                      <select
+                        value={agentData.agentCredentialId || ''}
+                        onChange={(e) => {
+                          setCredFormOpen(false);
+                          onUpdate(node.id, {
+                            data: { ...agentData, agentCredentialId: e.target.value || undefined },
+                          });
+                        }}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      >
+                        <option value="">Select credentials</option>
+                        {credentials.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                      {selectedCred && (
+                        <button
+                          type="button"
+                          title="Edit credential"
+                          onClick={() => openEditCredModal(selectedCred)}
+                          className="flex items-center justify-center px-2 border border-gray-300 rounded-md hover:bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
+                        </button>
+                      )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={openAddCredModal}
+                      >
+                        + Add
+                      </Button>
+                    </div>
+                    {credentials.length === 0 && !credFormOpen && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        No credentials saved yet. Click + Add to create one.
+                      </p>
+                    )}
+                    {!credFormOpen && selectedCred && (
+                      <div className="mt-2 flex flex-col gap-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={agentTokenLoading}
+                          onClick={() => checkAgentToken(selectedCred)}
+                        >
+                          {agentTokenLoading ? 'Fetching...' : 'Test Fetching an Agent Token'}
+                        </Button>
+                        {agentTokenError && (
+                          <p className="text-xs text-red-600">{agentTokenError}</p>
+                        )}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-1 block">
-                Agent Secret
-              </label>
-              <Input
-                type="password"
-                value={agentData.agentSecret || ''}
-                onChange={(e) =>
-                  onUpdate(node.id, {
-                    data: { ...agentData, agentSecret: e.target.value },
-                  })
-                }
-                placeholder="Enter agent secret"
-              />
-            </div>
+            {/* Inline credential form (add or edit) */}
+            {credFormOpen && (
+              <div className="rounded-md border border-blue-200 bg-white p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gray-800">
+                    {credEditingId ? 'Edit Credential' : 'New Credential'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setCredFormOpen(false)}
+                    className="text-gray-400 hover:text-gray-600 text-base leading-none"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 mb-1 block">Name</label>
+                  <Input
+                    value={credForm.name}
+                    onChange={(e) => setCredForm((f) => ({ ...f, name: e.target.value }))}
+                    placeholder="e.g. Travel Agent – Dev"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 mb-1 block">Agent ID</label>
+                  <Input
+                    value={credForm.agentId}
+                    onChange={(e) => setCredForm((f) => ({ ...f, agentId: e.target.value }))}
+                    placeholder="e.g. f79d600c-e92c-4b58-..."
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 mb-1 block">Agent Secret</label>
+                  <Input
+                    type="password"
+                    value={credForm.agentSecret}
+                    onChange={(e) => setCredForm((f) => ({ ...f, agentSecret: e.target.value }))}
+                    placeholder="Enter agent secret"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 mb-1 block">Base URL</label>
+                  <Input
+                    value={credForm.agentBaseUrl}
+                    onChange={(e) => setCredForm((f) => ({ ...f, agentBaseUrl: e.target.value }))}
+                    placeholder="https://api.asgardeo.io/t/your-org or https://localhost:9443"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 mb-1 block">
+                    Agent Application Client ID
+                  </label>
+                  <Input
+                    value={credForm.agentAppClientId}
+                    onChange={(e) => setCredForm((f) => ({ ...f, agentAppClientId: e.target.value }))}
+                    placeholder="Enter client ID"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Make sure you enable PKCE and public client in the application.
+                  </p>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 mb-1 block">Redirect URI</label>
+                  <Input
+                    value={window.location.origin}
+                    readOnly
+                    className="bg-white text-gray-500 cursor-not-allowed"
+                  />
+                </div>
+                {credFormError && (
+                  <p className="text-xs text-red-600">{credFormError}</p>
+                )}
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" onClick={saveCredential}>
+                    Save
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setCredFormOpen(false)}>
+                    Cancel
+                  </Button>
+                  {credEditingId && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="ml-auto text-red-600 border-red-200 hover:bg-red-50"
+                      onClick={() => deleteCredential(credEditingId)}
+                    >
+                      Delete
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
 
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-1 block">
-                Base URL
-              </label>
-              <Input
-                value={agentData.agentBaseUrl || ''}
-                onChange={(e) =>
-                  onUpdate(node.id, {
-                    data: { ...agentData, agentBaseUrl: e.target.value },
-                  })
-                }
-                placeholder="https://api.asgardeo.io/t/your-org"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-1 block">
-                Agent Application Client ID
-              </label>
-              <Input
-                value={agentData.agentAppClientId || ''}
-                onChange={(e) =>
-                  onUpdate(node.id, {
-                    data: { ...agentData, agentAppClientId: e.target.value },
-                  })
-                }
-                placeholder="Enter client ID"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Make sure you enable PKCE and public client in the application.
-              </p>
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-1 block">
-                Redirect URI
-              </label>
-              <Input
-                value={window.location.origin}
-                readOnly
-                className="bg-gray-50 text-gray-500 cursor-not-allowed"
-              />
-            </div>
-
-            <div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={
-                  agentTokenLoading ||
-                  !agentData.agentBaseUrl?.trim() ||
-                  !agentData.agentAppClientId?.trim() ||
-                  !agentData.agentId?.trim() ||
-                  !agentData.agentSecret?.trim()
-                }
-                onClick={() => checkAgentToken(agentData)}
-              >
-                {agentTokenLoading ? 'Checking...' : 'Fetch Agent Token'}
-              </Button>
-              {agentTokenError && (
-                <p className="text-xs text-red-600 mt-1">{agentTokenError}</p>
-              )}
-            </div>
 
             <div>
               <label className="text-sm font-semibold text-gray-700 mb-1 block">
@@ -830,140 +1054,138 @@ export default function NodePanel({
               </div>
             )}
 
-            {isAzure && (
-              <div className="space-y-3">
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
-                    Resource Name
-                  </label>
-                  <Input
-                    value={azureResourceName}
-                    onChange={(e) =>
-                      onUpdate(node.id, {
-                        data: { ...llmData, azureResourceName: e.target.value },
-                      })
-                    }
-                    placeholder="resource-name"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    The Azure OpenAI resource name from your Azure portal
-                  </p>
-                </div>
+            {/* Credential section — shown once a provider is selected */}
+            {llmData.provider && (() => {
+              const credType = llmCredProvider(llmData.provider, llmData.geminiAuthType);
+              const credLabel: Record<LLMCredentialProvider, string> = {
+                gemini: 'Gemini Credentials',
+                gcp: 'GCP Credentials',
+                anthropic: 'Anthropic Credentials',
+                openai: 'OpenAI Credentials',
+                'azure-openai': 'Azure OpenAI Credentials',
+              };
+              const matching = llmCredentials.filter((c) => c.provider === credType);
+              const selectedCred = matching.find((c) => c.id === llmData.llmCredentialId);
 
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
-                    Deployment Name
-                  </label>
-                  <Input
-                    value={azureDeploymentName}
-                    onChange={(e) =>
-                      onUpdate(node.id, {
-                        data: { ...llmData, azureDeploymentName: e.target.value },
-                      })
-                    }
-                    placeholder="deployment-name"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    The name of your deployed model in Azure AI Foundry
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
-                    API Version
-                  </label>
-                  <Input
-                    value={azureApiVersion}
-                    onChange={(e) =>
-                      onUpdate(node.id, {
-                        data: { ...llmData, azureApiVersion: e.target.value },
-                      })
-                    }
-                    placeholder="2024-02-01"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    e.g. <code>2024-02-01</code> — see Azure OpenAI API reference
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
-                    Endpoint
-                  </label>
-                  <div className="w-full px-3 py-2 border border-gray-200 rounded-md text-xs font-mono bg-gray-50 text-gray-600 break-all select-all">
-                    {azureEndpointPreview}
+              return (
+                <>
+                  {/* Dropdown row */}
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                      {credLabel[credType]}
+                    </label>
+                    <div className="flex gap-2">
+                      <select
+                        value={llmData.llmCredentialId || ''}
+                        onChange={(e) => {
+                          setLLMCredFormOpen(false);
+                          const chosen = matching.find((c) => c.id === e.target.value);
+                          if (chosen) {
+                            applyLLMCredential(chosen, llmData);
+                          } else {
+                            onUpdate(node.id, { data: { ...llmData, llmCredentialId: undefined } });
+                          }
+                        }}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      >
+                        <option value="">Select credentials</option>
+                        {matching.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                      {selectedCred && (
+                        <button
+                          type="button"
+                          title="Edit credential"
+                          onClick={() => openEditLLMCredForm(selectedCred)}
+                          className="flex items-center justify-center px-2 border border-gray-300 rounded-md hover:bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
+                        </button>
+                      )}
+                      <Button type="button" size="sm" variant="outline" onClick={openAddLLMCredForm}>
+                        + Add
+                      </Button>
+                    </div>
+                    {matching.length === 0 && !llmCredFormOpen && (
+                      <p className="text-xs text-gray-500 mt-1">No credentials saved yet. Click + Add to create one.</p>
+                    )}
                   </div>
-                </div>
 
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
-                    API Key
-                  </label>
-                  <Input
-                    type="password"
-                    value={apiKeys['azure-openai'] || ''}
-                    onChange={(e) => handleApiKeyChange('azure-openai', e.target.value)}
-                    placeholder="Enter your Azure OpenAI API key"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Stored securely in your browser
-                  </p>
-                </div>
-              </div>
-            )}
+                  {/* Inline form */}
+                  {llmCredFormOpen && (
+                    <div className="rounded-md border border-blue-200 bg-white-50 p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-gray-800">
+                          {llmCredEditingId ? 'Edit Credential' : 'New Credential'}
+                        </p>
+                        <button type="button" onClick={() => setLLMCredFormOpen(false)} className="text-gray-400 hover:text-gray-600 text-base leading-none">✕</button>
+                      </div>
 
-            {!isGcpAuth && !isAzure && (
-              <div>
-                <label className="text-sm font-semibold text-gray-700 mb-1 block">
-                  API Key ({llmData.provider === 'openai' ? 'OpenAI' : llmData.provider === 'anthropic' ? 'Anthropic' : 'Google'})
-                </label>
-                <Input
-                  type="password"
-                  value={apiKeys[llmData.provider] || ''}
-                  onChange={(e) =>
-                    handleApiKeyChange(llmData.provider, e.target.value)
-                  }
-                  placeholder={`Enter your ${
-                    llmData.provider === 'openai' ? 'OpenAI' : llmData.provider === 'anthropic' ? 'Anthropic' : 'Google'
-                  } API key`}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Stored securely in your browser
-                </p>
-              </div>
-            )}
+                      <div>
+                        <label className="text-xs font-semibold text-gray-700 mb-1 block">Name</label>
+                        <Input value={llmCredForm.name} onChange={(e) => setLLMCredForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Production key" />
+                      </div>
 
-            {isGcpAuth && (
-              <div className="space-y-3">
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
-                    GCP Access Token
-                  </label>
-                  <Input
-                    type="password"
-                    value={apiKeys['gcpAccessToken'] || ''}
-                    onChange={(e) => handleApiKeyChange('gcpAccessToken', e.target.value)}
-                    placeholder="Paste your GCP access token"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Obtain via <code>gcloud auth print-access-token</code>
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
-                    GCP Project ID
-                  </label>
-                  <Input
-                    value={apiKeys['gcpProjectId'] || ''}
-                    onChange={(e) => handleApiKeyChange('gcpProjectId', e.target.value)}
-                    placeholder="my-gcp-project"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Calls Vertex AI in <code>us-central1</code>
-                  </p>
-                </div>
-              </div>
-            )}
+                      {credType === 'gcp' ? (
+                        <>
+                          <div>
+                            <label className="text-xs font-semibold text-gray-700 mb-1 block">GCP Access Token</label>
+                            <Input type="password" value={llmCredForm.gcpAccessToken} onChange={(e) => setLLMCredForm((f) => ({ ...f, gcpAccessToken: e.target.value }))} placeholder="Paste your GCP access token" />
+                            <p className="text-xs text-gray-500 mt-1">Obtain via <code>gcloud auth print-access-token</code></p>
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold text-gray-700 mb-1 block">GCP Project ID</label>
+                            <Input value={llmCredForm.gcpProjectId} onChange={(e) => setLLMCredForm((f) => ({ ...f, gcpProjectId: e.target.value }))} placeholder="my-gcp-project" />
+                            <p className="text-xs text-gray-500 mt-1">Calls Vertex AI in <code>us-central1</code></p>
+                          </div>
+                        </>
+                      ) : credType === 'azure-openai' ? (
+                        <>
+                          <div>
+                            <label className="text-xs font-semibold text-gray-700 mb-1 block">Resource Name</label>
+                            <Input value={llmCredForm.azureResourceName} onChange={(e) => setLLMCredForm((f) => ({ ...f, azureResourceName: e.target.value }))} placeholder="my-resource" />
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold text-gray-700 mb-1 block">Deployment Name</label>
+                            <Input value={llmCredForm.azureDeploymentName} onChange={(e) => setLLMCredForm((f) => ({ ...f, azureDeploymentName: e.target.value }))} placeholder="gpt-4o-deployment" />
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold text-gray-700 mb-1 block">API Version</label>
+                            <Input value={llmCredForm.azureApiVersion} onChange={(e) => setLLMCredForm((f) => ({ ...f, azureApiVersion: e.target.value }))} placeholder="2024-02-01" />
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold text-gray-700 mb-1 block">API Key</label>
+                            <Input type="password" value={llmCredForm.apiKey} onChange={(e) => setLLMCredForm((f) => ({ ...f, apiKey: e.target.value }))} placeholder="Enter Azure OpenAI API key" />
+                          </div>
+                        </>
+                      ) : (
+                        <div>
+                          <label className="text-xs font-semibold text-gray-700 mb-1 block">
+                            API Key ({credType === 'gemini' ? 'Google' : credType === 'anthropic' ? 'Anthropic' : 'OpenAI'})
+                          </label>
+                          <Input type="password" value={llmCredForm.apiKey} onChange={(e) => setLLMCredForm((f) => ({ ...f, apiKey: e.target.value }))} placeholder="Enter API key" />
+                        </div>
+                      )}
+
+                      {llmCredFormError && <p className="text-xs text-red-600">{llmCredFormError}</p>}
+
+                      <div className="flex gap-2">
+                        <Button type="button" size="sm" onClick={() => saveLLMCredential(credType, llmData)}>Save</Button>
+                        <Button type="button" size="sm" variant="outline" onClick={() => setLLMCredFormOpen(false)}>Cancel</Button>
+                        {llmCredEditingId && (
+                          <Button type="button" size="sm" variant="outline" className="ml-auto text-red-600 border-red-200 hover:bg-red-50" onClick={() => deleteLLMCredential(llmCredEditingId, llmData)}>Delete</Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                </>
+              );
+            })()}
 
             {llmData.provider !== 'azure-openai' && (
               <div>
@@ -1020,6 +1242,7 @@ export default function NodePanel({
         return <p className="text-sm text-gray-500">Unknown node type</p>;
     }
   };
+
 
   if (variant === 'modal') {
     return (

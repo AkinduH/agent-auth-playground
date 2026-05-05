@@ -18,19 +18,41 @@ export interface ChatTriggerNodeData extends BaseNodeData {
   label: 'Chat Trigger';
 }
 
+// Saved agent credential set (stored globally in localStorage, not per-workflow)
+export interface AgentCredential {
+  id: string;
+  name: string;
+  agentId: string;
+  agentSecret: string;
+  agentBaseUrl: string;
+  agentAppClientId: string;
+}
+
 // AI Agent node data
 export interface AIAgentNodeData extends BaseNodeData {
   label: 'AI Agent';
   systemPrompt: string;
   agentName?: string;
-  agentId?: string;
-  agentSecret?: string;
-  agentBaseUrl?: string;
-  agentAppClientId?: string;
+  agentCredentialId?: string;
   temperature: number;
   maxTokens: number;
   maxToolSteps?: number;
   maxMessages?: number;
+}
+
+// LLM credential — stored globally in localStorage, not per-workflow
+export type LLMCredentialProvider = 'gemini' | 'gcp' | 'anthropic' | 'openai' | 'azure-openai';
+
+export interface LLMCredential {
+  id: string;
+  name: string;
+  provider: LLMCredentialProvider;
+  apiKey?: string;             // gemini / anthropic / openai / azure-openai
+  gcpAccessToken?: string;     // gcp
+  gcpProjectId?: string;       // gcp
+  azureResourceName?: string;  // azure-openai
+  azureDeploymentName?: string;// azure-openai
+  azureApiVersion?: string;    // azure-openai
 }
 
 // LLM node data
@@ -45,6 +67,7 @@ export interface LLMNodeData extends BaseNodeData {
   azureResourceName?: string;
   azureDeploymentName?: string;
   azureApiVersion?: string;
+  llmCredentialId?: string;
 }
 
 // MCP Client node data
