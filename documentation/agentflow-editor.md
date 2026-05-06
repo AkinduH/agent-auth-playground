@@ -62,15 +62,17 @@ The chat panel overlays the left side of the canvas. To get more canvas space:
 
 ## Managing Workflows
 
-### Save
-
-Use **Save Locally** in the ⋮ dropdown to explicitly save the workflow with the current name.
+Workflow state is auto-saved to browser localStorage as you work. Use the **⋮** dropdown next to the workflow name for the following actions.
 
 ### Download and Import
 
 - **Download** — exports the current workflow as a `.json` file.
 - **Import** — loads a workflow from a `.json` file, replacing the current canvas.
 
+### Start Fresh
+
+**Start Fresh** resets the canvas to a new default workflow and clears all associated data (workflow state, conversation memory, MCP tool cache, and OBO tokens). Your saved LLM and agent credentials are preserved.
+
 ### Naming a Workflow
 
-Edit the workflow name directly in the name field in the toolbar. The name is saved when you use **Save Locally** or when an auto-save is triggered.
+Edit the workflow name directly in the name field in the toolbar. Changes are auto-saved.
