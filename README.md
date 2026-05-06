@@ -44,7 +44,7 @@ When you launch the app, a sample AgentFlow is automatically loaded to showcase 
 
 #### Securing the Setup
 
-To secure your AgentFlow, integrate authentication using Asgardeo or WSO2 Identity Server. Follow the Secure Simple AgentFlow Guide to enable authentication and protect tool access within your flow.
+To secure this AgentFlow, integrate authentication using Asgardeo or WSO2 Identity Server. Follow the [Secure Simple AgentFlow Guide](documentation/secure-simple-agentflow.md) to enable authentication and protect tool access within this flow.
 
 ---
 
