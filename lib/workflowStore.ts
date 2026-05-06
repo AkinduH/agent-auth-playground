@@ -256,7 +256,7 @@ export function generateId(prefix: string = ''): string {
 }
 
 // Create default workflow with Chat Trigger → AI Agent → LLM pre-wired
-export function createDefaultWorkflow(name: string = 'Workflow-1'): Workflow {
+export function createDefaultWorkflow(name: string = 'agentflow-1'): Workflow {
   const id = generateId('workflow-');
   const triggerId = generateId('node-');
   const agentId = generateId('node-');
