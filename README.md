@@ -37,15 +37,14 @@ For advanced setup options, see the [Running Agent Auth Playground Guide](docume
 
 ### Try a Simple AgentFlow
 
-#### Unsecured Setup
 When you launch the app, a sample AgentFlow is automatically loaded to showcase the platform’s core capabilities.
 1. Configure the LLM node by selecting a provider (OpenAI, Gemini, or Anthropic) and adding your API key.
 2. Add and configure an MCP client node (without OAuth2).
 3. Run the flow and experiment with tool calls within the agentic loop.
 
-#### Secured Setup
+#### Securing the Setup
 
-Follow the steps in the unsecured setup, then secure your AgentFlow using Asgardeo or WSO2 Identity Server by referring to the [Secure Simple AgentFlow Guide](documentation/secure-simple-agentflow.md).
+To secure your AgentFlow, integrate authentication using Asgardeo or WSO2 Identity Server. Follow the Secure Simple AgentFlow Guide to enable authentication and protect tool access within your flow.
 
 ---
 
