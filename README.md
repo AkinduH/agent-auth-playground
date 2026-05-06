@@ -35,18 +35,19 @@ The local server starts on `http://localhost:4829` and your browser opens automa
 
 For advanced setup options, see the [Running Agent Auth Playground Guide](documentation/running-agent-auth-playground.md).
 
-### Tryout a simple agentflow
+### Try a Simple AgentFlow
 
+#### Unsecured Setup
+When you launch the app, a sample AgentFlow is automatically loaded to showcase the platform’s core capabilities.
+1. Configure the LLM node by selecting a provider (OpenAI, Gemini, or Anthropic) and adding your API key.
+2. Add and configure an MCP client node (without OAuth2).
+3. Run the flow and experiment with tool calls within the agentic loop.
 
+#### Secured Setup
 
+Follow the steps in the unsecured setup, then secure your AgentFlow using Asgardeo or WSO2 Identity Server by referring to the [Secure Simple AgentFlow Guide](documentation/secure-simple-agentflow.md).
 
-
-
-
-
-
-
-
+---
 
 ## Features
 
@@ -57,6 +58,8 @@ For advanced setup options, see the [Running Agent Auth Playground Guide](docume
 - **Auth Flow Inspector** - every run produces a structured trace; a sequence-diagram view shows every auth step and tool call
 - **Streaming Execution** - The canvas lights up node-by-node as the AgentFlow runs
 - **localStorage Persistence** - AgentFlows, memory, API keys, and MCP tool caches all survive page refreshes with no server-side state
+
+---
 
 ## Resources
 
