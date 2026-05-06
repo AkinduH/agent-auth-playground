@@ -42,7 +42,7 @@ When you launch the app, a sample AgentFlow is automatically loaded to showcase 
 2. Add and configure an MCP client node (without OAuth2).
 3. Run the flow and experiment with tool calls within the agentic loop.
 
-#### Securing the Setup
+#### Securing the Simple AgentFlow
 
 To secure this AgentFlow, integrate authentication using Asgardeo or WSO2 Identity Server. Follow the [Secure Simple AgentFlow Guide](documentation/secure-simple-agentflow.md) to enable authentication and protect tool access within this flow.
 
