@@ -20,7 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Download, Eye, MoreVertical, Save, Trash2, Upload, X } from 'lucide-react';
+import { Download, Eye, MoreVertical, Trash2, Upload, X } from 'lucide-react';
 import Image from 'next/image';
 import { validateWorkflow } from '@/lib/workflowValidation';
 import { workflowStore, generateId } from '@/lib/workflowStore';
@@ -32,9 +32,8 @@ export default function Home() {
     workflow,
     selectedNodeId,
     setSelectedNodeId,
-    isSaving,
-    saveWorkflow,
     importWorkflow,
+    updateWorkflow,
     addNode,
     updateNode,
     deleteNode,
@@ -53,7 +52,6 @@ export default function Home() {
     clearMessages,
   } = useChat(workflow?.id || 'temp');
 
-  const [workflowName, setWorkflowName] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isNodePanelOpen, setIsNodePanelOpen] = useState(false);
   const [isChatVisible, setIsChatVisible] = useState(true);
@@ -86,10 +84,6 @@ export default function Home() {
       setIsNodePanelOpen(false);
     }
   }, [selectedNode]);
-
-  useEffect(() => {
-    setWorkflowName(workflow?.name || '');
-  }, [workflow?.id, workflow?.name]);
 
   useEffect(() => {
     if (!lastTrace) return;
@@ -127,23 +121,8 @@ export default function Home() {
     await executeWorkflow(message, workflow);
   };
 
-  const [isSavedDialogOpen, setIsSavedDialogOpen] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const handleSaveWorkflow = async () => {
-    if (!workflow) return;
-
-    const trimmedName = workflowName.trim();
-    const updatedWorkflow = {
-      ...workflow,
-      name: trimmedName || workflow.name,
-      updatedAt: Date.now(),
-    };
-
-    await saveWorkflow(updatedWorkflow);
-    setIsSavedDialogOpen(true);
-  };
 
   const handleDownloadWorkflow = () => {
     if (!workflow) return;
@@ -281,8 +260,8 @@ export default function Home() {
           {/* Workflow name + actions */}
           <div className="flex items-center gap-1 border border-gray-200 rounded-lg bg-white pl-2.5 pr-1 py-1">
             <Input
-              value={workflowName}
-              onChange={(e) => setWorkflowName(e.target.value)}
+              value={workflow.name}
+              onChange={(e) => updateWorkflow({ name: e.target.value })}
               placeholder="Untitled agent flow"
               className="h-7 w-44 border-0 shadow-none focus-visible:ring-0 px-0 text-sm font-medium bg-transparent"
             />
@@ -293,10 +272,6 @@ export default function Home() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem onClick={handleSaveWorkflow} disabled={isSaving}>
-                  <Save className="h-4 w-4" />
-                  {isSaving ? 'Saving...' : 'Save Locally'}
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleDownloadWorkflow}>
                   <Download className="h-4 w-4" />
                   Download
@@ -374,25 +349,6 @@ export default function Home() {
           )}
         </div>
       </div>
-
-      <Dialog open={isSavedDialogOpen} onOpenChange={setIsSavedDialogOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogTitle className="flex items-center gap-2 text-green-700">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-700">
-              ✓
-            </span>
-            Saved successfully
-          </DialogTitle>
-          <DialogDescription>
-            Your agent flow has been saved.
-          </DialogDescription>
-          <div className="flex justify-end">
-            <Button size="sm" onClick={() => setIsSavedDialogOpen(false)}>
-              OK
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={isNodePanelOpen} onOpenChange={setIsNodePanelOpen}>
         <DialogContent

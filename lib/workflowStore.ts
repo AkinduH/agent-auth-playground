@@ -1,7 +1,6 @@
 import { Workflow, ChatMessage, AgentCredential, LLMCredential } from './types';
 
-const WORKFLOWS_KEY = 'workflows';
-const CURRENT_WORKFLOW_KEY = 'currentWorkflow';
+const WORKFLOW_KEY = 'workflow';
 const WORKFLOW_MEMORY_KEY = 'workflowMemories';
 const OBO_TOKENS_KEY = 'oboTokens';
 const MCP_TOOLS_KEY = 'mcpDiscoveredTools';
@@ -30,44 +29,36 @@ type MCPToolsStore = Record<string, Record<string, MCPToolsEntry>>;
 
 // Client-side storage utilities
 export const workflowStore = {
-  // Workflow management
+  // Workflow management — single workflow only
   saveWorkflow(workflow: Workflow): void {
     if (typeof window === 'undefined') return;
-    
-    const workflows = this.getAllWorkflows();
-    const index = workflows.findIndex(w => w.id === workflow.id);
-    
-    if (index >= 0) {
-      workflows[index] = workflow;
-    } else {
-      workflows.push(workflow);
-    }
-    
-    localStorage.setItem(WORKFLOWS_KEY, JSON.stringify(workflows));
-    this.setCurrentWorkflow(workflow.id);
+    localStorage.setItem(WORKFLOW_KEY, JSON.stringify(workflow));
   },
 
-  getAllWorkflows(): Workflow[] {
-    if (typeof window === 'undefined') return [];
-    
-    const stored = localStorage.getItem(WORKFLOWS_KEY);
-    return stored ? JSON.parse(stored) : [];
-  },
-
-  getWorkflow(id: string): Workflow | null {
-    const workflows = this.getAllWorkflows();
-    return workflows.find(w => w.id === id) || null;
-  },
-
-  // Current workflow
-  setCurrentWorkflow(id: string): void {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(CURRENT_WORKFLOW_KEY, id);
-  },
-
-  getCurrentWorkflow(): string | null {
+  getWorkflow(): Workflow | null {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem(CURRENT_WORKFLOW_KEY);
+    const stored = localStorage.getItem(WORKFLOW_KEY);
+    if (stored) return JSON.parse(stored);
+
+    // Migrate from old multi-workflow format
+    const oldWorkflows = localStorage.getItem('workflows');
+    const oldCurrentId = localStorage.getItem('currentWorkflow');
+    if (oldWorkflows && oldCurrentId) {
+      try {
+        const workflows: Workflow[] = JSON.parse(oldWorkflows);
+        const current = workflows.find((w) => w.id === oldCurrentId);
+        if (current) {
+          this.saveWorkflow(current);
+          localStorage.removeItem('workflows');
+          localStorage.removeItem('currentWorkflow');
+          return current;
+        }
+      } catch {
+        // corrupt data — fall through to return null
+      }
+    }
+
+    return null;
   },
 
   // Workflow memory by workflowId -> memoryNodeId -> chat messages

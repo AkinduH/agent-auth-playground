@@ -61,9 +61,6 @@ export interface LLMNodeData extends BaseNodeData {
   temperature: number;
   maxTokens: number;
   geminiAuthType?: 'api-key' | 'gcp-access-token';
-  azureResourceName?: string;
-  azureDeploymentName?: string;
-  azureApiVersion?: string;
   llmCredentialId?: string;
 }
 

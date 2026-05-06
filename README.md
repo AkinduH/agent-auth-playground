@@ -5,7 +5,7 @@
   </h1>
 </p>
 <p align="center" style="font-size: 1.2rem;">
-  A visual, browser-based AI workflow builder for designing and testing authentication-aware agentic pipelines. Connect LLM nodes, AI agents, and MCP (Model Context Protocol) tool servers on a drag-and-drop canvas, then test them interactively in a built-in chat panel.
+  A visual, browser-based AgentFlow builder for designing and testing authentication-aware agentic pipelines. Connect LLM nodes, AI agents, and MCP (Model Context Protocol) tool servers on a drag-and-drop canvas, then test them interactively in a built-in chat panel.
 </p>
 
 <div align="center">
@@ -21,21 +21,9 @@
 
 ---
 
-## Features
-
-- **Visual Workflow Editor** - drag-and-drop canvas powered by React Flow; connect nodes with typed handles that enforce valid topologies
-- **Four Node Types** - ChatTrigger, LLM (OpenAI / Gemini / Anthropic), AIAgent (agentic loop with tool-calling), MCPClient (MCP server bridge)
-- **Agentic Loop** - the AIAgent node iteratively calls an LLM and dispatches MCP tools up to a configurable step limit, then synthesizes a final answer
-- **OAuth2 / PKCE Authentication** - Agent credentials (from Asgardeo) and OBO (On-Behalf-Of) token exchange in action
-- **Auth Flow Inspector** - every run produces a structured trace; a sequence-diagram view shows every auth step and tool call
-- **Streaming Execution** - The canvas lights up node-by-node as the workflow runs
-- **localStorage Persistence** - workflows, memory, API keys, and MCP tool caches all survive page refreshes with no server-side state
-
----
-
 ## Quick Start (npx)
 
-The fastest way to try auth-playground - no clone, no install, no config:
+The fastest way to try agent-auth-playground is with `npx`. Just run:
 
 ```bash
 npx auth-playground
@@ -43,55 +31,29 @@ npx auth-playground
 
 That's it. The local server starts on `http://localhost:4829` and your browser opens automatically.
 
-**CLI flags:**
+For advanced setup options, see the [Running Agent Auth Playground Guide](documentation/running-agent-auth-playground.md).
 
-| Flag | Default | Purpose |
-|------|---------|---------|
-| `--port <n>` | `4829` | Port to listen on |
-| `--host <h>` | `localhost` | Host to bind to |
-| `--no-open` | - | Don't open the browser automatically |
-| `-h`, `--help` | - | Show help |
-| `-v`, `--version` | - | Show version |
+### Tryout a simple agentflow
+## Features
 
-All configuration - LLM API keys (OpenAI, Gemini, Anthropic) and per-node Asgardeo OAuth2 credentials, is entered in the UI and stored in browser `localStorage`. The CLI itself takes no secrets and reads no env files.
-
----
-
-## Getting Started (from source)
-
-### Prerequisites
-
-- Node.js ≥ 18.18
-- pnpm (`npm install -g pnpm`)
-
-### Installation
-
-```bash
-git clone https://github.com/AkinduH/agent-auth-playground
-pnpm install
-```
-
-### Running Locally
-
-```bash
-pnpm dev               # Next.js dev server
-pnpm build             # Production build 
-pnpm start             # Serve the production build
-```
-
-The app runs on **port 4829** by default.
-
+- **Visual AgentFlow Editor** - drag-and-drop canvas powered by React Flow; connect nodes with typed handles that enforce valid topologies
+- **Four Node Types** - ChatTrigger, LLM (OpenAI / Gemini / Anthropic), AIAgent (agentic loop with tool-calling), MCPClient (MCP server bridge)
+- **Agentic Loop** - the AIAgent node iteratively calls an LLM and dispatches MCP tools up to a configurable step limit, then synthesizes a final answer
+- **OAuth2 / PKCE Authentication** - Agent credentials (from Asgardeo) and OBO (On-Behalf-Of) token exchange in action
+- **Auth Flow Inspector** - every run produces a structured trace; a sequence-diagram view shows every auth step and tool call
+- **Streaming Execution** - The canvas lights up node-by-node as the AgentFlow runs
+- **localStorage Persistence** - AgentFlows, memory, API keys, and MCP tool caches all survive page refreshes with no server-side state
 
 ## Resources
 
 ### Documentation
 
-- [Getting Started](documentation/getting-started.md) - Build your first workflow in a few minutes
-- [Workflow Editor](documentation/workflow-editor.md) - Canvas controls, connections, and keyboard shortcuts
+- [Getting Started](documentation/getting-started.md) - Build your first AgentFlow in a few minutes
+- [AgentFlow Editor](documentation/agentflow-editor.md) - Canvas controls, connections, and keyboard shortcuts
 - [Persistence](documentation/persistence.md) - What is stored in your browser and how to manage it
 
 **Nodes**
-- [Chat Trigger](documentation/nodes/chat-trigger.md) - Entry point of every workflow
+- [Chat Trigger](documentation/nodes/chat-trigger.md) - Entry point of every AgentFlow
 - [AI Agent](documentation/nodes/ai-agent.md) - Reasoning engine with tool-calling loop
 - [AI Service](documentation/nodes/llm.md) - Direct call to OpenAI, Gemini, or Anthropic
 - [MCP Client](documentation/nodes/mcp-client.md) - Bridge to an external MCP tool server

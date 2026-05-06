@@ -6,33 +6,26 @@ import { workflowStore, createDefaultWorkflow } from './workflowStore';
 
 export function useWorkflow() {
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-
-  const refreshWorkflows = useCallback(() => {
-    setWorkflows(workflowStore.getAllWorkflows());
-  }, []);
 
   // Initialize workflow on mount
   useEffect(() => {
-    refreshWorkflows();
-
-    const currentWorkflowId = workflowStore.getCurrentWorkflow();
-    if (currentWorkflowId) {
-      const stored = workflowStore.getWorkflow(currentWorkflowId);
-      if (stored) {
-        setWorkflow(stored);
-        return;
-      }
+    const stored = workflowStore.getWorkflow();
+    if (stored) {
+      setWorkflow(stored);
+    } else {
+      setWorkflow(createDefaultWorkflow());
     }
+  }, []);
 
-    // Create new default workflow
-    const newWorkflow = createDefaultWorkflow();
-    workflowStore.saveWorkflow(newWorkflow);
-    setWorkflow(newWorkflow);
-    refreshWorkflows();
-  }, [refreshWorkflows]);
+  // Auto-save whenever workflow state changes (debounced)
+  useEffect(() => {
+    if (!workflow) return;
+    const timer = setTimeout(() => {
+      workflowStore.saveWorkflow(workflow);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [workflow]);
 
   const importWorkflow = useCallback((imported: Workflow) => {
     const replaced: Workflow = {
@@ -40,48 +33,23 @@ export function useWorkflow() {
       id: workflow?.id || imported.id,
       updatedAt: Date.now(),
     };
-    workflowStore.saveWorkflow(replaced);
     setWorkflow(replaced);
     setSelectedNodeId(null);
-    refreshWorkflows();
     return replaced;
-  }, [workflow?.id, refreshWorkflows]);
+  }, [workflow?.id]);
 
   const updateWorkflow = useCallback((updates: Partial<Workflow>) => {
     setWorkflow((prev) => {
       if (!prev) return null;
-      const updated = {
-        ...prev,
-        ...updates,
-        updatedAt: Date.now(),
-      };
-      return updated;
+      return { ...prev, ...updates, updatedAt: Date.now() };
     });
   }, []);
-
-  const saveWorkflow = useCallback(async (workflowToSave?: Workflow) => {
-    const targetWorkflow = workflowToSave || workflow;
-    if (!targetWorkflow) return;
-
-    setIsSaving(true);
-    try {
-      workflowStore.saveWorkflow(targetWorkflow);
-      setWorkflow(targetWorkflow);
-      refreshWorkflows();
-    } finally {
-      setIsSaving(false);
-    }
-  }, [workflow, refreshWorkflows]);
 
   const addNode = useCallback(
     (node: WorkflowNode) => {
       setWorkflow((prev) => {
         if (!prev) return prev;
-        return {
-          ...prev,
-          nodes: [...prev.nodes, node],
-          updatedAt: Date.now(),
-        };
+        return { ...prev, nodes: [...prev.nodes, node], updatedAt: Date.now() };
       });
     },
     []
@@ -93,9 +61,7 @@ export function useWorkflow() {
         if (!prev) return prev;
         return {
           ...prev,
-          nodes: prev.nodes.map((n) =>
-            n.id === nodeId ? { ...n, ...updates } : n
-          ),
+          nodes: prev.nodes.map((n) => (n.id === nodeId ? { ...n, ...updates } : n)),
           updatedAt: Date.now(),
         };
       });
@@ -110,9 +76,7 @@ export function useWorkflow() {
         return {
           ...prev,
           nodes: prev.nodes.filter((n) => n.id !== nodeId),
-          edges: prev.edges.filter(
-            (e) => e.source !== nodeId && e.target !== nodeId
-          ),
+          edges: prev.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
           updatedAt: Date.now(),
         };
       });
@@ -127,11 +91,7 @@ export function useWorkflow() {
     (edge: WorkflowEdge) => {
       setWorkflow((prev) => {
         if (!prev) return prev;
-        return {
-          ...prev,
-          edges: [...prev.edges, edge],
-          updatedAt: Date.now(),
-        };
+        return { ...prev, edges: [...prev.edges, edge], updatedAt: Date.now() };
       });
     },
     []
@@ -153,13 +113,10 @@ export function useWorkflow() {
 
   return {
     workflow,
-    workflows,
     selectedNodeId,
     setSelectedNodeId,
-    isSaving,
     importWorkflow,
     updateWorkflow,
-    saveWorkflow,
     addNode,
     updateNode,
     deleteNode,

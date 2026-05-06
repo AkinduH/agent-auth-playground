@@ -275,13 +275,7 @@ export default function NodePanel({
   };
 
   const applyLLMCredential = (cred: LLMCredential, llmData: LLMNodeData) => {
-    const nodeUpdates: Partial<LLMNodeData> = { llmCredentialId: cred.id };
-    if (cred.provider === 'azure-openai') {
-      nodeUpdates.azureResourceName = cred.azureResourceName;
-      nodeUpdates.azureDeploymentName = cred.azureDeploymentName;
-      nodeUpdates.azureApiVersion = cred.azureApiVersion;
-    }
-    if (node) onUpdate(node.id, { data: { ...llmData, ...nodeUpdates } });
+    if (node) onUpdate(node.id, { data: { ...llmData, llmCredentialId: cred.id } });
   };
 
   const saveLLMCredential = (credType: LLMCredentialProvider, llmData: LLMNodeData) => {
@@ -896,11 +890,9 @@ export default function NodePanel({
         const isAzure = llmData.provider === 'azure-openai';
         const isGcpAuth = isGemini && llmData.geminiAuthType === 'gcp-access-token';
 
-        const azureResourceName = llmData.azureResourceName || '';
-        const azureDeploymentName = llmData.azureDeploymentName || '';
-        const azureApiVersion = llmData.azureApiVersion || '';
+        const azureCred = isAzure ? llmCredentials.find((c) => c.id === llmData.llmCredentialId) : undefined;
         const azureEndpointPreview = isAzure
-          ? `https://${azureResourceName || 'resource-name'}.openai.azure.com/openai/deployments/${azureDeploymentName || 'deployment-name'}/chat/completions?api-version=${azureApiVersion || 'api-version'}`
+          ? `https://${azureCred?.azureResourceName || 'resource-name'}.openai.azure.com/openai/deployments/${azureCred?.azureDeploymentName || 'deployment-name'}/chat/completions?api-version=${azureCred?.azureApiVersion || 'api-version'}`
           : '';
 
         return (
@@ -918,9 +910,6 @@ export default function NodePanel({
                       provider: e.target.value as 'gemini' | 'openai' | 'anthropic' | 'azure-openai',
                       model: '',
                       geminiAuthType: undefined,
-                      azureResourceName: undefined,
-                      azureDeploymentName: undefined,
-                      azureApiVersion: undefined,
                     },
                   })
                 }
