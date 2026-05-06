@@ -91,6 +91,7 @@ function findOBONodes(workflow: Workflow): Array<{
   agentId: string;
   agentSecret: string;
 }> {
+  const agentCredentials = workflowStore.getAgentCredentials();
   return workflow.nodes
     .filter((n) => n.type === 'mcpClient')
     .filter((n) => {
@@ -104,6 +105,9 @@ function findOBONodes(workflow: Workflow): Array<{
         ? workflow.nodes.find((an) => an.id === edge.source && an.type === 'aiAgent')
         : null;
       const agentData = agentNode?.data as AIAgentNodeData | undefined;
+      const cred = agentData?.agentCredentialId
+        ? agentCredentials.find((c) => c.id === agentData.agentCredentialId)
+        : undefined;
       return {
         nodeId: n.id,
         name: data.name?.trim() || n.id,
@@ -111,8 +115,8 @@ function findOBONodes(workflow: Workflow): Array<{
         clientId: data.oauth2ClientId || '',
         redirectUri: typeof window !== 'undefined' ? window.location.origin : '',
         scope: data.oauth2Scope,
-        agentId: agentData?.agentId || '',
-        agentSecret: agentData?.agentSecret || '',
+        agentId: cred?.agentId || '',
+        agentSecret: cred?.agentSecret || '',
       };
     });
 }

@@ -1,6 +1,6 @@
 {
   "name": "auth-playground",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "A visual, browser-based AI workflow builder for designing and testing authentication-aware agentic pipelines.",
   "repository": {
     "type": "git",
