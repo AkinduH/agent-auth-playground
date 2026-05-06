@@ -2,7 +2,7 @@
 
 This guide walks you through securing a simple AgentFlow using authentication with Asgardeo or WSO2 Identity Server. The simple AgentFlow we are securing is shown below:
 
-![Simple AgentFlow](public/simple-agentflow.png)
+![Simple AgentFlow](../public/simple-agentflow.png)
 
 ## Prerequisites
 
