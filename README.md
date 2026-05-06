@@ -28,7 +28,7 @@ The fastest way to try agent-auth-playground is with `npx`.
 Just run:
 
 ```bash
-npx auth-playground
+npx agent-auth-playground
 ```
 
 The local server starts on `http://localhost:4829` and your browser opens automatically.
