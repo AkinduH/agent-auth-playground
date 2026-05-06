@@ -57,6 +57,7 @@ export default function Home() {
   const [isChatVisible, setIsChatVisible] = useState(true);
   const [isOAuthCallback, setIsOAuthCallback] = useState(false);
   const [mcpInitVersion, setMcpInitVersion] = useState(0);
+  const [hasOBOTokens, setHasOBOTokens] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -84,6 +85,10 @@ export default function Home() {
       setIsNodePanelOpen(false);
     }
   }, [selectedNode]);
+
+  useEffect(() => {
+    setHasOBOTokens(workflowStore.hasOBOTokens());
+  }, []);
 
   useEffect(() => {
     if (!lastTrace) return;
@@ -253,6 +258,17 @@ export default function Home() {
 
           {/* Spacer */}
           <div className="flex-1" />
+
+          {hasOBOTokens && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs gap-1.5 border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-300"
+              onClick={() => { workflowStore.clearAllOBOTokens(); setHasOBOTokens(false); }}
+            >
+              Remove obtained tokens
+            </Button>
+          )}
 
           {/* Workflow name + actions */}
           <div className="flex items-center gap-1 border border-gray-200 rounded-lg bg-white pl-2.5 pr-1 py-1">

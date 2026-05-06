@@ -159,6 +159,16 @@ export const workflowStore = {
     localStorage.setItem(OBO_TOKENS_KEY, JSON.stringify(store));
   },
 
+  hasOBOTokens(): boolean {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(OBO_TOKENS_KEY) !== null;
+  },
+
+  clearAllOBOTokens(): void {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(OBO_TOKENS_KEY);
+  },
+
   // MCP discovered tools — keyed by workflowId -> mcpClientNodeId -> entry
   getMCPTools(workflowId: string, nodeId: string): MCPToolsEntry | null {
     if (typeof window === 'undefined') return null;
