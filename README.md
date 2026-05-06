@@ -23,17 +23,31 @@
 
 ## Quick Start (npx)
 
-The fastest way to try agent-auth-playground is with `npx`. Just run:
+The fastest way to try agent-auth-playground is with `npx`.
+
+Just run:
 
 ```bash
 npx auth-playground
 ```
 
-That's it. The local server starts on `http://localhost:4829` and your browser opens automatically.
+The local server starts on `http://localhost:4829` and your browser opens automatically.
 
 For advanced setup options, see the [Running Agent Auth Playground Guide](documentation/running-agent-auth-playground.md).
 
 ### Tryout a simple agentflow
+
+
+
+
+
+
+
+
+
+
+
+
 ## Features
 
 - **Visual AgentFlow Editor** - drag-and-drop canvas powered by React Flow; connect nodes with typed handles that enforce valid topologies

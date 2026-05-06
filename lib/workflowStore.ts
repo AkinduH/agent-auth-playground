@@ -38,27 +38,7 @@ export const workflowStore = {
   getWorkflow(): Workflow | null {
     if (typeof window === 'undefined') return null;
     const stored = localStorage.getItem(WORKFLOW_KEY);
-    if (stored) return JSON.parse(stored);
-
-    // Migrate from old multi-workflow format
-    const oldWorkflows = localStorage.getItem('workflows');
-    const oldCurrentId = localStorage.getItem('currentWorkflow');
-    if (oldWorkflows && oldCurrentId) {
-      try {
-        const workflows: Workflow[] = JSON.parse(oldWorkflows);
-        const current = workflows.find((w) => w.id === oldCurrentId);
-        if (current) {
-          this.saveWorkflow(current);
-          localStorage.removeItem('workflows');
-          localStorage.removeItem('currentWorkflow');
-          return current;
-        }
-      } catch {
-        // corrupt data — fall through to return null
-      }
-    }
-
-    return null;
+    return stored ? JSON.parse(stored) : null;
   },
 
   // Workflow memory by workflowId -> memoryNodeId -> chat messages
@@ -259,6 +239,14 @@ export const workflowStore = {
     if (typeof window === 'undefined') return;
     const creds = this.getLLMCredentials().filter((c) => c.id !== id);
     localStorage.setItem(LLM_CREDENTIALS_KEY, JSON.stringify(creds));
+  },
+
+  clearAllData(): void {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(WORKFLOW_KEY);
+    localStorage.removeItem(WORKFLOW_MEMORY_KEY);
+    localStorage.removeItem(OBO_TOKENS_KEY);
+    localStorage.removeItem(MCP_TOOLS_KEY);
   },
 };
 

@@ -18,12 +18,13 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Download, Eye, MoreVertical, Trash2, Upload, X } from 'lucide-react';
+import { Download, Eye, MoreVertical, RotateCcw, Trash2, Upload, X } from 'lucide-react';
 import Image from 'next/image';
 import { validateWorkflow } from '@/lib/workflowValidation';
-import { workflowStore, generateId } from '@/lib/workflowStore';
+import { workflowStore, generateId, createDefaultWorkflow } from '@/lib/workflowStore';
 import { useEffect, useRef, useState } from 'react';
 import { Workflow, WorkflowNode, NodeType } from '@/lib/types';
 
@@ -154,6 +155,12 @@ export default function Home() {
   const handleImportClick = () => {
     setImportError(null);
     fileInputRef.current?.click();
+  };
+
+  const handleStartFresh = () => {
+    workflowStore.clearAllData();
+    importWorkflow(createDefaultWorkflow());
+    setHasOBOTokens(false);
   };
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -292,6 +299,11 @@ export default function Home() {
                 <DropdownMenuItem onClick={handleImportClick}>
                   <Upload className="h-4 w-4" />
                   Import
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleStartFresh} className="text-red-600 focus:text-red-600">
+                  <RotateCcw className="h-4 w-4" />
+                  Start Fresh
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
