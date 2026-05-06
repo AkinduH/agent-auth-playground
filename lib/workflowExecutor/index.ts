@@ -8,6 +8,7 @@ import {
   AIAgentNodeData,
   ChatMessage,
   LLMNodeData,
+  LLMCredential,
   MCPClientNodeData,
 } from '../types';
 import { executeChatTrigger } from './chatTrigger';
@@ -28,7 +29,7 @@ export type WorkflowEventHandler = (event: WorkflowEvent) => void;
 export class WorkflowExecutor {
   private workflow: Workflow;
   private context: ExecutionContext;
-  private apiKeys: Record<string, string>;
+  private llmCredentials: LLMCredential[];
   private baseUrl: string;
   private oboTokens: Record<string, string>;
   private mcpDiscoveredTools: CachedMCPToolsMap;
@@ -39,7 +40,7 @@ export class WorkflowExecutor {
     workflow: Workflow,
     initialInput: string,
     workflowId: string,
-    apiKeys: Record<string, string> = {},
+    llmCredentials: LLMCredential[] = [],
     baseUrl?: string,
     memoryMessages: ChatMessage[] = [],
     oboTokens: Record<string, string> = {},
@@ -47,7 +48,7 @@ export class WorkflowExecutor {
     mcpDiscoveredTools: CachedMCPToolsMap = {}
   ) {
     this.workflow = workflow;
-    this.apiKeys = apiKeys;
+    this.llmCredentials = llmCredentials;
     this.baseUrl = baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:4829';
     this.oboTokens = oboTokens;
     this.mcpDiscoveredTools = mcpDiscoveredTools;
@@ -164,7 +165,7 @@ export class WorkflowExecutor {
       case 'llm': {
         this.onEvent?.({ type: 'node-start', nodeId: node.id });
         try {
-          return await executeLLM(node, this.context, this.apiKeys, this.baseUrl);
+          return await executeLLM(node, this.context, this.llmCredentials, this.baseUrl);
         } finally {
           this.onEvent?.({ type: 'node-end', nodeId: node.id });
         }
@@ -208,7 +209,7 @@ export class WorkflowExecutor {
         this.oboTokens,
         this.mcpDiscoveredTools,
         this.context,
-        this.apiKeys,
+        this.llmCredentials,
         this.baseUrl,
         this.trace,
         this.onEvent

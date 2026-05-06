@@ -1,4 +1,4 @@
-import { WorkflowNode, AIAgentNodeData, LLMNodeData, ExecutionContext } from '../types';
+import { WorkflowNode, AIAgentNodeData, LLMNodeData, LLMCredential, ExecutionContext } from '../types';
 import { MCPClientNodeRuntime } from '../mcpClientNode';
 import { MCPClientConfig, AgentToolBinding, ConsentRequiredError } from './types';
 import { WorkflowTrace, extractErrorInfoFromMessage } from '../authTrace';
@@ -39,32 +39,33 @@ const TOOL_SEARCH_SCHEMA = {
 export async function executeLLM(
   node: WorkflowNode,
   context: ExecutionContext,
-  apiKeys: Record<string, string>,
+  llmCredentials: LLMCredential[],
   baseUrl: string,
   message?: string,
   systemPrompt?: string
 ): Promise<string> {
   const data = node.data as LLMNodeData;
   const resolvedMessage = message ?? context.currentInput;
-  const resolvedSystemPrompt = systemPrompt ?? data.systemPrompt;
+  const resolvedSystemPrompt = systemPrompt ?? '';
 
   console.log(`[LLM:${node.id}] Calling ${data.provider}/${data.model}`);
 
-  return invokeLLM(data, resolvedMessage, resolvedSystemPrompt, apiKeys, baseUrl);
+  return invokeLLM(data, resolvedMessage, resolvedSystemPrompt, llmCredentials, baseUrl);
 }
 
 async function invokeLLM(
   data: LLMNodeData,
   message: string,
   systemPrompt: string,
-  apiKeys: Record<string, string>,
+  llmCredentials: LLMCredential[],
   baseUrl: string
 ): Promise<string> {
+  const cred = llmCredentials.find((c) => c.id === data.llmCredentialId);
   const isAzure = data.provider === 'azure-openai';
   const isGcpAuth = data.provider === 'gemini' && data.geminiAuthType === 'gcp-access-token';
-  const gcpAccessToken = isGcpAuth ? apiKeys['gcpAccessToken'] : undefined;
-  const gcpProjectId = isGcpAuth ? apiKeys['gcpProjectId'] : undefined;
-  const apiKey = isGcpAuth ? undefined : apiKeys[data.provider];
+  const gcpAccessToken = isGcpAuth ? cred?.gcpAccessToken : undefined;
+  const gcpProjectId = isGcpAuth ? cred?.gcpProjectId : undefined;
+  const apiKey = isGcpAuth ? undefined : cred?.apiKey;
 
   if (isGcpAuth && (!gcpAccessToken || !gcpProjectId)) {
     throw new Error('GCP Access Token and Project ID are required for Vertex AI. Please configure them in the LLM node.');
@@ -220,7 +221,7 @@ export async function executeAIAgent(
   oboTokens: Record<string, string>,
   cachedToolsMap: CachedMCPToolsMap,
   context: ExecutionContext,
-  apiKeys: Record<string, string>,
+  llmCredentials: LLMCredential[],
   baseUrl: string,
   trace?: WorkflowTrace,
   onEvent?: WorkflowEventHandler
@@ -261,7 +262,7 @@ export async function executeAIAgent(
       rawDecision = await executeLLM(
         llmNode,
         context,
-        apiKeys,
+        llmCredentials,
         baseUrl,
         stepPrompt,
         buildAgentSystemPrompt(data.systemPrompt)
@@ -459,7 +460,7 @@ export async function executeAIAgent(
     fallbackOutput = await executeLLM(
       llmNode,
       context,
-      apiKeys,
+      llmCredentials,
       baseUrl,
       buildAgentFallbackPrompt(context.currentInput, memoryContext, toolExecutionLog),
       data.systemPrompt || 'You are a helpful assistant.'

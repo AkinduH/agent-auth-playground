@@ -53,7 +53,6 @@ export default function NodePanel({
   variant = 'sidebar',
   onMCPInitChange,
 }: NodePanelProps) {
-  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [memoryCount, setMemoryCount] = useState(0);
   const [mcpInitInfo, setMcpInitInfo] = useState<{
     count: number;
@@ -276,25 +275,6 @@ export default function NodePanel({
   };
 
   const applyLLMCredential = (cred: LLMCredential, llmData: LLMNodeData) => {
-    // Write into the existing global API key store so the executor needs no changes
-    if (cred.provider === 'gemini') {
-      workflowStore.setApiKey('gemini', cred.apiKey ?? '');
-      setApiKeys((p) => ({ ...p, gemini: cred.apiKey ?? '' }));
-    } else if (cred.provider === 'gcp') {
-      workflowStore.setApiKey('gcpAccessToken', cred.gcpAccessToken ?? '');
-      workflowStore.setApiKey('gcpProjectId', cred.gcpProjectId ?? '');
-      setApiKeys((p) => ({ ...p, gcpAccessToken: cred.gcpAccessToken ?? '', gcpProjectId: cred.gcpProjectId ?? '' }));
-    } else if (cred.provider === 'anthropic') {
-      workflowStore.setApiKey('anthropic', cred.apiKey ?? '');
-      setApiKeys((p) => ({ ...p, anthropic: cred.apiKey ?? '' }));
-    } else if (cred.provider === 'openai') {
-      workflowStore.setApiKey('openai', cred.apiKey ?? '');
-      setApiKeys((p) => ({ ...p, openai: cred.apiKey ?? '' }));
-    } else if (cred.provider === 'azure-openai') {
-      workflowStore.setApiKey('azure-openai', cred.apiKey ?? '');
-      setApiKeys((p) => ({ ...p, 'azure-openai': cred.apiKey ?? '' }));
-    }
-    // Write Azure config fields into node data (executor reads from there)
     const nodeUpdates: Partial<LLMNodeData> = { llmCredentialId: cred.id };
     if (cred.provider === 'azure-openai') {
       nodeUpdates.azureResourceName = cred.azureResourceName;
@@ -352,7 +332,6 @@ export default function NodePanel({
   };
 
   useEffect(() => {
-    setApiKeys(workflowStore.getApiKeys());
     setCredentials(workflowStore.getAgentCredentials());
     setLLMCredentials(workflowStore.getLLMCredentials());
   }, []);
@@ -377,11 +356,6 @@ export default function NodePanel({
       </div>
     );
   }
-
-  const handleApiKeyChange = (provider: 'gemini' | 'openai' | 'anthropic' | 'azure-openai' | 'gcpAccessToken' | 'gcpProjectId', key: string) => {
-    workflowStore.setApiKey(provider, key);
-    setApiKeys((prev) => ({ ...prev, [provider]: key }));
-  };
 
   const renderNodeConfig = () => {
     switch (node.type) {

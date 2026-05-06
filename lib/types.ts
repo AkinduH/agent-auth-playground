@@ -34,8 +34,6 @@ export interface AIAgentNodeData extends BaseNodeData {
   systemPrompt: string;
   agentName?: string;
   agentCredentialId?: string;
-  temperature: number;
-  maxTokens: number;
   maxToolSteps?: number;
   maxMessages?: number;
 }
@@ -62,7 +60,6 @@ export interface LLMNodeData extends BaseNodeData {
   model: string;
   temperature: number;
   maxTokens: number;
-  systemPrompt: string;
   geminiAuthType?: 'api-key' | 'gcp-access-token';
   azureResourceName?: string;
   azureDeploymentName?: string;

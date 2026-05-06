@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     return sseError('Invalid request body');
   }
 
-  const { workflow, input, workflowId, apiKeys, memoryMessages, oboTokens, mcpDiscoveredTools } = body;
+  const { workflow, input, workflowId, llmCredentials, memoryMessages, oboTokens, mcpDiscoveredTools } = body;
 
   if (!workflow || !input) {
     return sseError('Missing workflow or input');
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
           workflow,
           input,
           workflowId || 'temp',
-          apiKeys || {},
+          Array.isArray(llmCredentials) ? llmCredentials : [],
           request.nextUrl.origin,
           Array.isArray(memoryMessages) ? memoryMessages : [],
           oboTokens && typeof oboTokens === 'object' ? oboTokens : {},

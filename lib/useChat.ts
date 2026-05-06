@@ -265,7 +265,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
             workflow: workflowDefinition,
             input: userMessage,
             workflowId,
-            apiKeys: workflowStore.getApiKeys(),
+            llmCredentials: workflowStore.getLLMCredentials(),
             memoryMessages,
             oboTokens,
             mcpDiscoveredTools: collectCachedMCPTools(workflowDefinition, workflowId),
