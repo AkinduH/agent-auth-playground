@@ -257,14 +257,24 @@ export function generateId(prefix: string = ''): string {
   return `${prefix}${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
-// Create default workflow
+// Create default workflow with Chat Trigger → AI Agent → LLM pre-wired
 export function createDefaultWorkflow(name: string = 'Workflow-1'): Workflow {
   const id = generateId('workflow-');
+  const triggerId = generateId('node-');
+  const agentId = generateId('node-');
+  const llmId = generateId('node-');
   return {
     id,
     name,
-    nodes: [],
-    edges: [],
+    nodes: [
+      { id: triggerId, type: 'chatTrigger', position: { x: 100, y: 250 }, data: { label: 'Chat Trigger' } },
+      { id: agentId,   type: 'aiAgent',     position: { x: 350, y: 250 }, data: { label: 'AI Agent', systemPrompt: 'You are a helpful assistant.', maxToolSteps: 6 } },
+      { id: llmId,     type: 'llm',         position: { x: 358, y: 0 }, data: { label: 'AI Service', provider: '' as any, model: '', temperature: 0.7, maxTokens: 1000 } },
+    ],
+    edges: [
+      { id: generateId('edge-'), source: triggerId, target: agentId },
+      { id: generateId('edge-'), source: agentId,   target: llmId },
+    ],
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
