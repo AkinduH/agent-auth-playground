@@ -3,7 +3,6 @@ import { Workflow, ChatMessage, AgentCredential, LLMCredential } from './types';
 const WORKFLOWS_KEY = 'workflows';
 const CURRENT_WORKFLOW_KEY = 'currentWorkflow';
 const WORKFLOW_MEMORY_KEY = 'workflowMemories';
-const API_KEYS_KEY = 'apiKeys';
 const OBO_TOKENS_KEY = 'oboTokens';
 const MCP_TOOLS_KEY = 'mcpDiscoveredTools';
 const AGENT_CREDENTIALS_KEY = 'agentCredentials';
@@ -132,29 +131,6 @@ export const workflowStore = {
     const allMemory: WorkflowMemoryStore = JSON.parse(stored);
     delete allMemory[workflowId];
     localStorage.setItem(WORKFLOW_MEMORY_KEY, JSON.stringify(allMemory));
-  },
-
-  // API key management
-  setApiKey(provider: 'gemini' | 'openai' | 'anthropic' | 'azure-openai' | 'gcpAccessToken' | 'gcpProjectId', key: string): void {
-    if (typeof window === 'undefined') return;
-    
-    const keys = this.getApiKeys();
-    keys[provider] = key;
-    localStorage.setItem(API_KEYS_KEY, JSON.stringify(keys));
-  },
-
-  getApiKey(provider: 'gemini' | 'openai' | 'anthropic' | 'azure-openai' | 'gcpAccessToken' | 'gcpProjectId'): string | null {
-    if (typeof window === 'undefined') return null;    
-    const stored = localStorage.getItem(API_KEYS_KEY);
-    const keys = stored ? JSON.parse(stored) : {};
-    return keys[provider] || null;
-  },
-
-  getApiKeys(): Record<string, string> {
-    if (typeof window === 'undefined') return {};
-    
-    const stored = localStorage.getItem(API_KEYS_KEY);
-    return stored ? JSON.parse(stored) : {};
   },
 
   // OBO token management — keyed by `${workflowId}_${nodeId}`
