@@ -1,104 +1,56 @@
 {
-  "id": "workflow-1777802572390-rztiny7x9",
+  "id": "workflow-1778056277396-gpybm5b5r",
   "name": "travel-agent",
   "nodes": [
     {
-      "id": "node-1777014720463-anue061ie",
+      "id": "node-1778043437040-netrvdo4s",
       "type": "chatTrigger",
       "position": {
-        "x": 62.63461622037879,
-        "y": 175.4739760206533
+        "x": -24.975389901089386,
+        "y": 97.63952877315637
       },
       "data": {
         "label": "Chat Trigger"
       }
     },
     {
-      "id": "node-1777014723402-dvp13u93j",
+      "id": "node-1778043440093-acty1gxzz",
       "type": "aiAgent",
       "position": {
-        "x": 270.10971889878465,
-        "y": 175.74515229189836
+        "x": 213.62857741184013,
+        "y": 95.73160950374081
       },
       "data": {
         "label": "AI Agent",
-        "systemPrompt": "You are a helpful assistant.",
-        "temperature": 0.7,
-        "maxTokens": 1000,
-        "maxToolSteps": 15,
-        "agentName": " auth-playground-travel-agent",
-        "agentId": "",
-        "maxMessages": 20
+        "systemPrompt": "You are a helpful travel assistant.",
+        "maxToolSteps": 10,
+        "maxMessages": 20,
+        "agentName": "Travel-Agent",
+        "agentCredentialId": "cred-1778051820365-qlktg"
       }
     },
     {
-      "id": "node-1777014728053-g8m1fvt14",
+      "id": "node-1778043478046-o20bl33zi",
       "type": "llm",
       "position": {
-        "x": 276.48420490712243,
-        "y": 0.5244178374036323
+        "x": 221.2712603671197,
+        "y": -108.22098680609784
       },
       "data": {
         "label": "AI Service",
         "provider": "gemini",
-        "model": "gemini-2.5-flash",
+        "model": "",
         "temperature": 0.7,
         "maxTokens": 10000,
-        "systemPrompt": "You are a helpful assistant.",
-        "geminiAuthType": "api-key"
+        "llmCredentialId": "llmcred-1778051633472-l0nlr"
       }
     },
     {
-      "id": "node-1777014728595-8d4apotk5",
+      "id": "node-1778043487674-xy0qqsyyo",
       "type": "mcpClient",
       "position": {
-        "x": 632.7744881327101,
-        "y": -64.0538475349648
-      },
-      "data": {
-        "label": "MCP Client",
-        "mcpServerEndpoint": "http://localhost:3001/mcp",
-        "useOAuth2": false,
-        "oauth2Flow": "agent",
-        "name": "flight-search-mcp"
-      }
-    },
-    {
-      "id": "node-1777014741104-edfy4fz0r",
-      "type": "mcpClient",
-      "position": {
-        "x": 639.941868886463,
-        "y": 442.33515932244416
-      },
-      "data": {
-        "label": "MCP Client",
-        "mcpServerEndpoint": "http://localhost:3005/mcp",
-        "useOAuth2": true,
-        "oauth2Scope": "openid search_lounges get_lounge_details reserve_lounge",
-        "oauth2Flow": "agent",
-        "name": "airport-lounge-mcp"
-      }
-    },
-    {
-      "id": "node-1777309294409-1dmzp9ig4",
-      "type": "mcpClient",
-      "position": {
-        "x": 633.5380003576777,
-        "y": 62.53973281030031
-      },
-      "data": {
-        "label": "MCP Client",
-        "mcpServerEndpoint": "http://localhost:3002/mcp",
-        "name": "hotel-search-mcp",
-        "useOAuth2": false
-      }
-    },
-    {
-      "id": "node-1777309313554-8acvx7y5m",
-      "type": "mcpClient",
-      "position": {
-        "x": 623.8848140318428,
-        "y": 189.9881637635538
+        "x": 500.31296110345886,
+        "y": 108.72623667203925
       },
       "data": {
         "label": "MCP Client",
@@ -107,74 +59,115 @@
       }
     },
     {
-      "id": "node-1777309336446-3efwnro2c",
+      "id": "node-1778043513048-ewjpx5xef",
       "type": "mcpClient",
       "position": {
-        "x": 629.9524083809206,
-        "y": 315.19264632311507
+        "x": 512.9818068782446,
+        "y": -23.670646487459088
+      },
+      "data": {
+        "label": "MCP Client",
+        "mcpServerEndpoint": "http://localhost:3002/mcp",
+        "name": "hotel-search-mcp"
+      }
+    },
+    {
+      "id": "node-1778043524445-78sw7lb1g",
+      "type": "mcpClient",
+      "position": {
+        "x": 509.5619711800533,
+        "y": -147.45058368498408
+      },
+      "data": {
+        "label": "MCP Client",
+        "mcpServerEndpoint": "http://localhost:3001/mcp",
+        "name": "flight-search-mcp"
+      }
+    },
+    {
+      "id": "node-1778043535199-47uy0va18",
+      "type": "mcpClient",
+      "position": {
+        "x": 500.81653174995995,
+        "y": 236.1624127199961
       },
       "data": {
         "label": "MCP Client",
         "mcpServerEndpoint": "http://localhost:3004/mcp",
         "name": "booking-manager-mcp",
         "useOAuth2": true,
-        "oauth2Flow": "obo",
-        "oauth2Scope": "openid create_booking get_booking cancel_booking"
+        "oauth2RedirectUri": "http://localhost:4829",
+        "oauth2Flow": "obo"
+      }
+    },
+    {
+      "id": "node-1778043542147-ua7yq10e7",
+      "type": "mcpClient",
+      "position": {
+        "x": 507.04908557519445,
+        "y": 360.7117033472193
+      },
+      "data": {
+        "label": "MCP Client",
+        "mcpServerEndpoint": "http://localhost:3005/mcp",
+        "name": "airport-lounge-mcp",
+        "useOAuth2": true,
+        "oauth2RedirectUri": "http://localhost:4829"
       }
     }
   ],
   "edges": [
     {
-      "id": "edge-1777014732990-3tnrrigkw",
-      "source": "node-1777014723402-dvp13u93j",
-      "target": "node-1777014728053-g8m1fvt14",
+      "id": "edge-1778043443215-vogdetzwv",
+      "source": "node-1778043437040-netrvdo4s",
+      "target": "node-1778043440093-acty1gxzz",
+      "targetHandle": "left",
+      "animated": true
+    },
+    {
+      "id": "edge-1778043481278-su8tcfa2t",
+      "source": "node-1778043440093-acty1gxzz",
+      "target": "node-1778043478046-o20bl33zi",
       "sourceHandle": "top",
       "targetHandle": "bottom",
       "animated": true
     },
     {
-      "id": "edge-1777014739835-owf6lo92m",
-      "source": "node-1777014723402-dvp13u93j",
-      "target": "node-1777014728595-8d4apotk5",
+      "id": "edge-1778043506294-5y7katjod",
+      "source": "node-1778043440093-acty1gxzz",
+      "target": "node-1778043487674-xy0qqsyyo",
       "sourceHandle": "right",
       "animated": true
     },
     {
-      "id": "edge-1777014745982-d4bbbmb06",
-      "source": "node-1777014723402-dvp13u93j",
-      "target": "node-1777014741104-edfy4fz0r",
+      "id": "edge-1778043518195-37cr31dw9",
+      "source": "node-1778043440093-acty1gxzz",
+      "target": "node-1778043513048-ewjpx5xef",
       "sourceHandle": "right",
       "animated": true
     },
     {
-      "id": "edge-1777014751041-760z6dfq7",
-      "source": "node-1777014720463-anue061ie",
-      "target": "node-1777014723402-dvp13u93j",
-      "targetHandle": "left",
-      "animated": true
-    },
-    {
-      "id": "edge-1777309422943-0ik7hslr4",
-      "source": "node-1777014723402-dvp13u93j",
-      "target": "node-1777309294409-1dmzp9ig4",
+      "id": "edge-1778043530107-wkbciin46",
+      "source": "node-1778043440093-acty1gxzz",
+      "target": "node-1778043524445-78sw7lb1g",
       "sourceHandle": "right",
       "animated": true
     },
     {
-      "id": "edge-1777309430697-yjtmxos7x",
-      "source": "node-1777014723402-dvp13u93j",
-      "target": "node-1777309313554-8acvx7y5m",
+      "id": "edge-1778043540825-qnxgte46b",
+      "source": "node-1778043440093-acty1gxzz",
+      "target": "node-1778043535199-47uy0va18",
       "sourceHandle": "right",
       "animated": true
     },
     {
-      "id": "edge-1777309435255-utkfp023n",
-      "source": "node-1777014723402-dvp13u93j",
-      "target": "node-1777309336446-3efwnro2c",
+      "id": "edge-1778043550855-t8nbht90l",
+      "source": "node-1778043440093-acty1gxzz",
+      "target": "node-1778043542147-ua7yq10e7",
       "sourceHandle": "right",
       "animated": true
     }
   ],
-  "createdAt": 1777014713055,
-  "updatedAt": 1777802640843
+  "createdAt": 1778043141743,
+  "updatedAt": 1778058062446
 }

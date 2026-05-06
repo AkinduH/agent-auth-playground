@@ -129,11 +129,8 @@ export default function Home() {
     const sanitized = {
       ...workflow,
       nodes: workflow.nodes.map((node) => {
-        if (node.data && 'agentSecret' in node.data) {
-          const { agentSecret: _, ...rest } = node.data as Record<string, unknown>;
-          return { ...node, data: rest };
-        }
-        return node;
+        const { oauth2ClientId: _b, oauth2BaseUrl: _c, oauth2Scope: _d, ...rest } = node.data as Record<string, unknown>;
+        return { ...node, data: rest };
       }),
     };
     const json = JSON.stringify(sanitized, null, 2);
