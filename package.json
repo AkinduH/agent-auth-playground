@@ -1,6 +1,6 @@
 {
-  "name": "auth-playground",
-  "version": "0.1.12",
+  "name": "agent-auth-playground",
+  "version": "0.1.13",
   "description": "A visual, browser-based AI workflow builder for designing and testing authentication-aware agentic pipelines.",
   "repository": {
     "type": "git",
@@ -18,7 +18,7 @@
   ],
   "license": "Apache 2.0",
   "bin": {
-    "auth-playground": "bin/auth-playground.js"
+    "agent-auth-playground": "bin/agent-auth-playground.js"
   },
   "files": [
     "bin",
@@ -34,7 +34,7 @@
     "build": "next build",
     "postbuild": "node scripts/postbuild.js",
     "start": "next start -p 4829",
-    "start:standalone": "node bin/auth-playground.js",
+    "start:standalone": "node bin/agent-auth-playground.js",
     "lint": "eslint .",
     "prepack": "next build && node scripts/postbuild.js"
   },

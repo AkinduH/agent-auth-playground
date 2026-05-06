@@ -13,10 +13,10 @@ const DEFAULTS = {
 
 function printHelp() {
   process.stdout.write(
-    `auth-playground v${pkg.version}\n\n` +
+    `agent-auth-playground v${pkg.version}\n\n` +
       `Visual AI workflow builder — runs a local server in your browser.\n\n` +
       `Usage:\n` +
-      `  npx auth-playground [options]\n\n` +
+      `  npx agent-auth-playground [options]\n\n` +
       `Options:\n` +
       `  --port <number>   Port to listen on (default: ${DEFAULTS.port})\n` +
       `  --host <string>   Host to bind to     (default: ${DEFAULTS.host})\n` +
@@ -99,7 +99,7 @@ const serverPath = path.join(standaloneDir, 'server.js');
 
 if (!fs.existsSync(serverPath)) {
   console.error(
-    `[auth-playground] Build artifact not found at ${serverPath}.\n` +
+    `[agent-auth-playground] Build artifact not found at ${serverPath}.\n` +
       `If you're running from source, run \`pnpm build && node scripts/postbuild.js\` first.`
   );
   process.exit(1);
@@ -114,7 +114,7 @@ process.env.NEXT_PUBLIC_APP_URL = url;
 // server.js calls process.chdir(__dirname) itself — no need to do it here.
 
 process.stdout.write(
-  `\n  auth-playground v${pkg.version}\n` +
+  `\n  agent-auth-playground v${pkg.version}\n` +
     `  ➜  Local:   ${url}\n` +
     `  ➜  Press Ctrl+C to stop\n\n`
 );
@@ -124,7 +124,7 @@ if (args.open) {
 }
 
 const shutdown = (signal) => () => {
-  process.stdout.write(`\n[auth-playground] received ${signal}, shutting down\n`);
+  process.stdout.write(`\n[agent-auth-playground] received ${signal}, shutting down\n`);
   process.exit(0);
 };
 process.on('SIGINT', shutdown('SIGINT'));
