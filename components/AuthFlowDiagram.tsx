@@ -215,7 +215,7 @@ function pushAgentAuthSteps(items: Item[], mcp: MCPNodeTrace) {
   items.push({
     kind: 'message', from: 'Agent', to: 'IAM',
     label: `POST ${authnUrl}`,
-    sublabel: `flowId, selectedAuthenticator { authenticatorId, params: { username: agentId="${mcp.agentId || '—'}", password: agentSecret } }`,
+    sublabel: `flowId, selectedAuthenticator { authenticatorId, params: { username: agentId, agentSecret } }`,
     color: 'auth',
   });
   if (err?.stage === 'authn') {
