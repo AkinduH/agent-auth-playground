@@ -61,8 +61,8 @@ Sign up for an account at [Asgardeo](https://asgardeo.io/), or download and set 
 1. Register an MCP Client application by following this [guide](https://wso2.com/asgardeo/docs/guides/agentic-ai/mcp/register-mcp-client-app/).
 2. In the Advanced tab of the MCP Client application enable App-Native Authentication.
 3. Double-click the MCP Client node and enable the **Use MCP OAuth2** toggle.
-4. Under **OAuth2 Configuration**, enter the Base URL and Client ID of the registered MCP Client application.
-5. Scopes are optional and depend on your MCP server configuration. If your MCP server requires specific scopes, add them in the **Scopes** field.
+4. Under **OAuth2 Configuration**, click **+ Add** and fill in the Name, Base URL, and Client ID of the registered MCP Client application. Scope is optional - add it if your MCP server requires specific scopes. Click **Save**.
+5. Select the saved configuration from the dropdown.
 6. Your MCP server also needs to be secured with the same identity provider. Follow this [guide](https://wso2.com/asgardeo/docs/quick-starts/mcp-auth-server/) to set that up.
 7. Click **Initialize & Connect** to verify that tool discovery succeeds and the connection to the MCP server is established.
 

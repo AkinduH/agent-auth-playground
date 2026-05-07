@@ -1,4 +1,4 @@
-import { Workflow, ChatMessage, AgentCredential, LLMCredential } from './types';
+import { Workflow, ChatMessage, AgentCredential, LLMCredential, OAuthConfig } from './types';
 
 const WORKFLOW_KEY = 'workflow';
 const WORKFLOW_MEMORY_KEY = 'workflowMemories';
@@ -6,6 +6,7 @@ const OBO_TOKENS_KEY = 'oboTokens';
 const MCP_TOOLS_KEY = 'mcpDiscoveredTools';
 const AGENT_CREDENTIALS_KEY = 'agentCredentials';
 const LLM_CREDENTIALS_KEY = 'llmCredentials';
+const OAUTH_CONFIGS_KEY = 'oauthConfigs';
 
 type OBOTokenEntry = { accessToken: string; expiresAt: number };
 type OBOTokenStore = Record<string, OBOTokenEntry>;
@@ -239,6 +240,31 @@ export const workflowStore = {
     if (typeof window === 'undefined') return;
     const creds = this.getLLMCredentials().filter((c) => c.id !== id);
     localStorage.setItem(LLM_CREDENTIALS_KEY, JSON.stringify(creds));
+  },
+
+  // OAuth2 config management — stored globally, not per-workflow
+  getOAuthConfigs(): OAuthConfig[] {
+    if (typeof window === 'undefined') return [];
+    const stored = localStorage.getItem(OAUTH_CONFIGS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  },
+
+  saveOAuthConfig(config: OAuthConfig): void {
+    if (typeof window === 'undefined') return;
+    const configs = this.getOAuthConfigs();
+    const idx = configs.findIndex((c) => c.id === config.id);
+    if (idx >= 0) {
+      configs[idx] = config;
+    } else {
+      configs.push(config);
+    }
+    localStorage.setItem(OAUTH_CONFIGS_KEY, JSON.stringify(configs));
+  },
+
+  deleteOAuthConfig(id: string): void {
+    if (typeof window === 'undefined') return;
+    const configs = this.getOAuthConfigs().filter((c) => c.id !== id);
+    localStorage.setItem(OAUTH_CONFIGS_KEY, JSON.stringify(configs));
   },
 
   clearAllData(): void {

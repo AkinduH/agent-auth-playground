@@ -132,14 +132,7 @@ export default function Home() {
 
   const handleDownloadWorkflow = () => {
     if (!workflow) return;
-    const sanitized = {
-      ...workflow,
-      nodes: workflow.nodes.map((node) => {
-        const { oauth2ClientId: _b, oauth2BaseUrl: _c, oauth2Scope: _d, ...rest } = node.data as Record<string, unknown>;
-        return { ...node, data: rest };
-      }),
-    };
-    const json = JSON.stringify(sanitized, null, 2);
+    const json = JSON.stringify(workflow, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const safeName = (workflow.name || 'workflow').replace(/[^a-z0-9-_]+/gi, '_');

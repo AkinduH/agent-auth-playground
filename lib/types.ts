@@ -64,6 +64,15 @@ export interface LLMNodeData extends BaseNodeData {
   llmCredentialId?: string;
 }
 
+// OAuth2 config — stored globally in localStorage, not per-workflow
+export interface OAuthConfig {
+  id: string;
+  name: string;
+  oauth2BaseUrl: string;
+  oauth2ClientId: string;
+  oauth2Scope?: string;
+}
+
 // MCP Client node data
 export interface MCPClientNodeData extends BaseNodeData {
   label: 'MCP Client';
@@ -71,10 +80,7 @@ export interface MCPClientNodeData extends BaseNodeData {
   mcpServerEndpoint: string;
   useOAuth2?: boolean;
   oauth2Flow?: 'agent' | 'obo';
-  oauth2BaseUrl?: string;
-  oauth2ClientId?: string;
-  oauth2RedirectUri?: string;
-  oauth2Scope?: string;
+  oauth2ConfigId?: string;
 }
 
 // Node type union

@@ -140,7 +140,7 @@ This starts all five servers in a single terminal with color-coded output:
 
 ## Step 7 — Configure the MCP Client Nodes
 
-Each MCP Client node is pre-configured with its endpoint URL. The two protected nodes need their OAuth2 fields filled in.
+Each MCP Client node is pre-configured with its endpoint URL. The two protected nodes need an OAuth2 Configuration assigned.
 
 ### No-auth nodes
 
@@ -150,22 +150,27 @@ Each MCP Client node is pre-configured with its endpoint URL. The two protected 
 | hotel-search-mcp | `http://localhost:3002/mcp` |
 | currency-converter-mcp | `http://localhost:3003/mcp` |
 
-Just click on the Initialize & Connect button for these three mcp client nodes to be connected to the mcp server and do the tool discovery.
+Click **Initialize & Connect** on each of these three nodes to connect to the MCP server and discover tools.
 
 ### Auth-protected nodes
 
-Double-click the **booking-manager-mcp** node and the **airport-lounge-mcp** node and fill in:
+Double-click the **booking-manager-mcp** node and the **airport-lounge-mcp** node. For each:
 
-| Field | Value |
-|-------|-------|
-| **Use MCP OAuth2** | On |
-| **Base URL** | Same base URL as your AI Agent credentials |
-| **Client ID** | The matching client ID for each mcp client node |
-| **Scope** | scopes we created earlier |
+1. Make sure **Use MCP OAuth2** is toggled on.
+2. Under **OAuth2 Configuration**, click **+ Add** and fill in:
 
-The Auth Flow for Booking Manager mcp Server is set to **On Behalf Of (OBO)**, becasue the required scopes can be only taken by the user. The Auth Flow for Airport Lounge mcp Server is set to **Agent Flow** because the agent itself has the required scopes.
+   | Field | Value |
+   |-------|-------|
+   | **Name** | A friendly label, e.g. `Booking Manager – Dev` |
+   | **Base URL** | Same base URL as your AI Agent credentials |
+   | **Client ID** | The matching client ID for this MCP client node |
+   | **Scope** | The scopes created for this server (see Step 5) |
 
-The **Redirect URI** is set automatically to `http://localhost:4829`
+3. Click **Save**, then select the newly saved configuration from the dropdown.
+
+The Auth Flow for Booking Manager is set to **On Behalf Of (OBO)** because the required scopes can only be granted by the user. The Auth Flow for Airport Lounge is set to **Agent Flow** because the agent itself holds the required scopes.
+
+The **Redirect URI** is derived automatically from the app's origin (`http://localhost:4829`) and does not need to be entered.
 
 ---
 

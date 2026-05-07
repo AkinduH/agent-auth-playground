@@ -10,6 +10,7 @@ import {
   AgentCredential,
   LLMCredential,
   LLMCredentialProvider,
+  OAuthConfig,
 } from '@/lib/types';
 import { workflowStore } from '@/lib/workflowStore';
 import { Button } from '@/components/ui/button';
@@ -81,6 +82,12 @@ export default function NodePanel({
   const [llmCredForm, setLLMCredForm] = useState({ name: '', apiKey: '', gcpAccessToken: '', gcpProjectId: '', azureResourceName: '', azureDeploymentName: '', azureApiVersion: '' });
   const [llmCredFormError, setLLMCredFormError] = useState<string | null>(null);
 
+  const [oauthConfigs, setOAuthConfigs] = useState<OAuthConfig[]>([]);
+  const [oauthConfigFormOpen, setOAuthConfigFormOpen] = useState(false);
+  const [oauthConfigEditingId, setOAuthConfigEditingId] = useState<string | null>(null);
+  const [oauthConfigForm, setOAuthConfigForm] = useState({ name: '', oauth2BaseUrl: '', oauth2ClientId: '', oauth2Scope: '' });
+  const [oauthConfigFormError, setOAuthConfigFormError] = useState<string | null>(null);
+
   useEffect(() => {
     if (workflowId && node?.type === 'aiAgent') {
       setMemoryCount(workflowStore.getWorkflowMemory(workflowId, node.id).length);
@@ -99,16 +106,6 @@ export default function NodePanel({
     }
   }, [workflowId, node?.id, node?.type]);
 
-  useEffect(() => {
-    if (node?.type !== 'mcpClient') return;
-    const mcpData = node.data as MCPClientNodeData;
-    if (mcpData.useOAuth2 && (mcpData.oauth2Flow ?? 'agent') === 'agent') {
-      const origin = window.location.origin;
-      if (mcpData.oauth2RedirectUri !== origin) {
-        onUpdate(node.id, { data: { ...mcpData, oauth2RedirectUri: origin } });
-      }
-    }
-  }, [node, onUpdate]);
 
   const runMCPInit = async (mcpData: MCPClientNodeData, nodeId: string) => {
     if (!workflowId) return;
@@ -120,12 +117,14 @@ export default function NodePanel({
 
     let oauth2Body: Record<string, string> | undefined;
     if (mcpData.useOAuth2) {
-      const baseUrl = mcpData.oauth2BaseUrl?.trim();
-      const clientId = mcpData.oauth2ClientId?.trim();
-      const redirectUri = window.location.origin;
-      if (!baseUrl || !clientId || !redirectUri) {
+      const config = mcpData.oauth2ConfigId
+        ? oauthConfigs.find((c) => c.id === mcpData.oauth2ConfigId)
+        : null;
+      const baseUrl = config?.oauth2BaseUrl?.trim();
+      const clientId = config?.oauth2ClientId?.trim();
+      if (!baseUrl || !clientId) {
         setMcpInitError(
-          'OAuth2 is enabled but Base URL, Client ID, or Redirect URI is missing.'
+          'Select an OAuth2 configuration before initializing.'
         );
         return;
       }
@@ -140,8 +139,8 @@ export default function NodePanel({
         flow: mcpData.oauth2Flow ?? 'agent',
         baseUrl,
         clientId,
-        redirectUri,
-        scope: mcpData.oauth2Scope ?? '',
+        redirectUri: window.location.origin,
+        scope: config?.oauth2Scope ?? '',
         agentId: agentCreds.agentId,
         agentSecret: agentCreds.agentSecret,
       };
@@ -254,6 +253,49 @@ export default function NodePanel({
     }
   };
 
+  const openAddOAuthConfigForm = () => {
+    setOAuthConfigForm({ name: '', oauth2BaseUrl: '', oauth2ClientId: '', oauth2Scope: '' });
+    setOAuthConfigEditingId(null);
+    setOAuthConfigFormError(null);
+    setOAuthConfigFormOpen(true);
+  };
+
+  const openEditOAuthConfigForm = (config: OAuthConfig) => {
+    setOAuthConfigForm({ name: config.name, oauth2BaseUrl: config.oauth2BaseUrl, oauth2ClientId: config.oauth2ClientId, oauth2Scope: config.oauth2Scope ?? '' });
+    setOAuthConfigEditingId(config.id);
+    setOAuthConfigFormError(null);
+    setOAuthConfigFormOpen(true);
+  };
+
+  const saveOAuthConfig = () => {
+    if (!oauthConfigForm.name.trim() || !oauthConfigForm.oauth2BaseUrl.trim() || !oauthConfigForm.oauth2ClientId.trim()) {
+      setOAuthConfigFormError('Name, Base URL, and Client ID are required.');
+      return;
+    }
+    const config: OAuthConfig = {
+      id: oauthConfigEditingId ?? `oauth-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name: oauthConfigForm.name.trim(),
+      oauth2BaseUrl: oauthConfigForm.oauth2BaseUrl.trim(),
+      oauth2ClientId: oauthConfigForm.oauth2ClientId.trim(),
+      oauth2Scope: oauthConfigForm.oauth2Scope.trim() || undefined,
+    };
+    workflowStore.saveOAuthConfig(config);
+    setOAuthConfigs(workflowStore.getOAuthConfigs());
+    setOAuthConfigFormOpen(false);
+  };
+
+  const deleteOAuthConfig = (id: string) => {
+    workflowStore.deleteOAuthConfig(id);
+    setOAuthConfigs(workflowStore.getOAuthConfigs());
+    setOAuthConfigFormOpen(false);
+    if (node?.type === 'mcpClient') {
+      const mcpData = node.data as MCPClientNodeData;
+      if (mcpData.oauth2ConfigId === id) {
+        onUpdate(node.id, { data: { ...mcpData, oauth2ConfigId: undefined } });
+      }
+    }
+  };
+
   // Derive which LLM credential bucket to use based on provider + auth type
   function llmCredProvider(provider: string, geminiAuthType?: string): LLMCredentialProvider {
     if (provider === 'gemini') return geminiAuthType === 'gcp-access-token' ? 'gcp' : 'gemini';
@@ -328,6 +370,7 @@ export default function NodePanel({
   useEffect(() => {
     setCredentials(workflowStore.getAgentCredentials());
     setLLMCredentials(workflowStore.getLLMCredentials());
+    setOAuthConfigs(workflowStore.getOAuthConfigs());
   }, []);
 
   const containerClassName =
@@ -762,67 +805,163 @@ export default function NodePanel({
             )}
 
             {mcpData.useOAuth2 && (
-              <div className="space-y-3 rounded-md border border-white-200 bg-white-50 p-3">
-                <p className="text-xs font-semibold text-white-700 uppercase tracking-wide">
-                  OAuth2 Configuration
-                </p>
-
+              <div className="space-y-3">
                 <div>
                   <label className="text-sm font-semibold text-gray-700 mb-1 block">
-                    Base URL
+                    OAuth2 Configuration
                   </label>
-                  <Input
-                    value={mcpData.oauth2BaseUrl || ''}
-                    onChange={(e) =>
-                      onUpdate(node.id, {
-                        data: { ...mcpData, oauth2BaseUrl: e.target.value },
-                      })
-                    }
-                    placeholder="https://api.asgardeo.io/t/your-org"
-                  />
+                  {(() => {
+                    const selectedConfig = oauthConfigs.find((c) => c.id === mcpData.oauth2ConfigId);
+                    return (
+                      <>
+                        <div className="flex gap-2">
+                          <select
+                            value={mcpData.oauth2ConfigId || ''}
+                            onChange={(e) => {
+                              setOAuthConfigFormOpen(false);
+                              onUpdate(node.id, {
+                                data: { ...mcpData, oauth2ConfigId: e.target.value || undefined },
+                              });
+                            }}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          >
+                            <option value="">Select configuration</option>
+                            {oauthConfigs.map((c) => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                          {selectedConfig && (
+                            <button
+                              type="button"
+                              title="Edit configuration"
+                              onClick={() => openEditOAuthConfigForm(selectedConfig)}
+                              className="flex items-center justify-center px-2 border border-gray-300 rounded-md hover:bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                              </svg>
+                            </button>
+                          )}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={openAddOAuthConfigForm}
+                          >
+                            + Add
+                          </Button>
+                        </div>
+                        {oauthConfigs.length === 0 && !oauthConfigFormOpen && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            No configurations saved yet. Click + Add to create one.
+                          </p>
+                        )}
+                        {selectedConfig && !oauthConfigFormOpen && (
+                          <div className="mt-2 rounded-md border border-gray-100 bg-gray-50 px-3 py-2 space-y-0.5">
+                            <p className="text-xs text-gray-500 truncate">
+                              <span className="font-medium text-gray-600">Base URL:</span> {selectedConfig.oauth2BaseUrl}
+                            </p>
+                            <p className="text-xs text-gray-500 truncate">
+                              <span className="font-medium text-gray-600">Client ID:</span> {selectedConfig.oauth2ClientId}
+                            </p>
+                            {selectedConfig.oauth2Scope && (
+                              <p className="text-xs text-gray-500 truncate">
+                                <span className="font-medium text-gray-600">Scope:</span> {selectedConfig.oauth2Scope}
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-500 truncate">
+                              <span className="font-medium text-gray-600">Redirect URI:</span> {typeof window !== 'undefined' ? window.location.origin : ''}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
-                    Client ID
-                  </label>
-                  <Input
-                    value={mcpData.oauth2ClientId || ''}
-                    onChange={(e) =>
-                      onUpdate(node.id, {
-                        data: { ...mcpData, oauth2ClientId: e.target.value },
-                      })
-                    }
-                    placeholder="vMH8K3zdIhlSiIDmmvnebNOI_bIa"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
-                    Redirect URI
-                  </label>
-                  <Input
-                    value={window.location.origin}
-                    readOnly
-                    className="bg-gray-50 text-gray-500 cursor-not-allowed"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
-                    Scope
-                    <span className="ml-1 text-xs font-normal text-gray-400">(optional)</span>
-                  </label>
-                  <Input
-                    value={mcpData.oauth2Scope || ''}
-                    onChange={(e) =>
-                      onUpdate(node.id, {
-                        data: { ...mcpData, oauth2Scope: e.target.value },
-                      })
-                    }
-                    placeholder="openid read_bookings write_bookings"
-                  />
-                </div>
+                {/* Inline OAuth2 config form */}
+                {oauthConfigFormOpen && (
+                  <div className="rounded-md border border-blue-200 bg-white p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-gray-800">
+                        {oauthConfigEditingId ? 'Edit OAuth2 Config' : 'New OAuth2 Config'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setOAuthConfigFormOpen(false)}
+                        className="text-gray-400 hover:text-gray-600 text-base leading-none"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-700 mb-1 block">Name</label>
+                      <Input
+                        value={oauthConfigForm.name}
+                        onChange={(e) => setOAuthConfigForm((f) => ({ ...f, name: e.target.value }))}
+                        placeholder="e.g. Bookings API – Dev"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-700 mb-1 block">Base URL</label>
+                      <Input
+                        value={oauthConfigForm.oauth2BaseUrl}
+                        onChange={(e) => setOAuthConfigForm((f) => ({ ...f, oauth2BaseUrl: e.target.value }))}
+                        placeholder="https://api.asgardeo.io/t/your-org"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-700 mb-1 block">Client ID</label>
+                      <Input
+                        value={oauthConfigForm.oauth2ClientId}
+                        onChange={(e) => setOAuthConfigForm((f) => ({ ...f, oauth2ClientId: e.target.value }))}
+                        placeholder="vMH8K3zdIhlSiIDmmvnebNOI_bIa"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-700 mb-1 block">
+                        Scope
+                        <span className="ml-1 text-xs font-normal text-gray-400">(optional)</span>
+                      </label>
+                      <Input
+                        value={oauthConfigForm.oauth2Scope}
+                        onChange={(e) => setOAuthConfigForm((f) => ({ ...f, oauth2Scope: e.target.value }))}
+                        placeholder="openid read_bookings write_bookings"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-700 mb-1 block">Redirect URI</label>
+                      <Input
+                        value={typeof window !== 'undefined' ? window.location.origin : ''}
+                        readOnly
+                        className="bg-white text-gray-500 cursor-not-allowed"
+                      />
+                    </div>
+                    {oauthConfigFormError && (
+                      <p className="text-xs text-red-600">{oauthConfigFormError}</p>
+                    )}
+                    <div className="flex gap-2">
+                      <Button type="button" size="sm" onClick={saveOAuthConfig}>
+                        Save
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => setOAuthConfigFormOpen(false)}>
+                        Cancel
+                      </Button>
+                      {oauthConfigEditingId && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="ml-auto text-red-600 border-red-200 hover:bg-red-50"
+                          onClick={() => deleteOAuthConfig(oauthConfigEditingId)}
+                        >
+                          Delete
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <p className="text-xs text-gray-500">
                   Agent ID and Secret are taken from the connected AI Agent node.

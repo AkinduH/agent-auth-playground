@@ -6,6 +6,7 @@ import {
   ChatMessage,
   MCPClientNodeData,
   Workflow,
+  OAuthConfig,
 } from './types';
 import { workflowStore, generateId } from './workflowStore';
 import { WorkflowTrace, MCPNodeTrace, dominantFlow } from './authTrace';
@@ -81,7 +82,7 @@ function collectCachedMCPTools(
   return out;
 }
 
-function findOBONodes(workflow: Workflow): Array<{
+function findOBONodes(workflow: Workflow, oauthConfigs: OAuthConfig[]): Array<{
   nodeId: string;
   name: string;
   baseUrl: string;
@@ -100,6 +101,9 @@ function findOBONodes(workflow: Workflow): Array<{
     })
     .map((n) => {
       const data = n.data as MCPClientNodeData;
+      const oauthConfig = data.oauth2ConfigId
+        ? oauthConfigs.find((c) => c.id === data.oauth2ConfigId)
+        : undefined;
       const edge = workflow.edges.find((e) => e.target === n.id);
       const agentNode = edge
         ? workflow.nodes.find((an) => an.id === edge.source && an.type === 'aiAgent')
@@ -111,10 +115,10 @@ function findOBONodes(workflow: Workflow): Array<{
       return {
         nodeId: n.id,
         name: data.name?.trim() || n.id,
-        baseUrl: data.oauth2BaseUrl || '',
-        clientId: data.oauth2ClientId || '',
+        baseUrl: oauthConfig?.oauth2BaseUrl || '',
+        clientId: oauthConfig?.oauth2ClientId || '',
         redirectUri: typeof window !== 'undefined' ? window.location.origin : '',
-        scope: data.oauth2Scope,
+        scope: oauthConfig?.oauth2Scope,
         agentId: cred?.agentId || '',
         agentSecret: cred?.agentSecret || '',
       };
@@ -262,11 +266,34 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
       try {
         abortControllerRef.current = new AbortController();
 
+        // Resolve oauth2ConfigId → actual fields so the server executor can read them directly
+        const resolvedOAuthConfigs = workflowStore.getOAuthConfigs();
+        const resolvedWorkflow = {
+          ...workflowDefinition,
+          nodes: workflowDefinition.nodes.map((n) => {
+            if (n.type !== 'mcpClient') return n;
+            const data = n.data as MCPClientNodeData;
+            if (!data.useOAuth2 || !data.oauth2ConfigId) return n;
+            const config = resolvedOAuthConfigs.find((c) => c.id === data.oauth2ConfigId);
+            if (!config) return n;
+            return {
+              ...n,
+              data: {
+                ...data,
+                oauth2BaseUrl: config.oauth2BaseUrl,
+                oauth2ClientId: config.oauth2ClientId,
+                oauth2Scope: config.oauth2Scope,
+                oauth2RedirectUri: typeof window !== 'undefined' ? window.location.origin : '',
+              },
+            };
+          }),
+        };
+
         const response = await fetch('/api/execute-workflow', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            workflow: workflowDefinition,
+            workflow: resolvedWorkflow,
             input: userMessage,
             workflowId,
             llmCredentials: workflowStore.getLLMCredentials(),
@@ -382,7 +409,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
       pendingUserMsg: ChatMessage,
       existingOboTokens: Record<string, string>
     ) => {
-      const oboNodes = findOBONodes(pendingWorkflow);
+      const oboNodes = findOBONodes(pendingWorkflow, workflowStore.getOAuthConfigs());
       const missingNodes = oboNodes.filter(
         (n) => !workflowStore.getOBOToken(workflowId, n.nodeId) && !existingOboTokens[n.nodeId]
       );
@@ -541,7 +568,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
           });
 
           // Collect all valid OBO tokens for the workflow and re-run
-          const allOBONodes = findOBONodes(state.pendingWorkflow);
+          const allOBONodes = findOBONodes(state.pendingWorkflow, workflowStore.getOAuthConfigs());
           const oboTokens: Record<string, string> = {};
           for (const node of allOBONodes) {
             const token = workflowStore.getOBOToken(workflowId, node.nodeId);
@@ -603,7 +630,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
       }
 
       // Collect any already-stored OBO tokens (from a prior consent in this session)
-      const oboNodes = findOBONodes(workflowDefinition);
+      const oboNodes = findOBONodes(workflowDefinition, workflowStore.getOAuthConfigs());
       const oboTokens: Record<string, string> = {};
       for (const node of oboNodes) {
         const token = workflowStore.getOBOToken(workflowId, node.nodeId);
