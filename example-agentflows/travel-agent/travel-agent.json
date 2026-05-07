@@ -1,5 +1,5 @@
 {
-  "id": "workflow-1778056277396-gpybm5b5r",
+  "id": "workflow-1778049384803-30n2j9c6l",
   "name": "travel-agent",
   "nodes": [
     {
@@ -27,22 +27,6 @@
         "maxMessages": 20,
         "agentName": "Travel-Agent",
         "agentCredentialId": "cred-1778051820365-qlktg"
-      }
-    },
-    {
-      "id": "node-1778043478046-o20bl33zi",
-      "type": "llm",
-      "position": {
-        "x": 221.2712603671197,
-        "y": -108.22098680609784
-      },
-      "data": {
-        "label": "AI Service",
-        "provider": "gemini",
-        "model": "",
-        "temperature": 0.7,
-        "maxTokens": 10000,
-        "llmCredentialId": "llmcred-1778051633472-l0nlr"
       }
     },
     {
@@ -114,6 +98,21 @@
         "useOAuth2": true,
         "oauth2RedirectUri": "http://localhost:4829"
       }
+    },
+    {
+      "id": "node-1778132129080-6uuaau8g9",
+      "type": "llm",
+      "position": {
+        "x": 222.87204467934384,
+        "y": -100.15073786258272
+      },
+      "data": {
+        "label": "AI Service",
+        "provider": "",
+        "model": "",
+        "temperature": 0.7,
+        "maxTokens": 1000
+      }
     }
   ],
   "edges": [
@@ -122,14 +121,6 @@
       "source": "node-1778043437040-netrvdo4s",
       "target": "node-1778043440093-acty1gxzz",
       "targetHandle": "left",
-      "animated": true
-    },
-    {
-      "id": "edge-1778043481278-su8tcfa2t",
-      "source": "node-1778043440093-acty1gxzz",
-      "target": "node-1778043478046-o20bl33zi",
-      "sourceHandle": "top",
-      "targetHandle": "bottom",
       "animated": true
     },
     {
@@ -166,8 +157,16 @@
       "target": "node-1778043542147-ua7yq10e7",
       "sourceHandle": "right",
       "animated": true
+    },
+    {
+      "id": "edge-1778132132887-6vav1o4hi",
+      "source": "node-1778043440093-acty1gxzz",
+      "target": "node-1778132129080-6uuaau8g9",
+      "sourceHandle": "top",
+      "targetHandle": "bottom",
+      "animated": true
     }
   ],
   "createdAt": 1778043141743,
-  "updatedAt": 1778058062446
+  "updatedAt": 1778132136229
 }

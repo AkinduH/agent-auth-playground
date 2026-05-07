@@ -34,7 +34,7 @@ By default, MCP connections are unauthenticated. Toggle **Use MCP OAuth2** to en
 | **Use MCP OAuth2** | Off | Enable Asgardeo OAuth2 authentication before connecting |
 | **Auth Flow** | Agent | Choose **Agent** (agent authenticates itself) or **OBO** (agent acts on behalf of the logged-in user) |
 | **Base URL** | — | Your Asgardeo organization URL (e.g., `https://api.asgardeo.io/t/your-org`) or WSO2 IS URL |
-| **Client ID** | — | OAuth2 application client ID registered in Asgardeo |
+| **Client ID** | — | MCP client application client ID registered in Asgardeo/WSO2 IS |
 | **Redirect URI** | *(auto)* | Set automatically to the app's origin. Shown read-only for reference - register this value in your Asgardeo application. |
 | **Scope** | `openid` | Space-separated OAuth2 scopes (e.g., `openid read_bookings`) |
 

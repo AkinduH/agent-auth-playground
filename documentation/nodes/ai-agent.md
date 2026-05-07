@@ -41,7 +41,10 @@ Agent credentials are stored globally and reused across all your AgentFlows. You
 | **Base URL** | Your Asgardeo organization URL (e.g. `https://api.asgardeo.io/t/your-org`) or WSO2 IS URL (e.g. `https://localhost:9443`) |
 | **Agent Application Client ID** | The OAuth2 application client ID registered in Asgardeo for this agent |
 
-To create an Agent ID and Secret, register an agent in your Asgardeo dashboard. See [Register and Manage Agents](https://wso2.com/asgardeo/docs/guides/agentic-ai/ai-agents/register-and-manage-agents/) for detailed instructions.
+To obtain these values, follow the steps  below:
+  1. Register an Interactive AI Agent by following this [guide](https://wso2.com/asgardeo/docs/guides/agentic-ai/ai-agents/register-and-manage-agents/#registering-an-ai-agent). Make sure to set the callback URL to `http://localhost:4829` during registration.
+  2. Double-click the AI Agent node. In the **+ Add Agent Credentials** section, enter the obtained Agent ID, Agent Secret, Base URL, and Agent Application Client ID (You need to enable PKCE and Public client by visiting to this application), then click **Save**.
+  3. Click **Test Fetching an Agent Token** button to verify that the credentials are correct and a token can be fetched successfully.
 
 ### Behavior
 
