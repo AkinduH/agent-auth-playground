@@ -66,7 +66,8 @@ Go to console of your IdP (Asgardeo or WSO2 IS).
 
 ### MCP Client Application Registration
 1. Register two new MCP Client applications, one for the Booking Manager mcp server and one for the Airport Lounge mcp server. Set the  Redirect URL to `http://localhost:4829` for both. (Refer this [guide](https://wso2.com/asgardeo/docs/guides/agentic-ai/mcp/register-mcp-client-app/))
-2. Note down the client IDs for both applications - you will need them later.
+2. In the Advanced tab of the application enable App-Native Authentication.
+3. Note down the client IDs for both applications - you will need them later.
 
 ### MCP Server Registration
 1. Register two new MCP Server resources, one for the Booking Manager mcp server and one for the Airport Lounge mcp server.
