@@ -1,6 +1,6 @@
 # AI Agent
 
-The AI Agent is the reasoning engine of your workflow. It receives your message, consults an AI model (via the connected AI Service), and decides what to do - call a tool, call another tool, or give a final answer.
+The AI Agent is the reasoning engine of your AgentFlow. It receives your message, consults an AI model (via the connected AI Service), and decides what to do - call a tool, call another tool, or give a final answer.
 
 ---
 
@@ -27,12 +27,21 @@ Double-click the AI Agent node to open its configuration.
 | Field | Required | Description |
 |-------|----------|-------------|
 | **Agent Name** | No | A friendly label shown in the auth flow diagram and logs |
-| **Agent ID** | Only if using OAuth2 | The agent username used to authenticate with Asgardeo |
-| **Agent Secret** | Only if using OAuth2 | The password for the Agent ID to authenticate with Asgardeo |
+| **Agent Credentials** | Only if using OAuth2 | A saved credential set selected from the dropdown. Required when a connected MCP Client node has OAuth2 enabled. |
 
-To get an Agent ID and Secret, create a new agent in your Asgardeo dashboard. Refer the [Register and Manage Agents](https://wso2.com/asgardeo/docs/guides/agentic-ai/ai-agents/register-and-manage-agents/) for detailed instructions.
+Agent credentials are stored globally and reused across all your AgentFlows. You can create, edit, and delete them directly from the AI Agent configuration panel.
 
-Agent ID and Agent Secret are only needed when a connected MCP Client node has OAuth2 enabled. See [Auth Flows](../auth-flows.md) for details.
+#### Credential Fields
+
+| Field | Description |
+|-------|-------------|
+| **Name** | A friendly label to identify this credential set in the dropdown |
+| **Agent ID** | The agent username used to authenticate with Asgardeo |
+| **Agent Secret** | The password for the Agent ID |
+| **Base URL** | Your Asgardeo organization URL (e.g. `https://api.asgardeo.io/t/your-org`) or WSO2 IS URL (e.g. `https://localhost:9443`) |
+| **Agent Application Client ID** | The OAuth2 application client ID registered in Asgardeo for this agent |
+
+To create an Agent ID and Secret, register an agent in your Asgardeo dashboard. See [Register and Manage Agents](https://wso2.com/asgardeo/docs/guides/agentic-ai/ai-agents/register-and-manage-agents/) for detailed instructions.
 
 ### Behavior
 
@@ -52,5 +61,5 @@ Agent ID and Agent Secret are only needed when a connected MCP Client node has O
 ## Tips
 
 - **System Prompt first** — the clearest way to shape your agent's behavior is a well-written system prompt. Be specific about what the agent should and shouldn't do.
-- **Max Tool Steps** — start with the default (6) and increase only if your workflows regularly run out of steps. More steps means longer execution time.
+- **Max Tool Steps** — start with the default (6) and increase only if your agent regularly run out of steps. More steps means longer execution time.
 - **Memory** — useful for conversational agents where context from previous messages matters. For stateless task automation, leave it disabled.

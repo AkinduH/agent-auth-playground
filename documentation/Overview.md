@@ -1,12 +1,12 @@
-# Getting Started
+# Overview
 
-Agent Auth Playground runs entirely in your browser. Open the app and you're ready to build and test authentication-aware AI workflows.
+Agent Auth Playground runs entirely in your browser. Open the app and you're ready to build and test authentication-aware AgentFlows.
 
 ---
 
 ## Before You Begin
 
-You'll need an API key from at least one AI provider. The key is stored only in your browser and is sent only to that provider's API when you run a workflow.
+You'll need an API key from at least one AI provider. The key is stored only in your browser and is sent only to that provider's API when you run an AgentFlow.
 
 | Provider | Where to get a key |
 |----------|--------------------|
@@ -14,11 +14,11 @@ You'll need an API key from at least one AI provider. The key is stored only in 
 | OpenAI | [platform.openai.com](https://platform.openai.com) |
 | Anthropic | [console.anthropic.com](https://console.anthropic.com) |
 
-An account on Asgardeo is required to test OAuth2 authentication flows. Sign up for free at [asgardeo.io](https://asgardeo.io).
+An account on Asgardeo or WSO2 Identity Server is required to test OAuth2 authentication flows. Sign up for free at [asgardeo.io](https://asgardeo.io) or download WSO2 Identity Server from the [official website](https://wso2.com/products/downloads/?product=wso2is).
 
 ---
 
-## Workflow Patterns
+## AgentFlow Patterns
 
 ### Simple chatbot
 
@@ -66,7 +66,7 @@ When you send your first message, the chat panel shows an **Authorize** button. 
 
 ### Everything stays in your browser
 
-Workflows, chat history, API keys, and auth tokens are all stored in your browser's local storage. Nothing is saved on any server. Clearing your browser data resets everything.
+AgentFlows, chat history, API keys, and auth tokens are all stored in your browser's local storage. Nothing is saved on any server. Clearing your browser data resets everything.
 
 ### Node connections are enforced
 
@@ -80,6 +80,6 @@ Each node type has fixed handles that only connect to specific other nodes. The 
 
 ### Inspect the Auth Flow
 
-After the workflow finishes, click **View Auth Flow** in the chat panel header. This opens an interactive sequence diagram showing exactly what happened during execution - giving you a clear picture of the auth flow between the agent, Asgardeo, and the MCP server.
+After the AgentFlow finishes, click **View Auth Flow** in the chat panel header. This opens an interactive sequence diagram showing exactly what happened during execution - giving you a clear picture of the auth flow between the agent, Asgardeo, and the MCP server.
 
-Use this to understand how your workflow behaved, debug unexpected results, or explore what tokens were used.
+Use this to understand how your AgentFlow behaved, debug unexpected results, or explore what tokens were used.

@@ -75,7 +75,7 @@ Once configured, use the Chat panel to trigger the flow. After each execution, c
 
 ### Documentation
 
-- [Getting Started](documentation/getting-started.md) - Build your first AgentFlow in a few minutes
+- [Overview](documentation/overview.md) - An introduction to Agent Auth Playground and its core concepts
 - [AgentFlow Editor](documentation/agentflow-editor.md) - Canvas controls, connections, and keyboard shortcuts
 - [Persistence](documentation/persistence.md) - What is stored in your browser and how to manage it
 
@@ -87,7 +87,7 @@ Once configured, use the Chat panel to trigger the flow. After each execution, c
 
 ### Example Agent Flows
 
-- [Travel Agent](example-agentflows/travel-agent.json) - An travel agent that uses MCP tools to plan travel
+- [Travel Agent](example-agentflows/travel-agent) - An travel agent that uses MCP tools to plan travel.
 
 ---
 

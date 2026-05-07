@@ -6,7 +6,7 @@ Auth Playground stores everything in your **browser's local storage**. There is 
 
 ## What This Means for You
 
-- **Private by default** - your workflows and API keys are visible only to you, in this browser.
+- **Private by default** - your AgentFlows and API keys are visible only to you, in this browser.
 - **No sync** - data is not shared between different browsers or devices.
 - **Clearing browser data resets everything** - use the in-app controls if you only want to clear specific things.
 
@@ -16,18 +16,21 @@ Auth Playground stores everything in your **browser's local storage**. There is 
 
 | What | Where it lives |
 |------|---------------|
-| Workflows (nodes, edges, layout) | Browser local storage |
-| Chat message history | Browser local storage, per workflow |
+| AgentFlows (nodes, edges, layout) | Browser local storage |
+| Chat message history | Browser local storage, per AgentFlow |
 | AI Agent memory (conversation context) | Browser local storage, per agent |
-| LLM API keys | Browser local storage, shared across all workflows |
-| OBO authorization tokens | Browser local storage, per workflow per MCP node |
+| LLM credentials (API keys) | Browser local storage, shared across all AgentFlows |
+| Agent credentials (client ID + secret) | Browser local storage, shared across all AgentFlows |
+| OBO authorization tokens | Browser local storage, per AgentFlow per MCP node |
 
 ---
 
-## API Keys
+## Credentials
 
-API keys are global - entering a key for Gemini in one workflow makes it available in all your workflows in that browser.
-To remove an API key, clear the API Key field in any AI Service node and the change is saved immediately.
+Credentials are stored in two separate stores:
+
+- **LLM credentials** — API keys for AI providers (Gemini, OpenAI, Anthropic). Entering a key in one AgentFlow makes it available across all your AgentFlows in that browser. To remove a key, clear the API Key field in any AI Service node.
+- **Agent credentials** — Agent identity information used by AI Agent nodes for OAuth2 authentication flows. These are also shared across all AgentFlows in that browser. To remove them, clear the fields in the AI Agent node configuration panel.
 
 ---
 
@@ -39,7 +42,7 @@ To clear an agent's memory:
 1. Select the AI Agent node on the canvas.
 2. Click **Clear Memory** in the configuration panel.
 
-Memory is cleared automatically when you delete the workflow.
+Memory is cleared automatically when you delete the AgentFlow.
 
 ---
 
@@ -47,13 +50,14 @@ Memory is cleared automatically when you delete the workflow.
 
 When you complete the OBO authorization flow (logging in and granting consent), the resulting token is saved in your browser until it expires. Once expired, you'll be prompted to authorize again.
 
-Tokens are cleared automatically when the associated workflow is deleted.
+You can manually clear OBO tokens by clicking the **Remove obtained tokens** button.
+Tokens are also cleared automatically when the associated AgentFlow is deleted.
 
 ---
 
 ## Storage Limits
 
-Browser local storage is limited to approximately **5 MB** per site. Workflow definitions and settings take very little space. Long conversations with many messages can grow over time - if you notice things slowing down, use the chat clear button periodically.
+Browser local storage is limited to approximately **5 MB** per site. AgentFlow definitions and settings take very little space. Long conversations with many messages can grow over time - if you notice things slowing down, use the chat clear button periodically.
 
 ---
 
@@ -63,6 +67,4 @@ To wipe all Auth Playground data:
 
 1. Open your browser's DevTools (usually F12).
 2. Go to **Application** → **Local Storage**.
-3. Find the entry for this site and click **Clear**.
-
-Or use your browser's "Clear site data" option in its settings.
+3. Find the entry for this site and click **Clear ALL**.

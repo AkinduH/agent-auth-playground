@@ -33,12 +33,12 @@ By default, MCP connections are unauthenticated. Toggle **Use MCP OAuth2** to en
 |-------|---------|-------------|
 | **Use MCP OAuth2** | Off | Enable Asgardeo OAuth2 authentication before connecting |
 | **Auth Flow** | Agent | Choose **Agent** (agent authenticates itself) or **OBO** (agent acts on behalf of the logged-in user) |
-| **Organization Name** | — | Your Asgardeo tenant name (e.g., `my-company`) |
+| **Base URL** | — | Your Asgardeo organization URL (e.g., `https://api.asgardeo.io/t/your-org`) or WSO2 IS URL |
 | **Client ID** | — | OAuth2 application client ID registered in Asgardeo |
-| **Redirect URI** | — | The callback URL registered in your Asgardeo application |
+| **Redirect URI** | *(auto)* | Set automatically to the app's origin. Shown read-only for reference - register this value in your Asgardeo application. |
 | **Scope** | `openid` | Space-separated OAuth2 scopes (e.g., `openid read_bookings`) |
 
-> You need to configure the **Agent ID and Secret** on the **AI Agent** node, not here. The MCP Client reads them from the connected agent automatically.
+> **Agent Credentials** (Agent ID and Secret) are configured on the **AI Agent** node as a saved credential set. The MCP Client reads them from the connected agent automatically.
 
 ---
 
@@ -50,16 +50,16 @@ The MCP Client connects to the server with no authorization header. Use this for
 
 ### Agent Flow
 
-The agent authenticates with its own service-account credentials before connecting. No user interaction is required.
+The agent authenticates with its own Agent ID and Secret before connecting. No user interaction is required.
 
 **When to use:** The MCP server is a protected API and the agent acts autonomously (no user identity needs to be forwarded).
 
 **What you need:**
 - Toggle on `Use MCP OAuth2` and select `Agent Flow`
-- Organization Name, Client ID, Scope filled in after registering an mcp client application in Asgardeo
-- **Agent ID** and **Agent Secret** on the connected AI Agent node
+- Base URL, Client ID, and Scope filled in after registering an MCP client application in Asgardeo
+- **Agent Credentials** selected on the connected AI Agent node
 
-When the workflow runs, the agent authenticates with Asgardeo silently and obtains an access token. All tool calls include that token as an authorization header.
+When the AgentFlow runs, the agent authenticates with Asgardeo/WSO2 IS silently and obtains an access token. All tool calls include that token as an authorization header.
 
 ### OBO Flow (On-Behalf-Of)
 
@@ -69,10 +69,10 @@ The agent acts on behalf of you (the logged-in user). You must grant consent bef
 
 **What you need:**
 - Toggle on `Use MCP OAuth2` and select `OBO Flow`
-- Organization Name, Client ID, Scope filled in after registering an mcp client application in Asgardeo
-- **Agent ID** and **Agent Secret** on the connected AI Agent node
+- Base URL, Client ID, and Scope filled in after registering an MCP client application in Asgardeo
+- **Agent Credentials** selected on the connected AI Agent node
 
-When you send your first message, the chat panel shows an **Authorize** button. Clicking it opens a login popup where you authenticate with Asgardeo and grant consent. The resulting token is saved in your browser and reused for subsequent messages until it expires.
+When a tool call is needed, the chat panel shows an **Authorize** button. Clicking it opens a login popup where you authenticate with Asgardeo and grant consent. The resulting token is saved in your browser and reused for subsequent messages until it expires.
 
 ---
 

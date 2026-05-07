@@ -1,6 +1,6 @@
-# Workflow Editor
+# AgentFlow Editor
 
-The Workflow Editor is the main canvas where you design workflows by placing and connecting nodes.
+The AgentFlow Editor is the main canvas where you design AgentFlows by placing and connecting nodes.
 
 ---
 
@@ -32,7 +32,7 @@ Node configuration opens in a **modal dialog** when you double-click a node.
 
 ## Creating Connections
 
-1. Hover over a node until small circles (handles) appear on its edges.
+1. Hover over a node until small plus sign appear on its edges.
 2. Click and drag from a **source** handle to a **target** handle on another node.
 3. Release to create the connection. An animated edge will appear.
 
@@ -60,19 +60,19 @@ The chat panel overlays the left side of the canvas. To get more canvas space:
 
 ---
 
-## Managing Workflows
+## Managing AgentFlows
 
-Workflow state is auto-saved to browser localStorage as you work. Use the **⋮** dropdown next to the workflow name for the following actions.
+AgentFlow state is auto-saved to browser localStorage as you work. Use the **⋮** dropdown next to the AgentFlow name for the following actions.
 
 ### Download and Import
 
-- **Download** — exports the current workflow as a `.json` file.
-- **Import** — loads a workflow from a `.json` file, replacing the current canvas.
+- **Download** — exports the current AgentFlow as a `.json` file.
+- **Import** — loads an AgentFlow from a `.json` file, replacing the current canvas.
 
 ### Start Fresh
 
-**Start Fresh** resets the canvas to a new default workflow and clears all associated data (workflow state, conversation memory, MCP tool cache, and OBO tokens). Your saved LLM and agent credentials are preserved.
+**Start Fresh** resets the canvas to a new default AgentFlow and clears all associated data, But your saved LLM and agent credentials are preserved.
 
-### Naming a Workflow
+### Naming an AgentFlow
 
-Edit the workflow name directly in the name field in the toolbar. Changes are auto-saved.
+Edit the AgentFlow name directly in the name field in the toolbar. Changes are auto-saved.
