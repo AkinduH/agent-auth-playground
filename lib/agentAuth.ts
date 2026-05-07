@@ -54,7 +54,7 @@ function insecureFetch(url: string, init?: RequestInit): Promise<Response> {
   });
 }
 
-function localAwareFetch(url: string, init?: RequestInit): Promise<Response> {
+export function localAwareFetch(url: string, init?: RequestInit): Promise<Response> {
   return isLocalHost(url) ? insecureFetch(url, init) : fetch(url, init);
 }
 

@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { randomBytes, createHash } from 'crypto';
-import { AuthFlowError } from './agentAuth';
+import { AuthFlowError, localAwareFetch } from './agentAuth';
 import { parseOAuthErrorBody } from './authTrace';
 
 interface OBOAuthUrlConfig {
@@ -72,7 +72,7 @@ export async function exchangeOBOCode(
   });
 
   const url = `${baseUrl}/oauth2/token`;
-  const res = await fetch(url, {
+  const res = await localAwareFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,

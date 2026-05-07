@@ -80,7 +80,7 @@ export class MCPClientNodeRuntime {
 
     for (const createTransport of transportFactories) {
       const client = new Client({
-        name: 'auth-playground-mcp-client',
+        name: 'agent-auth-playground-mcp-client',
         version: '1.0.0',
       });
       const transport = createTransport();
