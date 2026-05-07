@@ -17,8 +17,6 @@
 
 <br>
 
-![Canvas](public/canvas.png)
-
 ---
 
 ## Quick Start (npx)
@@ -40,7 +38,7 @@ For advanced setup options, see the [Running Agent Auth Playground Guide](docume
 When you launch the app, a sample AgentFlow is automatically loaded to showcase the platform’s core capabilities.
 1. Configure the LLM node by selecting a provider (OpenAI, Gemini, or Anthropic) and adding your API key.
 2. Add and configure an MCP client node (without OAuth2).
-3. Run the flow and experiment with tool calls within the agentic loop.
+3. Run the flow and experiment with tool calls within the agentic loop(Without Security Standards).
 
 ![Simple AgentFlow](public/simple-agentflow.png)
 
