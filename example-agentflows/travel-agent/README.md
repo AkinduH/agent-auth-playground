@@ -1,4 +1,4 @@
-# Travel Agent — Setup Guide
+# Travel Agent - Setup Guide
 
 A full-featured travel assistant AgentFlow that demonstrates authenticated and unauthenticated MCP tool usage. The agent can search flights, search hotels, convert currencies, create bookings, and reserve airport lounges - with Booking Manager and Airport Lounge Manager are protected by Asgardeo / WSO2 Identity Server OAuth2.
 
@@ -8,7 +8,7 @@ A full-featured travel assistant AgentFlow that demonstrates authenticated and u
 
 ---
 
-## Step 1 — Load the Workflow
+## Step 1 - Load the Workflow
 
 1. Open **agent-auth-playground** (`npx agent-auth-playground`, then navigate to `http://localhost:4829`).
 2. Click **Import** in the top toolbar and select [travel-agent.json](travel-agent.json).
@@ -16,7 +16,7 @@ A full-featured travel assistant AgentFlow that demonstrates authenticated and u
 
 ---
 
-## Step 2 — Configure the AI Service Node
+## Step 2 - Configure the AI Service Node
 
 Double-click the **AI Service** node and select your preferred LLM provider, model, and credentials.
 
@@ -24,19 +24,19 @@ For full configuration details, see [this guide](../../documentation/nodes/llm.m
 
 ---
 
-## Step 3 — Set Up an Identity Provider
+## Step 3 - Set Up an Identity Provider
 
 The two protected MCP servers (Booking Manager, Airport Lounge) require OAuth2 tokens issued by an identity provider. Pick one:
 
-**Option A — Asgardeo (cloud)**
+**Option A - Asgardeo (cloud)**
 Sign up for a free account at [asgardeo.io](https://asgardeo.io/). Your organization base URL will be `https://api.asgardeo.io/t/<your-org>`.
 
-**Option B — WSO2 Identity Server (self-hosted)**
+**Option B - WSO2 Identity Server (self-hosted)**
 Download and install WSO2 IS from the [official downloads page](https://wso2.com/products/downloads/?product=wso2is). Your base URL will typically be `https://localhost:9443`.
 
 ---
 
-## Step 4 — Configure the AI Agent Node
+## Step 4 - Configure the AI Agent Node
 
 The AI Agent node needs credentials so it can authenticate with Asgardeo / WSO2 IS on behalf of itself (Agent Flow) and on behalf of you (OBO Flow).
 
