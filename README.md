@@ -71,18 +71,6 @@ Once configured, use the Chat panel to trigger the flow. After each execution, c
 
 ---
 
-## Features
-
-- **Visual AgentFlow Editor** - drag-and-drop canvas powered by React Flow; connect nodes with typed handles that enforce valid topologies
-- **Four Node Types** - ChatTrigger, LLM (OpenAI / Gemini / Anthropic), AIAgent (agentic loop with tool-calling), MCPClient (MCP server bridge)
-- **Agentic Loop** - the AIAgent node iteratively calls an LLM and dispatches MCP tools up to a configurable step limit, then synthesizes a final answer
-- **OAuth2 / PKCE Authentication** - Agent credentials (from Asgardeo) and OBO (On-Behalf-Of) token exchange in action
-- **Auth Flow Inspector** - every run produces a structured trace; a sequence-diagram view shows every auth step and tool call
-- **Streaming Execution** - The canvas lights up node-by-node as the AgentFlow runs
-- **localStorage Persistence** - AgentFlows, memory, API keys, and MCP tool caches all survive page refreshes with no server-side state
-
----
-
 ## Resources
 
 ### Documentation
