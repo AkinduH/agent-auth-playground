@@ -57,3 +57,141 @@ The AI Agent node needs credentials so it can authenticate with Asgardeo / WSO2 
 For full configuration details, see [this guide](../../documentation/nodes/ai-agent.md).
 
 ---
+
+## Step 5 — Register MCP Client Applications and MCP Servers in the IdP
+
+The two protected MCP servers (Booking Manager, Airport Lounge) require their own OAuth2 client registrations in the IdP. Each server will validate incoming tokens against its registered client ID.
+
+Go to console of your IdP (Asgardeo or WSO2 IS).
+
+### MCP Client Application Registration
+1. Register two new MCP Client applications, one for the Booking Manager mcp server and one for the Airport Lounge mcp server. Set the  Redirect URL to `http://localhost:4829` for both. (Refer this [guide](https://wso2.com/asgardeo/docs/guides/agentic-ai/mcp/register-mcp-client-app/))
+2. Note down the client IDs for both applications - you will need them later.
+
+### MCP Server Registration
+1. Register two new MCP Server resources, one for the Booking Manager mcp server and one for the Airport Lounge mcp server.
+2. Follow this [guide](https://wso2.com/asgardeo/docs/guides/agentic-ai/mcp/mcp-server-authorization/) and use below details in the registation:
+   Use identifiers as below::
+      - Booking Manager mcp Server: `http://localhost:3004/mcp`
+      - Airport Lounge mcp Server: `http://localhost:3005/mcp`
+   Use Scope as below::
+      - Booking Manager mcp Server: `create_booking get_booking cancel_booking `
+      - Airport Lounge mcp Server: `search_lounges get_lounge_details reserve_lounge`
+3. Authorize the MCP Client applications to access the MCP servers.
+
+### Create Roles and Assign to Agent and User
+
+1. Create two new roles in your IdP, e.g. `booking_manager_role` and `airport_lounge_role`. 
+2. While creation assign corresponding MCP Client application, Resource and Scope to each role.
+3. After creation,
+   - For the booking_manager_role, only assign the your user account. (If you haven't created a user, create refering this [guide](https://wso2.com/asgardeo/docs/guides/users/onboard-users/#onboard-single-user))
+   - For the airport_lounge_role, assign the agent we created in Step 4 and your user account.
+
+For detailed instructions on creating roles refer to this [guide](https://wso2.com/asgardeo/docs/guides/users/manage-roles/#create-a-role).
+
+## Step 6 - Start the MCP Servers
+
+### Install dependencies
+
+from this directory, run:
+
+```bash
+cd travel-mcp-servers
+npm install
+```
+
+### Configure environment variables
+
+Copy `.env.example` to `.env` and fill in the values for your identity provider:
+
+```bash
+cp .env.example .env
+```
+
+```env
+# Base URL of your Asgardeo organization or WSO2 IS instance
+BASE_URL=https://api.asgardeo.io/t/<your-org> or https://localhost:9443
+
+# Client IDs of the MCP client applications registered in your IdP
+AUDIENCE_BOOKING_MANAGER_SERVER=<client-id-for-booking-manager>
+AUDIENCE_AIRPORT_LOUNGE_SERVER=<client-id-for-airport-lounge>
+```
+
+The three no-auth servers (Flight Search, Hotel Search, Currency Converter) do not need any environment variables.
+
+### Start all servers
+
+```bash
+npm start
+```
+
+This starts all five servers in a single terminal with color-coded output:
+
+| Server | Port | Auth |
+|--------|------|------|
+| Flight Search | 3001 | None |
+| Hotel Search | 3002 | None |
+| Currency Converter | 3003 | None |
+| Booking Manager | 3004 | OBO (Asgardeo) |
+| Airport Lounge | 3005 | OBO (Asgardeo) |
+
+---
+
+## Step 7 — Configure the MCP Client Nodes
+
+Each MCP Client node is pre-configured with its endpoint URL. The two protected nodes need their OAuth2 fields filled in.
+
+### No-auth nodes
+
+| Node | Endpoint |
+|------|----------|
+| flight-search-mcp | `http://localhost:3001/mcp` |
+| hotel-search-mcp | `http://localhost:3002/mcp` |
+| currency-converter-mcp | `http://localhost:3003/mcp` |
+
+Just click on the Initialize & Connect button for these three mcp client nodes to be connected to the mcp server and do the tool discovery.
+
+### Auth-protected nodes
+
+Double-click the **booking-manager-mcp** node and the **airport-lounge-mcp** node and fill in:
+
+| Field | Value |
+|-------|-------|
+| **Use MCP OAuth2** | On |
+| **Base URL** | Same base URL as your AI Agent credentials |
+| **Client ID** | The matching client ID for each mcp client node |
+| **Scope** | scopes we created earlier |
+
+The Auth Flow for Booking Manager mcp Server is set to **On Behalf Of (OBO)**, becasue the required scopes can be only taken by the user. The Auth Flow for Airport Lounge mcp Server is set to **Agent Flow** because the agent itself has the required scopes.
+
+The **Redirect URI** is set automatically to `http://localhost:4829`
+
+---
+
+## Testing the Agent
+
+Open the chat panel and try one of the queries below. Queries marked *(auth)* will prompt an **Authorize** button - click it to open a login popup and grant consent before the tool call proceeds.
+
+### Single-tool queries
+
+- "What are the current exchange rates for US dollars?"
+- "Find me economy flights from JFK to London for 2 passengers."
+- "Show me the details of my existing booking BK-10021." *(auth)*
+
+### Multi-tool queries
+
+- "Find hotels in Dubai and give me the full room types and cancellation policy of the highest-rated one."
+- "I have 800 euros — how much is that in Japanese yen? Also show me all USD exchange rates for reference."
+- "I'm flying from JFK to London. Find me an economy flight, get its full details, search for 5-star hotels in London, and book the flight and hotel together." *(auth)*
+
+### Full trip planning
+
+- "Plan my full London trip: find economy flights from JFK for 1 passenger, get the full details of the cheapest flight, search for hotels in London, get the full details of the top-rated hotel, book the flight and hotel together, then retrieve the booking to confirm everything is correct." *(auth)*
+
+---
+
+## View the Auth Flow
+
+To see the auth flow, open the **View Auth Flow** button after running an auth-protected query. You can see the sequence of steps taken to fetch the tokens, including the interactions with the identity provider and the token contents.
+
+![Travel Agent Flow](../../public/auth-flow.png)
