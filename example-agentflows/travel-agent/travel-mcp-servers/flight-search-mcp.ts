@@ -73,8 +73,6 @@ server.registerTool(
         inputSchema: {
             origin: z.string().describe('IATA airport code for departure (e.g. JFK)'),
             destination: z.string().describe('IATA airport code for arrival (e.g. LHR)'),
-            departure_date: z.string().describe('Departure date in YYYY-MM-DD format'),
-            return_date: z.string().optional().describe('Return date for round-trip in YYYY-MM-DD format'),
             passengers: z.number().int().min(1).max(9).describe('Number of passengers'),
             cabin_class: z.enum(['economy', 'premium_economy', 'business', 'first']).describe('Cabin class')
         },

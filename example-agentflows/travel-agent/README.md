@@ -187,12 +187,7 @@ Open the chat panel and try one of the queries below. Queries marked *(auth)* wi
 ### Multi-tool queries
 
 - "Find hotels in Dubai and give me the full room types and cancellation policy of the highest-rated one."
-- "I have 800 euros — how much is that in Japanese yen? Also show me all USD exchange rates for reference."
-- "I'm flying from JFK to London. Find me an economy flight, get its full details, search for 5-star hotels in London, and book the flight and hotel together." *(auth)*
-
-### Full trip planning
-
-- "Plan my full London trip: find economy flights from JFK for 1 passenger, get the full details of the cheapest flight, search for hotels in London, get the full details of the top-rated hotel, book the flight and hotel together, then retrieve the booking to confirm everything is correct." *(auth)*
+- "I'm flying from JFK to London. Find me an economy flight, get its full details, search for 5-star hotels in London, and book the flight and one hotel room together." *(auth)*
 
 ---
 

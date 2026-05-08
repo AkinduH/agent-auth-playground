@@ -69,9 +69,6 @@ server.registerTool(
         description: 'Search for available hotels in a given location for specific dates',
         inputSchema: {
             location: z.string().describe('City or area name (e.g. London, Dubai)'),
-            check_in: z.string().describe('Check-in date in YYYY-MM-DD format'),
-            check_out: z.string().describe('Check-out date in YYYY-MM-DD format'),
-            guests: z.number().int().min(1).max(10).describe('Number of guests'),
             rooms: z.number().int().min(1).max(5).describe('Number of rooms required')
         },
         outputSchema: {
