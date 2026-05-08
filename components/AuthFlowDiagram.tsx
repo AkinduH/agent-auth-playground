@@ -18,16 +18,20 @@ export function AuthFlowDiagram({ trace }: Props) {
   const items = useMemo(() => buildItems(trace), [trace]);
 
   const layout = useMemo(() => {
-    const messageRowH = 78;
     const sectionRowH = 40;
     const startY = 110;
     let y = startY;
     let msgCount = 0;
     const rows = items.map((it) => {
-      const row = it.kind === 'section'
-        ? { y, height: sectionRowH, messageNumber: 0 }
-        : { y, height: messageRowH, messageNumber: ++msgCount };
-      y += row.height;
+      if (it.kind === 'section') {
+        const row = { y, height: sectionRowH, messageNumber: 0 };
+        y += sectionRowH;
+        return row;
+      }
+      const hasExtra = !!(it.sublabel || it.token);
+      const height = hasExtra ? 78 : 50;
+      const row = { y, height, messageNumber: ++msgCount };
+      y += height;
       return row;
     });
     return { rows, totalH: y + 30, totalMessages: msgCount };
