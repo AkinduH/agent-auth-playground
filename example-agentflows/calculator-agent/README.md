@@ -119,7 +119,7 @@ npm start
 
 | Server | Port | Auth |
 |--------|------|------|
-| Calculator MCP | 3010 | OBO (Asgardeo / WSO2 IS) |
+| Calculator MCP | 3010 | (Asgardeo / WSO2 IS) |
 
 ---
 
@@ -139,7 +139,7 @@ Double-click the **calculator-mcp** node.
 
 3. Click **Save**, then select the newly saved configuration from the dropdown.
 
-The **Auth Flow** is set to **On Behalf Of (OBO)** — the calculator scopes are granted by the user at consent time.
+The **Auth Flow** is set to **Agent Flow** — the calculator scopes are granted by the agent.
 
 The **Redirect URI** is derived automatically from the app's origin (`http://localhost:4829`).
 
@@ -159,4 +159,4 @@ Open the chat panel and try queries like the ones below. These will prompt an **
 
 ## View the Auth Flow
 
-After running a query, click **View Auth Flow** to see the full sequence of steps taken to fetch the OBO token — including the interactions with the identity provider and the token contents.
+After running a query, click **View Auth Flow** to see the full sequence of steps taken to fetch the agent token - including the interactions with the identity provider and the token contents.

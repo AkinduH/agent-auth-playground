@@ -88,9 +88,8 @@ Once configured, use the Chat panel to trigger the flow. After each execution, c
 
 ### Example Agent Flows
 
-- [Travel Agent](example-agentflows/travel-agent) - An travel agent that uses MCP tools to plan travel.
-
----
+- [Calculator Agent](example-agentflows/calculator-agent) - A calculator agent that uses an MCP tool server protected by Asgardeo / WSO2 IS.
+- [Travel Agent](example-agentflows/travel-agent) - An travel agent that uses 5 different mcp servers for travel planning, 2 protected by Asgardeo / WSO2 IS.
 
 ## Contributing
 
