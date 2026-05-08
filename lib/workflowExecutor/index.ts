@@ -6,6 +6,7 @@ import {
   ExecutionContext,
   ExecutionResult,
   AIAgentNodeData,
+  AgentCredential,
   ChatMessage,
   LLMNodeData,
   LLMCredential,
@@ -30,6 +31,7 @@ export class WorkflowExecutor {
   private workflow: Workflow;
   private context: ExecutionContext;
   private llmCredentials: LLMCredential[];
+  private agentCredentials: AgentCredential[];
   private baseUrl: string;
   private oboTokens: Record<string, string>;
   private mcpDiscoveredTools: CachedMCPToolsMap;
@@ -41,6 +43,7 @@ export class WorkflowExecutor {
     initialInput: string,
     workflowId: string,
     llmCredentials: LLMCredential[] = [],
+    agentCredentials: AgentCredential[] = [],
     baseUrl?: string,
     memoryMessages: ChatMessage[] = [],
     oboTokens: Record<string, string> = {},
@@ -49,6 +52,7 @@ export class WorkflowExecutor {
   ) {
     this.workflow = workflow;
     this.llmCredentials = llmCredentials;
+    this.agentCredentials = agentCredentials;
     this.baseUrl = baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:4829';
     this.oboTokens = oboTokens;
     this.mcpDiscoveredTools = mcpDiscoveredTools;
@@ -182,7 +186,13 @@ export class WorkflowExecutor {
       throw new Error(`[AIAgent:${node.id}] Must connect to an AI Service node`);
     }
 
-    const agentData = node.data as AIAgentNodeData;
+    const rawAgentData = node.data as AIAgentNodeData;
+    const resolvedCred = rawAgentData.agentCredentialId
+      ? this.agentCredentials.find((c) => c.id === rawAgentData.agentCredentialId)
+      : undefined;
+    const agentData = resolvedCred
+      ? { ...rawAgentData, agentId: resolvedCred.agentId, agentSecret: resolvedCred.agentSecret }
+      : rawAgentData;
     const mcpNodes = this.collectMCPNodes(node.id);
     const mcpConfigs: MCPClientConfig[] = mcpNodes.map((mcpNode) => {
       const nodeData = mcpNode.data as MCPClientNodeData;

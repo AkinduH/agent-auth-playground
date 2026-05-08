@@ -4,11 +4,7 @@ A calculator assistant AgentFlow that demonstrates authenticated MCP tool usage.
 
 ## Workflow Overview
 
-```
-Chat Trigger → AI Agent → calculator-mcp (OBO protected, port 3010)
-                    ↑
-               AI Service
-```
+![Calculator Agent Flow](../../public/calculator-agent-flow.png)
 
 ---
 

@@ -54,6 +54,28 @@ function resolveMemoryBinding(workflow: Workflow): MemoryBinding | null {
   return { nodeId: agentNode.id, maxMessages };
 }
 
+function findAgentFlowsWithMissingCredentials(workflow: Workflow): string[] {
+  const credentials = workflowStore.getAgentCredentials();
+  return workflow.nodes
+    .filter((n) => {
+      if (n.type !== 'mcpClient') return false;
+      const data = n.data as MCPClientNodeData;
+      return data.useOAuth2 && (data.oauth2Flow ?? 'agent') === 'agent';
+    })
+    .filter((mcpNode) => {
+      const edge = workflow.edges.find((e) => e.target === mcpNode.id);
+      if (!edge) return false;
+      const agentNode = workflow.nodes.find((n) => n.id === edge.source && n.type === 'aiAgent');
+      if (!agentNode) return false;
+      const agentData = agentNode.data as AIAgentNodeData;
+      if (agentData.agentCredentialId) {
+        return !credentials.some((c) => c.id === agentData.agentCredentialId);
+      }
+      return !(agentData as Record<string, unknown>)['agentId'];
+    })
+    .map((n) => (n.data as MCPClientNodeData).name?.trim() || n.id);
+}
+
 function findUninitializedMCPNodes(workflow: Workflow, workflowId: string): string[] {
   return workflow.nodes
     .filter((n) => n.type === 'mcpClient')
@@ -297,6 +319,7 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
             input: userMessage,
             workflowId,
             llmCredentials: workflowStore.getLLMCredentials(),
+            agentCredentials: workflowStore.getAgentCredentials(),
             memoryMessages,
             oboTokens,
             mcpDiscoveredTools: collectCachedMCPTools(workflowDefinition, workflowId),
@@ -624,6 +647,16 @@ export function useChat(workflowId: string, options: UseChatOptions = {}) {
         const errorMsg = `Initialize MCP Client${
           uninitializedMCPs.length > 1 ? 's' : ''
         } before chatting: ${uninitializedMCPs.join(', ')}. Open each MCP node and click "Initialize & Connect".`;
+        setError(errorMsg);
+        options.onError?.(errorMsg);
+        return;
+      }
+
+      const agentFlowsMissingCreds = findAgentFlowsWithMissingCredentials(workflowDefinition);
+      if (agentFlowsMissingCreds.length > 0) {
+        const errorMsg = `Agent credentials required for MCP Client${
+          agentFlowsMissingCreds.length > 1 ? 's' : ''
+        }: ${agentFlowsMissingCreds.join(', ')}. Open the connected AI Agent node and select or add credentials under "Agent Credentials".`;
         setError(errorMsg);
         options.onError?.(errorMsg);
         return;
