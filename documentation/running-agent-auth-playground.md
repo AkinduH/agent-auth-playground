@@ -1,9 +1,9 @@
 ## Running with npx
 
-The fastest way to try auth-playground - no clone, no install, no config:
+The fastest way to try Agent Auth Playground - no clone, no install, no config:
 
 ```bash
-npx auth-playground
+npx agent-auth-playground
 ```
 
 That's it. The local server starts on `http://localhost:4829` and your browser opens automatically.

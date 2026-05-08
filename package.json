@@ -1,7 +1,7 @@
 {
   "name": "agent-auth-playground",
-  "version": "0.1.13",
-  "description": "A visual, browser-based AI workflow builder for designing and testing authentication-aware agentic pipelines.",
+  "version": "0.2.0",
+  "description": "A visual, browser-based AgentFlow builder for designing and testing authentication-aware agentic pipelines.",
   "repository": {
     "type": "git",
     "url": "https://github.com/AkinduH/agent-auth-playground"

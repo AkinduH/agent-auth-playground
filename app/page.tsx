@@ -241,6 +241,10 @@ export default function Home() {
           <Button onClick={() => handleAddNode('aiAgent')} variant="outline" size="sm" className="text-xs" disabled={hasAIAgent} title={hasAIAgent ? 'Only one AI Agent allowed' : undefined}>+ AI Agent</Button>
           <Button onClick={() => handleAddNode('llm')} variant="outline" size="sm" className="text-xs" disabled={hasLLM} title={hasLLM ? 'Only one AI Service allowed' : undefined}>+ AI Service</Button>
           <Button onClick={() => handleAddNode('mcpClient')} variant="outline" size="sm" className="text-xs">+ MCP Client</Button>
+          <div className="relative inline-flex">
+            <Button variant="outline" size="sm" className="text-xs opacity-50 cursor-not-allowed" disabled>+ AI Gateway</Button>
+            <span className="absolute -bottom-1 -right-1 text-[9px] font-semibold bg-gray-100 text-gray-500 border border-gray-300 rounded px-1 leading-tight pointer-events-none">Coming Soon</span>
+          </div>
           {selectedNodeId && (
             <>
               <div className="w-px h-6 bg-gray-300 mx-1 self-center" />
