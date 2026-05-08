@@ -717,7 +717,7 @@ function ToolCallList({ trace }: { trace: WorkflowTrace }) {
                   {t.errorDescription && <span className="text-red-700">{t.errorDescription}</span>}
                 </div>
               )}
-              <div className={`font-mono text-[10px] mt-1 ${t.ok ? 'text-emerald-700' : 'text-red-600'}`}>
+              <div className={`font-mono text-[10px] mt-1 break-all max-h-24 overflow-y-auto ${t.ok ? 'text-emerald-700' : 'text-red-600'}`}>
                 {t.ok ? 'result' : 'error'}: {t.result}
               </div>
             </div>
