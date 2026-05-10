@@ -1,6 +1,6 @@
 {
   "name": "agent-auth-playground",
-  "version": "0.2.2",
+  "version": "0.2.4",
   "description": "A visual, browser-based AgentFlow builder for designing and testing authentication-aware agentic pipelines.",
   "repository": {
     "type": "git",
